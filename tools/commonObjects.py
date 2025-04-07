@@ -11,7 +11,7 @@ pwd__ = "%s/Plots"%cwd__
 twd__ = "%s/Trees2WS"%cwd__
 
 # Centre of mass energy string
-sqrts__ = "13TeV"
+sqrts__ = "13p6TeV"
 
 # Luminosity map in fb^-1: for using UL 2018
 lumiMap = {
@@ -20,8 +20,12 @@ lumiMap = {
     '2018':59.83, 
     'combined':137.65, 
     'merged':137.65,
+    '2022':34.74,
     '2022preEE':8.00,
-    '2022postEE':26.70
+    '2022postEE':26.70,
+    '2023': 27.24,
+    '2023preBPix':17.79,
+    '2023postBPix':9.45
 }
 # If using ReReco samples then switch to lumiMap below (missing data in 2018 EGamma data set)
 #lumiMap = {'2016':36.33, '2017':41.48, '2018':59.35, 'combined':137.17, 'merged':137.17}
@@ -39,7 +43,7 @@ productionModes = ['ggH','qqH','ttH','tHq','tHW','ggZH','WH','ZH','bbH']
 decayMode = 'hgg'
 
 # List of years
-years_to_process = ['2016','2017','2018','2022preEE','2022postEE']
+years_to_process = ['2016','2017','2018','2022','2022preEE','2022postEE','2023','2023preBPix','2023postBPix']
 
 # flashgg input WS objects
 inputWSName__ = "tagsDumper/cms_hgg_13TeV"

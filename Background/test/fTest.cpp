@@ -367,7 +367,7 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   TPad *pad2 = new TPad("pad2","pad2",0,0,1,0.35);
   pad1->SetBottomMargin(0.18);
   pad2->SetTopMargin(0.00001);
-  pad2->SetBottomMargin(0.25);
+  pad2->SetBottomMargin(0.3);
   pad1->Draw();
   pad2->Draw();
   pad1->cd();
@@ -401,7 +401,7 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   if (BLIND) plot->SetMinimum(0.0001);
   plot->Draw();
   leg->Draw("same");
-  CMS_lumi( canv, 0, 0);
+  CMS_lumi( canv, 2022, 0);  // second argument is iperiod
   ///start extra bit for ratio plot///
   TH1D *hbplottmp = (TH1D*) pdf->createHistogram("hbplottmp",*mass,Binning(mgg_high-mgg_low,mgg_low,mgg_high));
   hbplottmp->Scale(plotdata->Integral());
@@ -495,7 +495,7 @@ void plot(RooRealVar *mass, map<string,RooAbsPdf*> pdfs, RooDataSet *data, strin
   if (BLIND) plot->SetMinimum(0.0001);
   plot->Draw();
   leg->Draw("same");
-  CMS_lumi( canv, 0, 0);
+  CMS_lumi( canv, 2022, 0);
   canv->SaveAs(Form("%s.pdf",name.c_str()));
   canv->SaveAs(Form("%s.png",name.c_str()));
   delete canv;
@@ -594,11 +594,13 @@ int main(int argc, char* argv[]){
  
   setTDRStyle();
   writeExtraText = true;       // if extra text
-  extraText  = "Preliminary";  // default extra text is "Preliminary"
+  extraText  = "Work in Progress";  // default extra text is "Preliminary"
   lumi_8TeV  = "19.1 fb^{-1}"; // default is "19.7 fb^{-1}"
   lumi_7TeV  = "4.9 fb^{-1}";  // default is "5.1 fb^{-1}"
-  lumi_sqrtS = "13 TeV";       // used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
-  string year_ = "2016";
+  lumi_13p6TeV = "34.74 fb^{-1}";
+  // lumi_sqrtS = "13.6 TeV";       // used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
+  lumi_sqrtS = "";
+  string year_ = "2022";
   //int year_ = 2017;
 
   string fileName;
