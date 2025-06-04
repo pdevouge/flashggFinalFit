@@ -48,7 +48,7 @@ def writeSubFiles(_opts):
   _jobdir = "%s/outdir_%s/%s/jobs"%(twd__,_opts['ext'],_opts['mode'])
   # Remove current job files
   if len(glob.glob("%s/*"%_jobdir)): os.system("rm %s/*"%_jobdir)
-  
+
   # CONDOR
   if _opts['batch'] == "condor":
     _executable = "condor_%s_%s"%(_opts['mode'],_opts['ext'])
@@ -64,13 +64,14 @@ def writeSubFiles(_opts):
         # Extract production mode (and decay extension if required)
         p, d = signalFromFileName(tf)
         m = massFromFileName(tf)
-        _cmd = "python3 %s/trees2ws.py --inputConfig %s --inputTreeFile %s --inputMass %s --productionMode %s --year %s"%(twd__,_opts['inputConfig'],tf,m,p,_opts['year'])
+        w = widthFromFileName(tf)
+        _cmd = "python3 %s/trees2ws.py --inputConfig %s --inputTreeFile %s --inputMass %s --inputWidth %s --productionMode %s --year %s"%(twd__,_opts['inputConfig'],tf,m,w,p,_opts['year'])
         if d is not None: _cmd += " --decayExt %s"%d
         if _opts['modeOpts'] != '': _cmd += " %s"%_opts['modeOpts']
         _f.write("if [ $1 -eq %g ]; then\n"%tfidx)
         _f.write(" %s\n"%_cmd)
         _f.write("fi\n")
-         
+
     elif( _opts['mode'] == "trees2ws_data" ):
       # Extract list of files
       tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
@@ -90,7 +91,7 @@ def writeSubFiles(_opts):
         _f.write("if [ $1 -eq %g ]; then\n"%tfidx)
         # Add command per target mass
         for tm in _opts['targetMasses'].split(","):
-          _f.write("python3 %s/mass_shifter.py --inputWSFile %s --inputMass %s --targetMass %s %s\n"%(twd__,f,_opts['inputMass'],tm,_opts['modeOpts']))
+          _f.write("python3 %s/mass_shifter.py --inputWSFile %s --inputMass %s --inputWidth --targetMass %s %s\n"%(twd__,f,_opts['inputMass'],_opts['inputWidth'],tm,_opts['modeOpts']))
         _f.write("fi\n")
 
     # Close .sh file
@@ -102,7 +103,7 @@ def writeSubFiles(_opts):
     if( _opts['mode'] == "trees2ws" )|( _opts['mode'] == "trees2ws_data" ): writeCondorSub(_fsub,_executable,_opts['queue'],len(tfiles),_opts['jobOpts'])
     elif( _opts['mode'] == "mass_shift" ): writeCondorSub(_fsub,_executable,_opts['queue'],len(wsfiles),_opts['jobOpts'])
     _fsub.close()
-    
+
   # SGE...
   if (_opts['batch'] == "IC")|(_opts['batch'] == "SGE")|(_opts['batch'] == "local" ):
     _executable = "sub_%s_%s"%(_opts['mode'],_opts['ext'])
@@ -117,14 +118,15 @@ def writeSubFiles(_opts):
         writePreamble(_f)
         # Extract production mode (and decay extension if required)
         m = massFromFileName(tf)
+        w = widthFromFileName(tf)
         p, d = signalFromFileName(tf)
-        _cmd = "python3 %s/trees2ws.py --inputConfig %s --inputTreeFile %s --inputMass %s --productionMode %s --year %s"%(twd__,_opts['inputConfig'],tf,m,p,_opts['year'])
+        _cmd = "python3 %s/trees2ws.py --inputConfig %s --inputTreeFile %s --inputMass %s --inputWidth %s --productionMode %s --year %s"%(twd__,_opts['inputConfig'],tf,m,w,p,_opts['year'])
         if d is not None: _cmd += " --decayExt %s"%d
-        if _opts['modeOpts'] != '': _cmd += " %s"%_opts['modeOpts'] 
+        if _opts['modeOpts'] != '': _cmd += " %s"%_opts['modeOpts']
         _f.write("%s\n"%_cmd)
         _f.close()
         os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,tfidx))
-        
+
     elif( _opts['mode'] == "trees2ws_data" ):
       # Extract list of files
       tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
@@ -137,7 +139,7 @@ def writeSubFiles(_opts):
         _f.write("%s\n"%_cmd)
         _f.close()
         os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,tfidx))
-        
+
     elif( _opts['mode'] == "mass_shift" ):
       # Extract list of ws files
       wsfiles = glob.glob("%s/*.root"%_opts['inputDir'])
@@ -147,10 +149,10 @@ def writeSubFiles(_opts):
         writePreamble(_f)
         # Add a command per target mass
         for tm in _opts['targetMasses'].split(","):
-          _f.write("python3 %s/mass_shifter.py --inputWSFile %s --inputMass %s --targetMass %s %s\n"%(twd__,f,_opts['inputMass'],tm,_opts['modeOpts']))
+          _f.write("python3 %s/mass_shifter.py --inputWSFile %s --inputMass %s --inputWidth %s --targetMass %s %s\n"%(twd__,f,_opts['inputMass'],_opts['inputWidth'],tm,_opts['modeOpts']))
         _f.close()
         os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,fidx))
- 
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for submitting files to batch system
 def submitFiles(_opts):
@@ -187,7 +189,7 @@ def submitFiles(_opts):
         run(cmdLine)
 
     print("  --> Finished submitting files")
-  
+
   # Running locally
   elif _opts['batch'] == 'local':
     _executable = "sub_%s_%s"%(_opts['mode'],_opts['ext'])

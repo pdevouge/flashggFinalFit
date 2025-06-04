@@ -75,7 +75,7 @@ def calcChi2(x,pdf,d,errorType="Poisson",_verbose=False,fitRange=[110,140]):
 
   k = 0. # number of non empty bins (for calc degrees of freedom)
   normFactor = d.sumEntries()
-  
+
   # Using numpy and poisson error
   bins, nPdf, nData, eDataSumW2 = [], [],[],[]
   for i in range(d.numEntries()):
@@ -104,8 +104,8 @@ def calcChi2(x,pdf,d,errorType="Poisson",_verbose=False,fitRange=[110,140]):
     # Change error to poisson intervals: take max interval as error
     eLo,eHi = poisson_interval(nData,eDataSumW2,level=0.68)
     #eDataPoisson = 0.5*(eHi+eLo)
-    eDataPoisson = np.maximum(eHi,eLo) 
-    #eDataPoisson = (nPdf>nData)*eHi + (nPdf<=nData)*eLo 
+    eDataPoisson = np.maximum(eHi,eLo)
+    #eDataPoisson = (nPdf>nData)*eHi + (nPdf<=nData)*eLo
     e = eDataPoisson
     # Calculate chi2 terms
     terms = (nPdf-nData)**2/(eDataPoisson**2)
@@ -119,7 +119,7 @@ def calcChi2(x,pdf,d,errorType="Poisson",_verbose=False,fitRange=[110,140]):
     # Use SumW2 terms to calculate chi2
     e = eDataSumW2
     terms = (nPdf-nData)**2/(eDataSumW2**2)
-   
+
   # If verbose: print to screen
   if _verbose:
     for i in range(len(terms)):
@@ -149,7 +149,7 @@ def nChi2Addition(X,ssf,verbose=False):
   ssf.setNdof(ndof)
   return chi2sum
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class SimultaneousFit:
   # Constructor
   def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
@@ -171,7 +171,7 @@ class SimultaneousFit:
     self.MH.setConstant(False)
     self.MH.setVal(125)
     self.MH.setBins(10)
-    self.dMH = ROOT.RooFormulaVar("dMH","dMH","@0-125.0",ROOT.RooArgList(self.MH)) 
+    self.dMH = ROOT.RooFormulaVar("dMH","dMH","@0-125.0",ROOT.RooArgList(self.MH))
     self.xvar.setVal(125)
     self.xvar.setBins(self.nBins)
     # Dicts to store all fit vars, polynomials, pdfs and splines
@@ -191,29 +191,30 @@ class SimultaneousFit:
     self.Chi2 = None
     self.FitResult = None
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function for setting N degrees of freedom
-  def setNdof(self,_ndof): self.Ndof = _ndof  
-  
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  def setNdof(self,_ndof): self.Ndof = _ndof
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to extract param bounds
   def extractXBounds(self):
     XBounds = []
     for i in range(len(self.FitParameters)): XBounds.append((self.FitParameters[i].getMin(),self.FitParameters[i].getMax()))
     return np.asarray(XBounds)
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to extract initial param value vector
   def extractX0(self):
     X0 = []
     for i in range(len(self.FitParameters)): X0.append(self.FitParameters[i].getVal())
     return np.asarray(X0)
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to normalise datasets and convert to RooDataHists for calc chi2
   def prepareDataHists(self):
     # Loop over datasets and normalise to 1
     for k,d in self.datasetForFit.items():
+      print(k,d)
       sumw = d.sumEntries()
       drw = d.emptyClone()
       self.Vars['weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
@@ -223,19 +224,19 @@ class SimultaneousFit:
         drw.add(ROOT.RooArgSet(self.xvar,self.Vars['weight']),self.Vars['weight'].getVal())
       # Convert to RooDataHist
       self.DataHists[k] = ROOT.RooDataHist("%s_hist"%d.GetName(),"%s_hist"%d.GetName(),ROOT.RooArgSet(self.xvar),drw)
-  
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildDCBplusGaussian(self,_recursive=True):
 
     # DCB
     # Define polynominal functions (in dMH)
-    for f in ['dm','sigma','n1','n2','a1','a2']: 
+    for f in ['dm','sigma','n1','n2','a1','a2']:
       k = "%s_dcb"%f
       self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)
       # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
       for po in range(0,self.MHPolyOrder+1):
         self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['DCB']["%s_p%s"%(f,po)][0],pLUT['DCB']["%s_p%s"%(f,po)][1],pLUT['DCB']["%s_p%s"%(f,po)][2])
-        self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] ) 
+        self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] )
       # Define polynominal
       self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
     # Mean function
@@ -247,7 +248,7 @@ class SimultaneousFit:
     # Define polynomial function for sigma (in dMH). Gaussian defined to have same mean as DCB
     f = "sigma"
     k = "%s_gaus"%f
-    self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)    
+    self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)
     # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
     for po in range(0,self.MHPolyOrder+1):
       self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][0],pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][1],pLUT['Gaussian_wdcb']["%s_p%s"%(f,po)][2])
@@ -256,8 +257,8 @@ class SimultaneousFit:
     self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
     # Build Gaussian
     self.Pdfs['gaus'] = ROOT.RooGaussian("gaus","gaus",self.xvar,self.Polynomials['mean_dcb'],self.Polynomials['sigma_gaus'])
-    
-        
+
+
     # Relative fraction: also polynomial of order MHPolyOrder
     self.Varlists['frac'] = ROOT.RooArgList("frac_coeffs")
     for po in range(0,self.MHPolyOrder+1):
@@ -274,8 +275,8 @@ class SimultaneousFit:
     for pdf in ['dcb','gaus']: _pdfs.add(self.Pdfs[pdf])
     _coeffs.add(self.Coeffs['frac_constrained'])
     self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(self.proc,self.cat),"%s_%s"%(self.proc,self.cat),_pdfs,_coeffs,_recursive)
-    
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildNGaussians(self,nGaussians,_recursive=True):
 
     # Set number of gaussians
@@ -284,17 +285,17 @@ class SimultaneousFit:
     # Loop over NGaussians
     for g in range(0,nGaussians):
       # Define polynominal functions for mean and sigma (in MH)
-      for f in ['dm','sigma']: 
+      for f in ['dm','sigma']:
         k = "%s_g%g"%(f,g)
         self.Varlists[k] = ROOT.RooArgList("%s_coeffs"%k)
         # Create coeff for polynominal of order MHPolyOrder: y = a+bx+cx^2+...
         for po in range(0,self.MHPolyOrder+1):
           # p0 value of sigma is function of g (creates gaussians of increasing width)
-          if(f == "sigma")&(po==0): 
+          if(f == "sigma")&(po==0):
             self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),(g+1)*1.0,pLUT['Gaussian']["%s_p%s"%(f,po)][1],pLUT['Gaussian']["%s_p%s"%(f,po)][2])
           else:
             self.Vars['%s_p%g'%(k,po)] = ROOT.RooRealVar("%s_p%g"%(k,po),"%s_p%g"%(k,po),pLUT['Gaussian']["%s_p%s"%(f,po)][0],pLUT['Gaussian']["%s_p%s"%(f,po)][1],pLUT['Gaussian']["%s_p%s"%(f,po)][2])
-          self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] ) 
+          self.Varlists[k].add( self.Vars['%s_p%g'%(k,po)] )
         # Define polynominal
         self.Polynomials[k] = ROOT.RooPolyVar(k,k,self.dMH,self.Varlists[k])
       # Mean function
@@ -317,21 +318,21 @@ class SimultaneousFit:
         self.Polynomials['frac_g%g_constrained'%g] = ROOT.RooFormulaVar('frac_g%g_constrained'%g,'frac_g%g_constrained'%g,"(@0>0)*(@0<1)*@0+ (@0>1.0)*0.9999",ROOT.RooArgList(self.Polynomials['frac_g%g'%g]))
         self.Coeffs['frac_g%g_constrained'%g] = self.Polynomials['frac_g%g_constrained'%g]
     # End of loop over n Gaussians
-    
+
     # Define total PDF
     _pdfs, _coeffs = ROOT.RooArgList(), ROOT.RooArgList()
-    for g in range(0,nGaussians): 
+    for g in range(0,nGaussians):
       _pdfs.add(self.Pdfs['gaus_g%g'%g])
       if g < nGaussians-1: _coeffs.add(self.Coeffs['frac_g%g_constrained'%g])
     self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(self.proc,self.cat),"%s_%s"%(self.proc,self.cat),_pdfs,_coeffs,_recursive)
-    
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def runFit(self):
     # Extract fit variables: remove xvar from fit parameters
     fv = self.Pdfs['final'].getVariables().Clone()
     fv.remove(self.xvar)
     self.FitParameters = ROOT.RooArgList(fv)
-    
+
     # Create initial vector of parameters and calculate initial Chi2
     if self.verbose: print("\n --> (%s) Initialising fit parameters"%self.name)
     x0 = self.extractX0()
@@ -348,7 +349,7 @@ class SimultaneousFit:
     # Print parameter post-fit values
     if self.verbose: self.printFitParameters(title="Post-fit")
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function build RooSpline1D from Polynomials to model MH dependence on fit params
   def buildSplines(self):
     # Loop over polynomials
@@ -364,8 +365,8 @@ class SimultaneousFit:
       arr_x, arr_y = array('f',_x), array('f',_y)
       # Create spline and save to dict
       self.Splines[k] = ROOT.RooSpline1D(poly.GetName(),poly.GetName(),self.MH,len(_x),arr_x,arr_y)
-           
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to print fit values
   def printFitParameters(self,title="Fit"):
     print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -378,25 +379,25 @@ class SimultaneousFit:
     print("    * [VERBOSE] chi2 = %.6f"%(self.getChi2(verbose=True)))
     print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to set vars from json file
   def setVars(self,_json):
     with open(_json,"r") as jf: _vals = json.load(jf)
     for k,v in _vals.items(): self.Vars[k].setVal(v)
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to re-calculate chi2 after setting vars
   def getChi2(self,verbose=False):
     x = self.extractX0()
     self.Chi2 = nChi2Addition(x,self,verbose=verbose)
     return self.Chi2
 
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to re-calculate chi2/ndof after setting vars
   def getReducedChi2(self):
     x = self.extractX0()
     self.Chi2 = nChi2Addition(x,self)
     return self.Chi2/int(self.Ndof)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

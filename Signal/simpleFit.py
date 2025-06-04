@@ -32,9 +32,9 @@ ws = fin.Get("tagsDumper/cms_hgg_13TeV")
 xvar = ws.var("CMS_hgg_mass") # Could also build this manually rather than extracting from workspace (RooRealVar)
 
 pm,d = signalFromFileName(f)
-MHLow = '120'
-MHHigh = '130'
-massPoints = '125'
+MHLow = '400'
+MHHigh = '600'
+massPoints = '500'
 nBins = 160 #nBins for fit
 MHPolyOrder = 0 # dependence of fit params on MH, set to 0 if using one mass point
 minimizerMethod = 'TNC'
@@ -47,7 +47,8 @@ MH = ROOT.RooRealVar("MH","m_{H}", int(MHLow), int(MHHigh))
 
 # Create dict to store datasets: key=mass point, value = ROOT.RooDataSet()
 datasets = od()
-datasets['125'] = ws.data("%s_125_13TeV_%s"%(pm,opt.cat))
+# datasets['125'] = ws.data("%s_125_13TeV_%s"%(pm,opt.cat))
+datasets['500'] = ws.data("%s_500_001_13TeV_%s"%(pm,opt.cat))
 
 # Build ssf object + pdfs
 ssf = SimultaneousFit("name",opt.proc,opt.cat,datasets,xvar.Clone(),MH,MHLow,MHHigh,massPoints,nBins,MHPolyOrder,minimizerMethod,minimizerTolerance)
@@ -56,7 +57,7 @@ else: ssf.buildNGaussians(nGauss)
 
 # Run fits and build mean + sigma splines
 ssf.runFit()
-ssf.buildSplines()
+#ssf.buildSplines()
 
 # Plot pdf
 plotPdfComponents(ssf,_outdir=opt.outputDir,_extension='total_',_proc=ssf.proc,_cat=ssf.cat)
