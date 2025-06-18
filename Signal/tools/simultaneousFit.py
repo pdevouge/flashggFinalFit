@@ -45,9 +45,9 @@ pLUT['Gaussian'] = od()
 pLUT['Gaussian']['dm_p0'] = [0.1,-5.,5.]
 pLUT['Gaussian']['dm_p1'] = [0.0,-0.01,0.01]
 pLUT['Gaussian']['dm_p2'] = [0.0,-0.01,0.01]
-pLUT['Gaussian']['sigma_p0'] = ['func',0.5,10.0]
-pLUT['Gaussian']['sigma_p1'] = [0.0,-0.01,0.01]
-pLUT['Gaussian']['sigma_p2'] = [0.0,-0.01,0.01]
+pLUT['Gaussian']['sigma_p0'] = ['func',1.0,30.0]
+pLUT['Gaussian']['sigma_p1'] = [0.0,-0.05,0.05]
+pLUT['Gaussian']['sigma_p2'] = [0.0,-0.05,0.05]
 pLUT['FracGaussian'] = od()
 pLUT['FracGaussian']['p0'] = ['func',0.01,0.99]
 pLUT['FracGaussian']['p1'] = [0.01,-0.005,0.005]
@@ -71,7 +71,7 @@ def poisson_interval(x,eSumW2,level=0.68):
 # Function to calc chi2 for binned fit given pdf, RooDataHist and xvar as inputs
 #def calcChi2(x,pdf,d,errorType="Sumw2",_verbose=False,fitRange=[100,180]):
 #def calcChi2(x,pdf,d,errorType="Poisson",_verbose=False,fitRange=[110,140]):
-def calcChi2(x,pdf,d,errorType="Poisson",_verbose=False,fitRange=[110,140]):
+def calcChi2(x,pdf,d,errorType="Poisson",_verbose=False,fitRange=[450,550]):
 
   k = 0. # number of non empty bins (for calc degrees of freedom)
   normFactor = d.sumEntries()
@@ -81,7 +81,7 @@ def calcChi2(x,pdf,d,errorType="Poisson",_verbose=False,fitRange=[110,140]):
   for i in range(d.numEntries()):
     p = d.get(i)
     x.setVal(p.getRealValue(x.GetName()))
-    if( x.getVal() < fitRange[0] )|( x.getVal() > fitRange[1] ): continue
+    if( x.getVal() < int(fitRange[0]) )|( x.getVal() > int(fitRange[1]) ): continue
     ndata = d.weight()
     if ndata*ndata == 0: continue
     npdf = pdf.getVal(ROOT.RooArgSet(x))*normFactor*d.binVolume()
@@ -141,7 +141,7 @@ def nChi2Addition(X,ssf,verbose=False):
   C = len(X)-1 # number of fit params (-1 for MH)
   for mp,d in ssf.DataHists.items():
     ssf.MH.setVal(int(mp))
-    chi2, k  = calcChi2(ssf.xvar,ssf.Pdfs['final'],d,_verbose=verbose)
+    chi2, k  = calcChi2(ssf.xvar,ssf.Pdfs['final'],d,_verbose=verbose,fitRange=[ssf.MHLow, ssf.MHHigh])
     chi2sum += chi2
     K += k
   # N degrees of freedom
@@ -152,7 +152,7 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_MX,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
@@ -169,10 +169,10 @@ class SimultaneousFit:
     self.verbose = verbose
     # Prepare vars
     self.MH.setConstant(False)
-    self.MH.setVal(125)
+    self.MH.setVal(int(_MX)) # MODIFIED: was 125
     self.MH.setBins(10)
-    self.dMH = ROOT.RooFormulaVar("dMH","dMH","@0-125.0",ROOT.RooArgList(self.MH))
-    self.xvar.setVal(125)
+    self.dMH = ROOT.RooFormulaVar("dMH","dMH","@0-%s"%_MX,ROOT.RooArgList(self.MH)) # MODIFIED: was 125
+    self.xvar.setVal(int(_MX)) # MODIFIED: was 125
     self.xvar.setBins(self.nBins)
     # Dicts to store all fit vars, polynomials, pdfs and splines
     self.nGaussians = 1
