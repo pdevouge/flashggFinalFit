@@ -1,7 +1,7 @@
 # Python script to hold XS * BR for normalisation of signal models
 from collections import OrderedDict as od
 from commonObjects import *
-  
+
 # Add analyses to globalReplacementMap. See "STXS" as an example
 globalXSBRMap = od()
 
@@ -9,6 +9,11 @@ globalXSBRMap = od()
 #globalXSBRMap['example'] = od()
 #globalXSBRMap['example']['decay'] = {'mode':'constant','factor':1}
 #globalXSBRMap['example']['PROCNAME'] = {'mode':'constant','factor':0.001}
+
+# For high mass analysis: RSG
+globalXSBRMap['highMassAnalysis'] = od()
+globalXSBRMap['highMassAnalysis']['decay'] = {'mode':'constant','factor':1}
+globalXSBRMap['highMassAnalysis']['rsg'] = {'mode':'constant','factor':1}
 
 # For case of inclusive production mode then have no additional factor beyond V branching ratios
 globalXSBRMap['example'] = od()
@@ -29,7 +34,7 @@ globalXSBRMap['example']['THW'] = {'mode':'tHW'}
 # ...
 
 # For tutorial analysis: use 13.6 TeV cross sections and branching fraction
-# These are not yet stored in Combine, so we will use the constant-factor approach 
+# These are not yet stored in Combine, so we will use the constant-factor approach
 # Setting the values at MH=125.38 GeV
 globalXSBRMap['tutorial'] = od()
 globalXSBRMap['tutorial']['decay'] = {'mode':'hgg'}

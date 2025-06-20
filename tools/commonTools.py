@@ -14,7 +14,7 @@ def rooiter(x):
     yield ret
     ret = iter.Next()
 
-def extractWSFileNames( _inputWSDir ): 
+def extractWSFileNames( _inputWSDir ):
   if not os.path.isdir(_inputWSDir):
     print(" --> [ERROR] No such directory (%s)")
     return False
@@ -28,7 +28,7 @@ def extractListOfProcs( _listOfWSFileNames ):
   return ",".join(procs)
 
 def extractListOfCats( _listOfWSFileNames ):
-  f0 = ROOT.TFile(_listOfWSFileNames[0]) 
+  f0 = ROOT.TFile(_listOfWSFileNames[0])
   ws = f0.Get(inputWSName__)
   allData = ws.allData()
   cats = []
@@ -57,7 +57,7 @@ def extractListOfCatsFromData( _fileName ):
   return ",".join(cats)
 
 def containsNOTAG( _listOfWSFileNames ):
-  f0 = ROOT.TFile(_listOfWSFileNames[0]) 
+  f0 = ROOT.TFile(_listOfWSFileNames[0])
   ws = f0.Get(inputWSName__)
   allData = ws.allData()
   for d in allData:
@@ -80,6 +80,7 @@ def signalFromFileName(_fileName):
   elif "THQ" in _fileName: p = "thq"
   elif "THW" in _fileName: p = "thw"
   elif "bbH" in _fileName: p = "bbh"
+  elif "RSG" in _fileName: p = "rsg"
   else:
     print(" --> [ERROR]: cannot extract production mode from input file name. Please update tools.commonTools.signalFromFileName")
     exit(1)
@@ -90,6 +91,14 @@ def massFromFileName(_fileName):
   if "_M" in _fileName:
     m = _fileName.split("_M")[-1].split("_")[0]
   return m
+
+def widthFromFileName(_fileName):
+  w = None #default
+  if "_kMpl" in _fileName:
+    w = _fileName.split("_kMpl")[-1].split("_")[0]
+  elif "_W" in _fileName:
+    w = _fileName.split("_W")[-1].split("_")[0]
+  return w
 
 # Function for converting STXS process to production mode in dataset name
 procToDataMap = od()

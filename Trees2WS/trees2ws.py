@@ -1,5 +1,5 @@
 # Script to convert HiggsDNA TTrees to RooWorkspace (compatible for finalFits)
-# Assumes tree names of the format: 
+# Assumes tree names of the format:
 #  * <productionMode>_<MH>_<sqrts>_<category> e.g. ggh_125_13TeV_RECO_0J_PTH_0_10_Tag0
 # For systematics: requires trees of the format:
 #  * <productionMode>_<MH>_<sqrts>_<category>_<syst>Up01sigma e.g. ggh_125_13TeV_RECO_0J_PTH_0_10_Tag0_JECUp01sigma
@@ -13,7 +13,8 @@ def get_options():
   parser = OptionParser()
   parser.add_option('--inputConfig',dest='inputConfig', default="", help='Input config: specify list of variables/systematics/analysis categories')
   parser.add_option('--inputTreeFile',dest='inputTreeFile', default="./output_0.root", help='Input tree file')
-  parser.add_option('--inputMass',dest='inputMass', default="125", help='Input mass')
+  parser.add_option('--inputMass',dest='inputMass', default="500", help='Input mass')
+  parser.add_option('--inputWidth',dest='inputWidth', default="", help='Input width')
   parser.add_option('--productionMode',dest='productionMode', default="ggh", help='Production mode [ggh,vbf,wh,zh,tth,thq,ggzh,bbh]')
   parser.add_option('--year',dest='year', default="2016", help='Year')
   parser.add_option('--decayExt',dest='decayExt', default='', help='Decay extension')
@@ -42,7 +43,7 @@ def leave():
   exit(0)
 
 # Function to add vars to workspace
-def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None):
+def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_mass=None):
   # Add intLumi var
   intLumi = ROOT.RooRealVar("intLumi","intLumi",1000.,0.,999999999.)
   intLumi.setConstant(True)
@@ -51,13 +52,19 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None):
   _vars = od()
   for var in _data.columns:
     if var in ['type','cat',_stxsVar,'']: continue
-    if var == "CMS_hgg_mass": 
-      _vars[var] = ROOT.RooRealVar(var,var,125.,100.,180.)
-      _vars[var].setBins(160)
-    elif var == "dZ": 
+    if var == "CMS_hgg_mass":
+      # _vars[var] = ROOT.RooRealVar(var,var,500.,100.,5000.)
+      # _vars[var].setBins(160)
+      _vars[var] = ROOT.RooRealVar(var,var,400.,225.,500.)
+      _vars[var].setBins(275*2)
+      # _vars[var] = ROOT.RooRealVar(var,var,float(_mass),float(_mass)-0.2*float(_mass),float(_mass)+0.2*float(_mass))
+      # bin_w = 0.5 #GeV
+      # mass_rg = 0.4*float(_mass)
+      # _vars[var].setBins(int(mass_rg/bin_w))
+    elif var == "dZ":
       _vars[var] = ROOT.RooRealVar(var,var,0.,-20.,20.)
       _vars[var].setBins(40)
-    elif var == "weight": 
+    elif var == "weight":
       _vars[var] = ROOT.RooRealVar(var,var,0.)
     else:
       _vars[var] = ROOT.RooRealVar(var,var,1.,-999999,999999)
@@ -131,19 +138,19 @@ if opt.doSystematics: sdata = pandas.DataFrame()
 # Loop over categories: fill dataframe
 for cat in cats:
   print( " --> Extracting events from category: %s"%cat)
-  if inputTreeDir == '': treeName = "%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,sqrts__,cat)
-  else: treeName = "%s/%s_%s_%s_%s"%(inputTreeDir,opt.productionMode,opt.inputMass,sqrts__,cat)
+  if inputTreeDir == '': treeName = "%s_%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,opt.inputWidth,sqrts__,cat)
+  else: treeName = "%s/%s_%s_%s_%s_%s"%(inputTreeDir,opt.productionMode,opt.inputMass,opt.inputWidth,sqrts__,cat)
   print("    * tree: %s"%treeName)
   # Extract tree from uproot
   t = f[treeName]
   if t.num_entries == 0: continue
-  
+
   # Convert tree to pandas dataframe
   dfs = {}
 
   # Theory weights
   for ts, tsColumns in theoryWeightColumns.items():
-    if opt.productionMode in modesToSkipTheoryWeights: 
+    if opt.productionMode in modesToSkipTheoryWeights:
       dfs[ts] = pandas.DataFrame(np.ones(shape=(t.num_entries,theoryWeightContainers[ts])))
     else:
       dfs[ts] = pandas.DataFrame(np.reshape(np.array(t[ts].array()),(t.num_entries,len(tsColumns))))
@@ -155,7 +162,7 @@ for cat in cats:
   for var in mainVars:
     if "*" not in var:
       mainVars_dropWildcards.append(var)
-      
+
   dfs['main'] = t.arrays(mainVars_dropWildcards, library='pd')
 
   for var in mainVars:
@@ -194,14 +201,14 @@ for cat in cats:
         sdf['type'] = "%s%s"%(s,direction)
         # Add STXS splitting var if splitting necessary
         if opt.doSTXSSplitting: sdf[stxsVar] = st.arrays(stxsVar, library='pd')
-    
+
         # Add column specifying category and add to systematics dataframe
         sdf['cat'] = cat
         sdata = pandas.concat([sdata,sdf], ignore_index=True, axis=0, sort=False)
-     
+
 # If not splitting by STXS bin then add dummy column to dataframe
 if not opt.doSTXSSplitting:
-  data[stxsVar] = 'nosplit'  
+  data[stxsVar] = 'nosplit'
   if opt.doSystematics: sdata[stxsVar] = 'nosplit'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -215,9 +222,9 @@ for stxsId in data[stxsVar].unique():
 
     # Extract stxsBin
     stxsBin = flashggSTXSDict[int(stxsId)]
-    if opt.productionMode == "wh": 
+    if opt.productionMode == "wh":
       if "QQ2HQQ" in stxsBin: stxsBin = re.sub("QQ2HQQ","WH2HQQ",stxsBin)
-    elif opt.productionMode == "zh": 
+    elif opt.productionMode == "zh":
       if "QQ2HQQ" in stxsBin: stxsBin = re.sub("QQ2HQQ","ZH2HQQ",stxsBin)
     # ggZH: split by decay mode
     elif opt.productionMode == "ggzh":
@@ -232,7 +239,7 @@ for stxsId in data[stxsVar].unique():
     if not os.path.exists(outputWSDir): os.system("mkdir %s"%outputWSDir)
     outputWSFile = outputWSDir+"/"+re.sub(".root","_%s.root"%stxsBin,opt.inputTreeFile.split("/")[-1])
     print(" --> Creating output workspace for STXS bin: %s (%s)"%(stxsBin,outputWSFile))
-    
+
   else:
     df = data
     if opt.doSystematics: sdf = sdata
@@ -242,15 +249,15 @@ for stxsId in data[stxsVar].unique():
     if not os.path.exists(outputWSDir): os.system("mkdir %s"%outputWSDir)
     outputWSFile = outputWSDir+"/"+re.sub(".root","_%s.root"%dataToProc(opt.productionMode),opt.inputTreeFile.split("/")[-1])
     print(" --> Creating output workspace: (%s)"%outputWSFile)
-    
+
   # Open file and initiate workspace
   fout = ROOT.TFile(outputWSFile,"RECREATE")
   foutdir = fout.mkdir(inputWSName__.split("/")[0])
   foutdir.cd()
   ws = ROOT.RooWorkspace(inputWSName__.split("/")[1],inputWSName__.split("/")[1])
-  
+
   # Add variables to workspace
-  varNames = add_vars_to_workspace(ws,df,stxsVar)
+  varNames = add_vars_to_workspace(ws,df,stxsVar,opt.inputMass)
 
   # Loop over cats
   for cat in cats:
@@ -262,8 +269,8 @@ for stxsId in data[stxsVar].unique():
     aset = make_argset(ws,varNames)
 
     # Define RooDataSet
-    dName = "%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,sqrts__,cat)
-    d = ROOT.RooDataSet(dName,dName,aset,'weight') 
+    dName = "%s_%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,opt.inputWidth,sqrts__,cat)
+    d = ROOT.RooDataSet(dName,dName,aset,'weight')
 
     # Loop over events in dataframe and add entry
     for row in df[mask][varNames].to_numpy():
@@ -280,22 +287,22 @@ for stxsId in data[stxsVar].unique():
         for direction in ['Up','Down']:
           # Create mask for systematic variation
           mask = (sdf['type']=='%s%s'%(s,direction))&(sdf['cat']==cat)
-          
+
           # Define RooDataHist
-          hName = "%s_%s_%s_%s_%s%s01sigma"%(opt.productionMode,opt.inputMass,sqrts__,cat,s,direction)
+          hName = "%s_%s_%s_%s_%s_%s%s01sigma"%(opt.productionMode,opt.inputMass,opt.inputWidth,sqrts__,cat,s,direction)
 
           # Make argset: drop weight column for histogrammed observables
           systematicsVarsDropWeight = []
           for var in systematicsVars:
             if var != "weight": systematicsVarsDropWeight.append(var)
           aset = make_argset(ws,systematicsVarsDropWeight)
-          
+
           h = ROOT.RooDataHist(hName,hName,aset)
           for row, weight in zip(sdf[mask][systematicsVarsDropWeight].to_numpy(),sdf[mask]["weight"].to_numpy()):
             for i, val in enumerate(row):
               aset[i].setVal(val)
             h.add(aset,weight)
-          
+
           # Add to workspace
           getattr(ws,'import')(h)
 

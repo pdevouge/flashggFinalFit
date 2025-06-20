@@ -1,4 +1,4 @@
-# Functions for plotting 
+# Functions for plotting
 import ROOT
 import json
 from collections import OrderedDict as od
@@ -115,7 +115,7 @@ def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_mass='125
   leg.SetLineColor(0)
   leg.SetTextSize(0.03)
   leg.AddEntry(hists['data'],"Simulation","ep")
-  for k,ssf in ssfs.items(): 
+  for k,ssf in ssfs.items():
     if int(k.split("_")[-1]) == _opt: leg.AddEntry(hists[k],"#bf{N_{gauss} = %s}: #chi^{2}/n(dof) = %.4f"%(k.split("_")[-1],ssf.getReducedChi2()),"L")
     else: leg.AddEntry(hists[k],"N_{gauss} = %s: #chi^{2}/n(dof) = %.4f"%(k.split("_")[-1],ssf.getReducedChi2()),"L")
   leg.Draw("Same")
@@ -183,10 +183,12 @@ def plotFTestResults(ssfs,_opt,_outdir="./",_extension='',_proc='',_cat='',_mass
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Signal fit plots
 # Plot final pdf at MH = 125 (with data) + individual Pdf components
-def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat=''):
+def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat='', _mass=''):
   canv = ROOT.TCanvas()
   canv.SetLeftMargin(0.15)
-  ssf.MH.setVal(125)
+  print("MH in plotPdfComponents is ", int(_mass))
+  ssf.MH.setVal(int(_mass))
+  # ssf.MH.setVal(125)
   LineColorMap = {0:ROOT.kAzure+1,1:ROOT.kRed-4,2:ROOT.kOrange,3:ROOT.kGreen+2,4:ROOT.kMagenta-9}
   pdfs = od()
   hists = od()
@@ -200,16 +202,18 @@ def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat=''):
   hists['final'].SetMinimum(0)
   if hists['final'].GetMaximum()>hmax: hmax = hists['final'].GetMaximum()
   if hists['final'].GetMinimum()<hmin: hmin = hists['final'].GetMinimum()
+  hists['final'].GetXaxis().SetRangeUser(int(_mass)-int(_mass)*20/100,int(_mass)+int(_mass)*20/100)
   #hists['final'].GetXaxis().SetRangeUser(115,140)
-  hists['final'].GetXaxis().SetRangeUser(100,150)
+  #hists['final'].GetXaxis().SetRangeUser(100,150)
   # Create data histogram
   hists['data'] = ssf.xvar.createHistogram("h_data%s"%_extension,ROOT.RooFit.Binning(ssf.nBins))
-  ssf.DataHists['125'].fillHistogram(hists['data'],ROOT.RooArgList(ssf.xvar))
+  ssf.DataHists[str(int(_mass))].fillHistogram(hists['data'],ROOT.RooArgList(ssf.xvar))
   hists['data'].SetTitle("")
   hists['data'].GetXaxis().SetTitle("m_{#gamma#gamma} [GeV]")
   hists['data'].SetMinimum(0)
+  hists['data'].GetXaxis().SetRangeUser(int(_mass)-int(_mass)*20/100,int(_mass)+int(_mass)*20/100)
   #hists['data'].GetXaxis().SetRangeUser(115,140)
-  hists['data'].GetXaxis().SetRangeUser(100,150)
+  # hists['data'].GetXaxis().SetRangeUser(100,150)
   hists['data'].Scale(float(ssf.nBins)/1600)
   hists['data'].SetMarkerStyle(20)
   hists['data'].SetMarkerColor(1)
@@ -275,7 +279,7 @@ def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat=''):
   canv.SaveAs("%s/%sshape_pdf_components_%s_%s.pdf"%(_outdir,_extension,_proc,_cat))
 
 # Plot final pdf for each mass point
-def plotInterpolation(_finalModel,_outdir='./',_massPoints='120,121,122,123,124,125,126,127,128,129,130'):
+def plotInterpolation(_finalModel,_outdir='./',_massPoints='250,300,350,400,450,500'):
 
   canv = ROOT.TCanvas()
   colors = [ROOT.kRed,ROOT.kCyan,ROOT.kBlue+1,ROOT.kOrange-3,ROOT.kMagenta-7,ROOT.kGreen+1,ROOT.kYellow-7,ROOT.kViolet+6,ROOT.kTeal+1,ROOT.kPink+1,ROOT.kAzure+1]
@@ -286,13 +290,27 @@ def plotInterpolation(_finalModel,_outdir='./',_massPoints='120,121,122,123,124,
   # Total pdf histograms
   dh = od()
   hists = od()
-  hmax = 0.0001 
+  hmax = 0.0001
   for mp in _massPoints.split(","):
     _finalModel.MH.setVal(int(mp))
     hists[mp] = _finalModel.Pdfs['final'].createHistogram("h_%s"%mp,_finalModel.xvar,ROOT.RooFit.Binning(3200))
     norm = _finalModel.Functions['final_normThisLumi'].getVal()
     if norm == 0.: hists[mp].Scale(0.)
-    else: hists[mp].Scale((norm*3200)/(hists[mp].Integral()*_finalModel.xvar.getBins()))
+    else:
+      print("---------------------------------------------")
+      print(" Scaling of the histograms: ")
+      print("---------------------------------------------")
+      # NOTE that Nbins and range is taken from the xvar definition in the workspace;
+      #      in particular from the first workspace considered.
+      print ("mp is == ", mp)
+      print ("N bins of the mass distribution (taken from the WS) = ", _finalModel.xvar.getBins())
+      print ("hists[mp].Integral() = ", hists[mp].Integral())
+      #print "Scaling factor = ", (norm*800)/(hists[mp].Integral()*_finalModel.xvar.getBins()) #EF
+      print ("Scaling factor = ", (norm*1250)/(hists[mp].Integral()*_finalModel.xvar.getBins()))
+      print("---------------------------------------------")
+      #hists[mp].Scale((norm*800)/(hists[mp].Integral()*_finalModel.xvar.getBins())) # EF
+      hists[mp].Scale((norm*1250)/(hists[mp].Integral()*_finalModel.xvar.getBins()))
+    # else: hists[mp].Scale((norm*3200)/(hists[mp].Integral()*_finalModel.xvar.getBins()))
     if mp in _finalModel.Datasets:
       hists[mp].SetLineWidth(2)
     else:
@@ -323,9 +341,9 @@ def plotInterpolation(_finalModel,_outdir='./',_massPoints='120,121,122,123,124,
   haxes.Draw("AXIS")
 
   # Draw rest of histograms
-  for k,h in hists.items(): 
+  for k,h in hists.items():
     if "data" in k: h.Draw("Same EP")
-    else: 
+    else:
       h.Draw("Same HIST")
 
   # Add Latex
@@ -347,7 +365,7 @@ def plotInterpolation(_finalModel,_outdir='./',_massPoints='120,121,122,123,124,
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Plot splines
-def plotSplines(_finalModel,_outdir="./",_nominalMass='125',splinesToPlot=['xs','br','ea','fracRV']):
+def plotSplines(_finalModel,_outdir="./",_nominalMass='400',splinesToPlot=['xs','br','ea','fracRV']):
   canv = ROOT.TCanvas()
   colorMap = {'xs':ROOT.kRed-4,'br':ROOT.kAzure+1,'ea':ROOT.kGreen+1,'fracRV':ROOT.kMagenta-7,'norm':ROOT.kBlack}
   grs = od()
@@ -386,7 +404,7 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='125',splinesToPlot=['xs',
   haxes.GetXaxis().SetTitleSize(0.05)
   haxes.GetXaxis().SetTitleOffset(0.85)
   haxes.GetXaxis().SetLabelSize(0.035)
-  haxes.GetYaxis().SetTitle("X/X(m_{H}=125)")
+  haxes.GetYaxis().SetTitle("X/X(m_{H}= @%s)"%(_nominalMass))
   haxes.GetYaxis().SetTitleOffset(0.85)
   haxes.GetYaxis().SetTitleSize(0.05)
   haxes.SetMaximum(1.2*xmax)
@@ -398,7 +416,7 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='125',splinesToPlot=['xs',
   leg.SetLineColor(0)
   leg.SetTextSize(0.04)
   # Draw graphs
-  for x, gr in grs.items(): 
+  for x, gr in grs.items():
     gr.SetLineColor(colorMap[x])
     gr.SetMarkerColor(colorMap[x])
     gr.SetMarkerStyle(20)
@@ -442,7 +460,7 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
   h_axes.GetYaxis().SetTitleSize(0.05)
   h_axes.GetYaxis().SetTitleOffset(1.2)
   h_axes.Draw()
-    
+
   # Extract effSigma
   effSigma = getEffSigma(_hists['pdf'])
   effSigma_low, effSigma_high = _hists['pdf'].GetMean()-effSigma, _hists['pdf'].GetMean()+effSigma
@@ -481,7 +499,7 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
     leg.AddEntry(_hists['data'],"Simulation","lep")
     leg.AddEntry(_hists['pdf'],"#splitline{Parametric}{model (%s)}"%year,"l")
     leg.AddEntry(h_effSigma,"#sigma_{eff} = %1.2f GeV"%(0.5*(effSigma_high-effSigma_low)),"fl")
-    leg.Draw("Same")    
+    leg.Draw("Same")
 
   # Set style effSigma
   h_effSigma.SetLineColor(15)
@@ -517,7 +535,7 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
   _hists['pdf'].Draw("Same Hist C")
   if len(_opt.years.split(","))>1:
     for year in _opt.years.split(","):
-      _hists['pdf_%s'%year].SetLineColor( colorMap[year] )  
+      _hists['pdf_%s'%year].SetLineColor( colorMap[year] )
       _hists['pdf_%s'%year].SetLineStyle(2)
       _hists['pdf_%s'%year].SetLineWidth(2)
       _hists['pdf_%s'%year].Draw("Same Hist C")
@@ -527,7 +545,7 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
   _hists['data'].SetLineColor(1)
   _hists['data'].SetLineWidth(2)
   _hists['data'].Draw("Same PE")
-  
+
   # Add TLatex to plot
   lat0 = ROOT.TLatex()
   lat0.SetTextFont(42)
@@ -550,7 +568,7 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
   if _opt.procs == 'all': procStr, procExt = "", ""
   elif len(_opt.procs.split(","))>1: procStr, procExt = "Multiple processes", "_multipleProcs"
   else: procStr, procExt = Translate(_opt.procs,translateProcs), "_%s"%_opt.procs
- 
+
   if len(_opt.years.split(","))>1: yearStr, yearExt = "", ""
   else: yearStr, yearExt = _opt.years, "_%s"%_opt.years
 
@@ -558,7 +576,7 @@ def plotSignalModel(_hists,_opt,_outdir=".",offset=0.02):
   elif _opt.cats == 'wall': catStr, catExt = "#splitline{All categories}{S/(S+B) weighted}", "wall"
   elif len(_opt.cats.split(","))>1: procStr, procExt = "Multiple categories", "multipleCats"
   else: catStr, catExt = Translate(_opt.cats,translateCats), _opt.cats
- 
+
   lat1.DrawLatex(0.85,0.86,"%s"%catStr)
   lat1.DrawLatex(0.83,0.8,"%s %s"%(procStr,yearStr))
 

@@ -4,6 +4,26 @@ from collections import OrderedDict as od
 # Add analyses to globalReplacementMap. See "STXS" as an example
 globalReplacementMap = od()
 
+# High mass analysis case
+globalReplacementMap['highMassAnalysis'] = od()
+# For WRONG VERTEX SCENARIO:
+#  * single proc x cat for wrong vertex since for dZ > 1cm shape independent of proc x cat
+#  * use proc x cat with highest number of WV events
+globalReplacementMap['highMassAnalysis']['procWV'] = "GG2H"
+globalReplacementMap['highMassAnalysis']['catWV'] = "Untagged_Tag0"
+# For RIGHT VERTEX SCENARIO:
+#  * default you should add is diagonal process from given category
+#  * if few events in diagonal process then may need to change the category aswell (see catRVMap)
+#  * map must contain entry for all cats being processed (for replacement proc and cat)
+globalReplacementMap['highMassAnalysis']['procRVMap'] = od()
+globalReplacementMap["highMassAnalysis"]["procRVMap"]["Untagged_Tag0"] = "GG2H"
+globalReplacementMap["highMassAnalysis"]["procRVMap"]["VBF_Tag0"] = "VBF"
+# Replacement category for RV fit
+globalReplacementMap["highMassAnalysis"]["catRVMap"] = od()
+globalReplacementMap["highMassAnalysis"]["catRVMap"]["Untagged_Tag0"] = "Untagged_Tag0"
+globalReplacementMap["highMassAnalysis"]["catRVMap"]["VBF_Tag0"] = "VBF_Tag0"
+
+
 # Example analysis which with cats Untagged_Tag0,VBF_Tag0
 globalReplacementMap['example'] = od()
 # For WRONG VERTEX SCENARIO:
@@ -12,7 +32,7 @@ globalReplacementMap['example'] = od()
 globalReplacementMap['example']['procWV'] = "GG2H"
 globalReplacementMap['example']['catWV'] = "Untagged_Tag0"
 # For RIGHT VERTEX SCENARIO:
-#  * default you should add is diagonal process from given category 
+#  * default you should add is diagonal process from given category
 #  * if few events in diagonal process then may need to change the category aswell (see catRVMap)
 #  * map must contain entry for all cats being processed (for replacement proc and cat)
 globalReplacementMap['example']['procRVMap'] = od()
@@ -31,7 +51,7 @@ globalReplacementMap['tutorial'] = od()
 globalReplacementMap['tutorial']['procWV'] = "GG2H"
 globalReplacementMap['tutorial']['catWV'] = "EBEB_highR9highR9"
 # For RIGHT VERTEX SCENARIO
-#  * default mapping is to use diagonal process from given category 
+#  * default mapping is to use diagonal process from given category
 #  * if few events in diagonal process then may need to change the category aswell (see catRVMap)
 #  * map must contain entry for all cats being processed (for replacement proc and cat)
 globalReplacementMap['tutorial']['procRVMap'] = od()
@@ -66,7 +86,7 @@ globalReplacementMap['STXS'] = od()
 globalReplacementMap['STXS']['procWV'] = "GG2H_0J_PTH_GT10"
 globalReplacementMap['STXS']['catWV'] = "RECO_0J_PTH_GT10_Tag1"
 # For RIGHT VERTEX SCENARIO:
-#  * default mapping is to use diagonal process from given category 
+#  * default mapping is to use diagonal process from given category
 #  * if few events in diagonal process then may need to change the category aswell (see catRVMap)
 #  * map must contain entry for all cats being processed (for replacement proc and cat)
 globalReplacementMap['STXS']['procRVMap'] = od()

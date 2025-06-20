@@ -15,10 +15,10 @@ sqrts__ = "13TeV"
 
 # Luminosity map in fb^-1: for using UL 2018
 lumiMap = {
-    '2016':36.33, 
-    '2017':41.48, 
-    '2018':59.83, 
-    'combined':137.65, 
+    '2016':36.33,
+    '2017':41.48,
+    '2018':59.83,
+    'combined':137.65,
     'merged':137.65,
     '2022preEE':8.00,
     '2022postEE':26.70
@@ -35,7 +35,7 @@ BR_Z_qq = 69.91*0.01
 BR_W_qq = 67.41*0.01
 
 # Production modes and decay channel: for extract XS from combine
-productionModes = ['ggH','qqH','ttH','tHq','tHW','ggZH','WH','ZH','bbH']
+productionModes = ['ggH'] #,'qqH','ttH','tHq','tHW','ggZH','WH','ZH','bbH']
 decayMode = 'hgg'
 
 # List of years

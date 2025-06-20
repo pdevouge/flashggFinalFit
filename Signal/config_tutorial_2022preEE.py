@@ -5,7 +5,7 @@ _year = '2022preEE'
 signalScriptCfg = {
   
   # Setup
-  'inputWSDir':'PATH_TO_INPUTS/workspaces/signal_%s'%_year,
+  'inputWSDir':'../../Tutorial_samples/workspaces/signal_%s'%_year,
   'procs':'auto', # if auto: inferred automatically from filenames
   'cats':'auto', # if auto: inferred automatically from (0) workspace
   'ext':'tutorial_%s'%_year,
@@ -20,7 +20,7 @@ signalScriptCfg = {
   'smears':'Smearing', # separate nuisance per year
 
   # Job submission options
-  'batch':'condor', # ['condor','SGE','IC','local']
+  'batch':'local', # ['condor','SGE','IC','local']
   'queue':'espresso',
 
 }
