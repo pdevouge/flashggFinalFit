@@ -12,28 +12,10 @@ import ctypes
 # So far defined up to MHPolyOrder=2
 pLUT = od()
 pLUT['DCB'] = od()
-pLUT['DCB']['dm_p0'] = [0.1,-2.5,2.5]
-pLUT['DCB']['dm_p1'] = [0.0,-0.1,0.1]
-pLUT['DCB']['dm_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['sigma_p0'] = [7.,1.,12.]
-pLUT['DCB']['sigma_p1'] = [0.0,-0.1,0.1]
-pLUT['DCB']['sigma_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['n1_p0'] = [20.,1.00001,500]
-pLUT['DCB']['n1_p1'] = [0.0,-0.1,0.1]
-pLUT['DCB']['n1_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['n2_p0'] = [20.,1.00001,500]
-pLUT['DCB']['n2_p1'] = [0.0,-0.1,0.1]
-pLUT['DCB']['n2_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['a1_p0'] = [1.,1.,10.]
-pLUT['DCB']['a1_p1'] = [0.0,-0.1,0.1]
-pLUT['DCB']['a1_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['a2_p0'] = [1.,1.,20.]
-pLUT['DCB']['a2_p1'] = [0.0,-0.1,0.1]
-pLUT['DCB']['a2_p2'] = [0.0,-0.001,0.001]
 # pLUT['DCB']['dm_p0'] = [0.1,-2.5,2.5]
 # pLUT['DCB']['dm_p1'] = [0.0,-0.1,0.1]
 # pLUT['DCB']['dm_p2'] = [0.0,-0.001,0.001]
-# pLUT['DCB']['sigma_p0'] = [2.,1.,20.]
+# pLUT['DCB']['sigma_p0'] = [7.,1.,12.]
 # pLUT['DCB']['sigma_p1'] = [0.0,-0.1,0.1]
 # pLUT['DCB']['sigma_p2'] = [0.0,-0.001,0.001]
 # pLUT['DCB']['n1_p0'] = [20.,1.00001,500]
@@ -48,11 +30,29 @@ pLUT['DCB']['a2_p2'] = [0.0,-0.001,0.001]
 # pLUT['DCB']['a2_p0'] = [1.,1.,20.]
 # pLUT['DCB']['a2_p1'] = [0.0,-0.1,0.1]
 # pLUT['DCB']['a2_p2'] = [0.0,-0.001,0.001]
+pLUT['DCB']['dm_p0'] = [0.1,-2.5,2.5]
+pLUT['DCB']['dm_p1'] = [0.0,-0.1,0.1]
+pLUT['DCB']['dm_p2'] = [0.0,-0.001,0.001]
+pLUT['DCB']['sigma_p0'] = [7.,1.,20.]
+pLUT['DCB']['sigma_p1'] = [0.0,-0.1,0.1]
+pLUT['DCB']['sigma_p2'] = [0.0,-0.001,0.001]
+pLUT['DCB']['n1_p0'] = [20.,1.00001,30]
+pLUT['DCB']['n1_p1'] = [0.0,-0.1,0.1]
+pLUT['DCB']['n1_p2'] = [0.0,-0.001,0.001]
+pLUT['DCB']['n2_p0'] = [20.,1.00001,30]
+pLUT['DCB']['n2_p1'] = [0.0,-0.1,0.1]
+pLUT['DCB']['n2_p2'] = [0.0,-0.001,0.001]
+pLUT['DCB']['a1_p0'] = [1.,1.,10.]
+pLUT['DCB']['a1_p1'] = [0.0,-0.1,0.1]
+pLUT['DCB']['a1_p2'] = [0.0,-0.001,0.001]
+pLUT['DCB']['a2_p0'] = [1.,1.,20.]
+pLUT['DCB']['a2_p1'] = [0.0,-0.1,0.1]
+pLUT['DCB']['a2_p2'] = [0.0,-0.001,0.001]
 pLUT['Gaussian_wdcb'] = od()
 pLUT['Gaussian_wdcb']['dm_p0'] = [0.1,-1.5,1.5]
 pLUT['Gaussian_wdcb']['dm_p1'] = [0.01,-0.01,0.01]
 pLUT['Gaussian_wdcb']['dm_p2'] = [0.01,-0.01,0.01]
-pLUT['Gaussian_wdcb']['sigma_p0'] = [1.,1.0,4.]
+pLUT['Gaussian_wdcb']['sigma_p0'] = [0.1,1.0,4.]
 pLUT['Gaussian_wdcb']['sigma_p1'] = [0.0,-0.1,0.1]
 pLUT['Gaussian_wdcb']['sigma_p2'] = [0.0,-0.001,0.001]
 pLUT['Frac'] = od()
@@ -361,7 +361,7 @@ class SimultaneousFit:
 
     # Run fit
     if self.verbose: print(" --> (%s) Running fit"%self.name)
-    self.FitResult = minimize(nChi2Addition,x0,args=self,bounds=xbounds,method=self.minimizerMethod)
+    self.FitResult = minimize(nChi2Addition,x0,args=self,bounds=xbounds)#,method=self.minimizerMethod)
     self.Chi2 = self.getChi2()
     #self.Chi2 = nChi2Addition(self.FitResult['x'],self)
     # Print parameter post-fit values
@@ -378,7 +378,7 @@ class SimultaneousFit:
         self.MH.setVal(_mh)
         _x.append(_mh)
         _y.append(poly.getVal())
-        _mh += 10
+        _mh += 25
       # Convert to arrays
       arr_x, arr_y = array('f',_x), array('f',_y)
       # Create spline and save to dict
@@ -394,7 +394,7 @@ class SimultaneousFit:
     print("    ~~~~~~~~~~~~~~~~")
     print("    * chi2 = %.6f, n(dof) = %g --> chi2/n(dof) = %.3f"%(self.getChi2(),int(self.Ndof),self.getChi2()/int(self.Ndof)))
     print("    ~~~~~~~~~~~~~~~~")
-    print("    * [VERBOSE] chi2 = %.6f"%(self.getChi2(verbose=True)))
+    print("    * [VERBOSE] chi2 = %.6f"%(self.getChi2(verbose=False)))
     print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

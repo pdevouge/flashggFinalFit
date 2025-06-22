@@ -54,7 +54,7 @@ def get_options():
   parser.add_option('--replacementThreshold', dest='replacementThreshold', default=100, type='int', help="Nevent threshold to trigger replacement dataset")
   parser.add_option('--beamspotWidthData', dest='beamspotWidthData', default=3.5, type='float', help="Width of beamspot in data [cm]")
   parser.add_option('--beamspotWidthMC', dest='beamspotWidthMC', default=3.7, type='float', help="Width of beamspot in MC [cm]")
-  parser.add_option('--MHPolyOrder', dest='MHPolyOrder', default=1, type='int', help="Order of polynomial for MH dependence")
+  parser.add_option('--MHPolyOrder', dest='MHPolyOrder', default=0, type='int', help="Order of polynomial for MH dependence")
   parser.add_option('--nBins', dest='nBins', default=80, type='int', help="Number of bins for fit")
   # Minimizer options
   parser.add_option('--minimizerMethod', dest='minimizerMethod', default='TNC', help="(Scipy) Minimizer method")
@@ -307,8 +307,8 @@ fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.ext,opt.year,sqrts__,nominalDatasets
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SAVE: to output workspace
-foutDir = "%s/outdir_%s/signalFit/output"%(swd__,opt.ext)
-foutName = "%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,opt.ext,opt.ext,opt.proc,opt.year,opt.cat)
+foutDir = "%s/outdir_%s/signalFit2/output"%(swd__,opt.ext)
+foutName = "%s/outdir_%s/signalFit2/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,opt.ext,opt.ext,opt.proc,opt.year,opt.cat)
 print("\n --> Saving output workspace to file: %s"%foutName)
 if not os.path.isdir(foutDir): os.system("mkdir %s"%foutDir)
 fout = ROOT.TFile(foutName,"RECREATE")
@@ -321,12 +321,12 @@ fout.Close()
 # PLOTTING
 if opt.doPlots:
   print("\n --> Making plots...")
-  if not os.path.isdir("%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
+  if not os.path.isdir("%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext))
   if opt.skipVertexScenarioSplit:
-    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
+    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
   if not opt.skipVertexScenarioSplit:
-    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="RV_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
-    plotPdfComponents(ssfWV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="WV_",_proc=procWVFit,_cat=catRVFit, _mass=float(MHNominal))
+    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_extension="RV_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
+    plotPdfComponents(ssfWV,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_extension="WV_",_proc=procWVFit,_cat=catRVFit, _mass=float(MHNominal))
   # Plot interpolation
-  plotInterpolation(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
-  plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_nominalMass=MHNominal,splinesToPlot=['xs','br','ea'])
+  plotInterpolation(fm,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext))
+  plotSplines(fm,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_nominalMass=MHNominal,splinesToPlot=['xs','br','ea'])

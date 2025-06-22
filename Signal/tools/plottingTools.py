@@ -2,6 +2,7 @@
 import ROOT
 import json
 from collections import OrderedDict as od
+import numpy as np
 from commonObjects import *
 
 def LoadTranslations(jsonfilename):
@@ -293,7 +294,7 @@ def plotInterpolation(_finalModel,_outdir='./',_massPoints='250,300,350,400,450,
   hmax = 0.0001
   for mp in _massPoints.split(","):
     _finalModel.MH.setVal(int(mp))
-    hists[mp] = _finalModel.Pdfs['final'].createHistogram("h_%s"%mp,_finalModel.xvar,ROOT.RooFit.Binning(3200))
+    hists[mp] = _finalModel.Pdfs['final'].createHistogram("h_%s"%mp,_finalModel.xvar,ROOT.RooFit.Binning(1600))
     norm = _finalModel.Functions['final_normThisLumi'].getVal()
     if norm == 0.: hists[mp].Scale(0.)
     else:
@@ -380,7 +381,9 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='400',splinesToPlot=['xs',
   # Loop over mass points
   p = 0
   xmax, xmin = 0,0.5
-  for mh in range(int(_finalModel.MHLow),int(_finalModel.MHHigh)+1):
+  # for mh in range(int(_finalModel.MHLow),int(_finalModel.MHHigh)+1):
+  mh_vals = _finalModel.SplinePoints if hasattr(_finalModel, 'SplinePoints') else np.linspace(int(_finalModel.MHLow), int(_finalModel.MHHigh), 25)
+  for mh in mh_vals:
     _finalModel.MH.setVal(float(mh))
     for sp in splinesToPlot:
       x = _finalModel.Splines[sp].getVal()

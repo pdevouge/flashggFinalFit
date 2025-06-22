@@ -64,7 +64,7 @@ def initialiseXSBR():
     for pm in productionModes: xsbr[pm].append(getXS(SM,MHVar,mh,pm))
     xsbr[decayMode].append(getBR(SM,MHVar,mh,decayMode))
     xsbr['constant'].append(1.)
-    mh += 0.1
+    mh += 25
   for pm in productionModes: xsbr[pm] = np.asarray(xsbr[pm])
   xsbr[decayMode] = np.asarray(xsbr[decayMode])
   xsbr['constant'] = np.asarray(xsbr['constant'])
@@ -135,16 +135,18 @@ class FinalModel:
   # Functions to get XS, BR and EA splines for given proc/decay from map
   def buildXSBRSplines(self):
     # mh = np.linspace(120.,130.,101)
-    mh = np.linspace(250.,500.,250*2)
+    mh = np.linspace(250.,500.,25)
     # XS
     fp = self.xsbrMap[self.proc]['factor'] if 'factor' in self.xsbrMap[self.proc] else 1.
     mp = self.xsbrMap[self.proc]['mode']
-    xs = fp*self.XSBR[mp]
+    xs = np.ones_like(mh)
+    # xs = fp*self.XSBR[mp]
     self.Splines['xs'] = ROOT.RooSpline1D("fxs_%s_%s"%(self.proc,self.sqrts),"fxs_%s_%s"%(self.proc,self.sqrts),self.MH,len(mh),mh,xs)
     # BR
     fd = self.xsbrMap['decay']['factor'] if 'factor' in self.xsbrMap['decay'] else 1.
     md = self.xsbrMap['decay']['mode']
-    br = fd*self.XSBR[md]
+    # br = fd*self.XSBR[md]
+    br = np.ones_like(mh)
     self.Splines['br'] = ROOT.RooSpline1D("fbr_%s"%self.sqrts,"fbr_%s"%self.sqrts,self.MH,len(mh),mh,br)
 
   def buildEffAccSpline(self):
