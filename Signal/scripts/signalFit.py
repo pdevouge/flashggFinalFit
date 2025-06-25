@@ -34,14 +34,14 @@ def get_options():
   parser.add_option("--analysis", dest='analysis', default='STXS', help="Analysis handle: used to specify replacement map and XS*BR normalisations")
   parser.add_option('--massPoints', dest='massPoints', default='250,300,350,400,450,500', help="Mass points to fit")
   parser.add_option('--minMass', dest='minMass', default='250', help="Lowest mass point considered")
-  parser.add_option('--maxMass', dest='maxMass', default='500', help="Highest mass point considered")
+  parser.add_option('--maxMass', dest='maxMass', default='600', help="Highest mass point considered")
   parser.add_option('--doEffAccFromJson', dest='doEffAccFromJson', default=False, action="store_true", help="Extract eff x acc from json (produced by getEffAcc). Else, extract from nominal weights in flashgg workspaces")
-  parser.add_option('--skipBeamspotReweigh', dest='skipBeamspotReweigh', default=False, action="store_true", help="Skip beamspot reweigh to match beamspot distribution in data")
+  parser.add_option('--skipBeamspotReweigh', dest='skipBeamspotReweigh', default=True, action="store_true", help="Skip beamspot reweigh to match beamspot distribution in data")
   parser.add_option('--doPlots', dest='doPlots', default=False, action="store_true", help="Produce Signal Fitting plots")
   parser.add_option("--doVoigtian", dest='doVoigtian', default=False, action="store_true", help="Use Voigtians instead of Gaussians for signal models with Higgs width as parameter")
   parser.add_option("--useDCB", dest='useDCB', default=False, action="store_true", help="Use DCB in signal fitting")
   parser.add_option("--useDiagonalProcForShape", dest='useDiagonalProcForShape', default=False, action="store_true", help="Use shape of diagonal process, keeping normalisation (requires diagonal mapping produced by getDiagProc script)")
-  parser.add_option('--skipVertexScenarioSplit', dest='skipVertexScenarioSplit', default=False, action="store_true", help="Skip vertex scenario split")
+  parser.add_option('--skipVertexScenarioSplit', dest='skipVertexScenarioSplit', default=True, action="store_true", help="Skip vertex scenario split")
   parser.add_option('--skipZeroes', dest='skipZeroes', default=False, action="store_true", help="Skip proc x cat is numEntries = 0., or sumEntries < 0.")
   # For systematics
   parser.add_option('--skipSystematics', dest='skipSystematics', default=False, action="store_true", help="Skip shape systematics in signal model")
@@ -55,7 +55,7 @@ def get_options():
   parser.add_option('--beamspotWidthData', dest='beamspotWidthData', default=3.5, type='float', help="Width of beamspot in data [cm]")
   parser.add_option('--beamspotWidthMC', dest='beamspotWidthMC', default=3.7, type='float', help="Width of beamspot in MC [cm]")
   parser.add_option('--MHPolyOrder', dest='MHPolyOrder', default=0, type='int', help="Order of polynomial for MH dependence")
-  parser.add_option('--nBins', dest='nBins', default=80, type='int', help="Number of bins for fit")
+  parser.add_option('--nBins', dest='nBins', default=160, type='int', help="Number of bins for fit")
   # Minimizer options
   parser.add_option('--minimizerMethod', dest='minimizerMethod', default='TNC', help="(Scipy) Minimizer method")
   parser.add_option('--minimizerTolerance', dest='minimizerTolerance', default=1e-8, type='float', help="(Scipy) Minimizer toleranve")
@@ -101,7 +101,8 @@ xvar = inputWS0.var(opt.xvar)
 xvarFit = xvar.Clone()
 print(xvar)
 dZ = inputWS0.var("dZ")
-aset = ROOT.RooArgSet(xvar,dZ)
+reduced_mass = inputWS0.var("reduced_mass")
+aset = ROOT.RooArgSet(xvar,dZ,reduced_mass)
 f0.Close()
 
 # Create MH var
@@ -285,7 +286,11 @@ if opt.doVoigtian:
 # FIT: simultaneous signal fit (ssf)
 ssfMap = od()
 name = "Total" if opt.skipVertexScenarioSplit else "RV"
-ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+ssfRV.buildResoModel()
+ssfRV.buildTrueLineshape()
+ssfRV.buildAnalytical()
+sys.exit()
 if opt.useDCB: ssfRV.buildDCBplusGaussian()
 else: ssfRV.buildNGaussians(nRV)
 ssfRV.runFit()
@@ -294,7 +299,7 @@ ssfMap[name] = ssfRV
 
 if not opt.skipVertexScenarioSplit:
   name = "WV"
-  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,datasetWVForFit,xvar.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,datasetWVForFit,xvar.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
   if opt.useDCB: ssfWV.buildDCBplusGaussian()
   else: ssfWV.buildNGaussians(nWV)
   ssfWV.runFit()

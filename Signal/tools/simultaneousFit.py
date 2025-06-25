@@ -11,35 +11,31 @@ import ctypes
 # Parameter lookup table for initialisation
 # So far defined up to MHPolyOrder=2
 pLUT = od()
+pLUT['Reso_DCB'] = od()
+pLUT['Reso_DCB']['dm'] = [0, -0.01, 0.01]
+pLUT['Reso_DCB']['sigma'] = [0.01, 0.001, 0.1]
+pLUT['Reso_DCB']['n1'] = [4., 3., 10.] # nL
+pLUT['Reso_DCB']['n2'] = [10., 4., 20.] # nR
+pLUT['Reso_DCB']['a1'] = [1.5, 0.5, 2.0] # alphaL
+pLUT['Reso_DCB']['a2'] = [1.5, 0.5, 2.0] # alphaR
+pLUT['Reso_func'] = od()
+pLUT['Reso_func']['dm'] = ['[0]+[1]*x']
+pLUT['Reso_func']['sigma'] = ['[0]+[1]*x']
+pLUT['Reso_func']['n1'] = ['[0]+[1]*x']
+pLUT['Reso_func']['n2'] = ['[0]+[1]*x']
+pLUT['Reso_func']['a1'] = ['[0]+[1]*x']
+pLUT['Reso_func']['a2'] = ['[0]+[1]*x']
 pLUT['DCB'] = od()
-# pLUT['DCB']['dm_p0'] = [0.1,-2.5,2.5]
-# pLUT['DCB']['dm_p1'] = [0.0,-0.1,0.1]
-# pLUT['DCB']['dm_p2'] = [0.0,-0.001,0.001]
-# pLUT['DCB']['sigma_p0'] = [7.,1.,12.]
-# pLUT['DCB']['sigma_p1'] = [0.0,-0.1,0.1]
-# pLUT['DCB']['sigma_p2'] = [0.0,-0.001,0.001]
-# pLUT['DCB']['n1_p0'] = [20.,1.00001,500]
-# pLUT['DCB']['n1_p1'] = [0.0,-0.1,0.1]
-# pLUT['DCB']['n1_p2'] = [0.0,-0.001,0.001]
-# pLUT['DCB']['n2_p0'] = [20.,1.00001,500]
-# pLUT['DCB']['n2_p1'] = [0.0,-0.1,0.1]
-# pLUT['DCB']['n2_p2'] = [0.0,-0.001,0.001]
-# pLUT['DCB']['a1_p0'] = [1.,1.,10.]
-# pLUT['DCB']['a1_p1'] = [0.0,-0.1,0.1]
-# pLUT['DCB']['a1_p2'] = [0.0,-0.001,0.001]
-# pLUT['DCB']['a2_p0'] = [1.,1.,20.]
-# pLUT['DCB']['a2_p1'] = [0.0,-0.1,0.1]
-# pLUT['DCB']['a2_p2'] = [0.0,-0.001,0.001]
 pLUT['DCB']['dm_p0'] = [0.1,-2.5,2.5]
 pLUT['DCB']['dm_p1'] = [0.0,-0.1,0.1]
 pLUT['DCB']['dm_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['sigma_p0'] = [7.,1.,20.]
+pLUT['DCB']['sigma_p0'] = [2.,1.,20.]
 pLUT['DCB']['sigma_p1'] = [0.0,-0.1,0.1]
 pLUT['DCB']['sigma_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['n1_p0'] = [20.,1.00001,30]
+pLUT['DCB']['n1_p0'] = [20.,1.00001,500]
 pLUT['DCB']['n1_p1'] = [0.0,-0.1,0.1]
 pLUT['DCB']['n1_p2'] = [0.0,-0.001,0.001]
-pLUT['DCB']['n2_p0'] = [20.,1.00001,30]
+pLUT['DCB']['n2_p0'] = [20.,1.00001,500]
 pLUT['DCB']['n2_p1'] = [0.0,-0.1,0.1]
 pLUT['DCB']['n2_p2'] = [0.0,-0.001,0.001]
 pLUT['DCB']['a1_p0'] = [1.,1.,10.]
@@ -52,7 +48,7 @@ pLUT['Gaussian_wdcb'] = od()
 pLUT['Gaussian_wdcb']['dm_p0'] = [0.1,-1.5,1.5]
 pLUT['Gaussian_wdcb']['dm_p1'] = [0.01,-0.01,0.01]
 pLUT['Gaussian_wdcb']['dm_p2'] = [0.01,-0.01,0.01]
-pLUT['Gaussian_wdcb']['sigma_p0'] = [0.1,1.0,4.]
+pLUT['Gaussian_wdcb']['sigma_p0'] = [1.5,1.0,4.]
 pLUT['Gaussian_wdcb']['sigma_p1'] = [0.0,-0.1,0.1]
 pLUT['Gaussian_wdcb']['sigma_p2'] = [0.0,-0.001,0.001]
 pLUT['Frac'] = od()
@@ -170,12 +166,13 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_reduced_mass,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
     self.datasetForFit = _datasetForFit
     self.xvar = _xvar
+    self.reduced_mass = _reduced_mass
     self.MH = _MH
     self.MHLow = _MHLow
     self.MHHigh = _MHHigh
@@ -198,6 +195,7 @@ class SimultaneousFit:
     self.Varlists = od()
     self.Polynomials = od()
     self.Pdfs = od()
+    self.ResoFuncs = od()
     self.Coeffs = od()
     self.Splines = od()
     # Prepare RooDataHists for fit
@@ -237,10 +235,182 @@ class SimultaneousFit:
       self.Vars['weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
       for i in range(0,d.numEntries()):
         self.xvar.setVal(d.get(i).getRealValue(self.xvar.GetName()))
+        self.reduced_mass.setVal(d.get(i).getRealValue(self.reduced_mass.GetName()))
         self.Vars['weight'].setVal((1/sumw)*d.weight())
-        drw.add(ROOT.RooArgSet(self.xvar,self.Vars['weight']),self.Vars['weight'].getVal())
+        drw.add(ROOT.RooArgSet(self.xvar,self.reduced_mass,self.Vars['weight']),self.Vars['weight'].getVal())
       # Convert to RooDataHist
-      self.DataHists[k] = ROOT.RooDataHist("%s_hist"%d.GetName(),"%s_hist"%d.GetName(),ROOT.RooArgSet(self.xvar),drw)
+      self.DataHists[k] = ROOT.RooDataHist("%s_hist"%d.GetName(),"%s_hist"%d.GetName(),ROOT.RooArgSet(self.xvar, self.reduced_mass),drw)
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Function to construct the resolution model from the available mass points
+  def fitReducedMasses(self):
+    for mass in self.massPoints.split(','):
+      k = "res_param_%s"%mass
+      self.Varlists[k] = ROOT.RooArgList("%s"%k)
+
+      for f in ['dm','sigma','a1','n1','a2','n2']:
+        self.Vars['%s_%s'%(k,f)] = ROOT.RooRealVar("%s_%s"%(k,f),"%s_%s"%(k,f),pLUT['Reso_DCB']["%s"%f][0],pLUT['Reso_DCB']["%s"%f][1],pLUT['Reso_DCB']["%s"%f][2])
+        self.Varlists[k].add( self.Vars['%s_%s'%(k,f)] )
+
+      # Build DCB
+      self.Pdfs['dcb_reso_%s'%mass] = ROOT.RooDoubleCBFast("dcb_reso_%s"%mass,"dcb_reso_%s"%mass,self.reduced_mass,
+                                                           self.Vars['%s_dm'%k],
+                                                           self.Vars['%s_sigma'%k],
+                                                           self.Vars['%s_a1'%k],
+                                                           self.Vars['%s_n1'%k],
+                                                           self.Vars['%s_a2'%k],
+                                                           self.Vars['%s_n2'%k])
+
+      result = self.Pdfs['dcb_reso_%s'%mass].fitTo(self.DataHists[mass], ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(True), ROOT.RooFit.PrintLevel(-1), )
+      result.Print()
+
+      # Plot the fit
+      frame = self.reduced_mass.frame()
+      self.DataHists[mass].plotOn(frame)
+      self.Pdfs['dcb_reso_%s'%mass].plotOn(frame)
+      c = ROOT.TCanvas("c", "Reduced Mass Plot", 800, 600)
+      frame.SetTitle(f"Reduced Mass - {mass}")
+      frame.Draw()
+      c.SaveAs("reduced_mass_{}.png".format(mass))
+
+    for f in ['dm', 'sigma', 'a1', 'n1', 'a2', 'n2']:
+      c = ROOT.TCanvas("c", "%s"%f, 800, 600)
+      g = ROOT.TGraphErrors(len(self.massPoints.split(',')))
+      for i, mass in enumerate(self.massPoints.split(',')):
+        k = f"res_param_{mass}"
+        var = self.Vars['%s_%s' % (k, f)]
+        val = var.getVal()
+        err = var.getError()  # Get fit uncertainty
+        g.SetPoint(i, float(mass), val)
+        g.SetPointError(i, 0, err)  # No x-error, y-error from fit
+
+      g.SetTitle(f"{f} vs Mass;Mass;{f}")
+      g.SetMarkerStyle(20)
+      g.SetMarkerSize(1.2)
+      g.SetLineWidth(2)
+
+      func = ROOT.TF1(f"fit_{f}", "pol1", float(min(self.massPoints.split(','))), float(max(self.massPoints.split(','))))
+      g.Fit(func, "Q")
+      g.Draw("AP")
+      func.Draw("same")
+      c.SaveAs("{}_vs_mass.png".format(f))
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  def buildResoModel(self,_verbose='Q'):
+
+    self.fitReducedMasses()
+    for f in ['dm', 'sigma', 'a1', 'n1', 'a2', 'n2']:
+      self.Varlists['reso_func_%s_params'%f] = ROOT.RooArgList('reso_func_%s_params'%f)
+      g = ROOT.TGraphErrors(len(self.massPoints.split(',')))
+
+      for i, mass in enumerate(self.massPoints.split(',')):
+        k = f"res_param_{mass}"
+        var = self.Vars['%s_%s' % (k, f)]
+        val = var.getVal()
+        err = var.getError()  # Get fit uncertainty
+        g.SetPoint(i, float(mass), val)
+        g.SetPointError(i, 0, err)
+
+      func = ROOT.TF1("fit_func_%s"%f, pLUT['Reso_func']["%s"%f][0], float(self.MHLow), float(self.MHHigh))
+      g.Fit(func, _verbose)
+
+      # Extract parameters from TF1
+      n_params = func.GetNpar()
+
+      formula = pLUT['Reso_func'][f][0].replace('x', 'MH')
+      for i in range(n_params):
+        pval = func.GetParameter(i)
+        self.Vars['reso_func_%s_p%s'%(f,i)] = ROOT.RooRealVar(f"{f}_p{i}", f"{f}_p{i}", pval)
+        self.Varlists['reso_func_%s_params'%f].add( self.Vars['reso_func_%s_p%s'%(f,i)] )
+        formula = formula.replace('[%d]'%i, '@%d'%i)
+      self.Varlists['reso_func_%s_params'%f].add(self.MH)
+
+      # Define RooFormulaVar with same functional form
+      roo_formula = ROOT.RooFormulaVar(
+          f"{f}_formula", formula, self.Varlists['reso_func_%s_params'%f])
+
+      # Save the RooFormulaVar for use in DCB later
+      self.ResoFuncs[f] = roo_formula
+      self.ResoFuncs[f].Print()
+
+    fixed = ['sigma', 'a1', 'a2', 'n1', 'n2']
+    for mass in self.massPoints.split(','):
+      k = f"res_param_{mass}"
+      self.MH.setVal(float(mass))
+      self.MH.setConstant(True)
+
+      self.Pdfs['dcb_reso_%s_from_func'%mass] = ROOT.RooDoubleCBFast("dcb_reso_%s"%mass,"dcb_reso_%s"%mass,self.reduced_mass,
+                                                          self.ResoFuncs['dm'] if 'dm' in fixed else self.Vars[f'{k}_dm'],
+                                                          self.ResoFuncs['sigma'] if 'sigma' in fixed else self.Vars[f'{k}_sigma'],
+                                                          self.ResoFuncs['a1'] if 'a1' in fixed else self.Vars[f'{k}_a1'],
+                                                          self.ResoFuncs['n1'] if 'n1' in fixed else self.Vars[f'{k}_n1'],
+                                                          self.ResoFuncs['a2'] if 'a2' in fixed else self.Vars[f'{k}_a2'],
+                                                          self.ResoFuncs['n2'] if 'n2' in fixed else self.Vars[f'{k}_n2'])
+
+      result = self.Pdfs['dcb_reso_%s_from_func'%mass].fitTo(self.DataHists[mass], ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(True), ROOT.RooFit.PrintLevel(-1), )
+      result.Print()
+
+
+    for f in ['dm', 'sigma', 'a1', 'n1', 'a2', 'n2']:
+      if f in fixed: continue
+
+      g = ROOT.TGraphErrors(len(self.massPoints.split(',')))
+
+      for i, mass in enumerate(self.massPoints.split(',')):
+        k = f"res_param_{mass}"
+        var = self.Vars['%s_%s' % (k, f)]
+        val = var.getVal()
+        err = var.getError()  # Get fit uncertainty
+        g.SetPoint(i, float(mass), val)
+        g.SetPointError(i, 0, err)
+
+      func = ROOT.TF1("fit_func_%s"%f, pLUT['Reso_func']["%s"%f][0], float(self.MHLow), float(self.MHHigh))
+      g.Fit(func, _verbose)
+
+      # Extract parameters from TF1
+      n_params = func.GetNpar()
+
+      formula = pLUT['Reso_func'][f][0].replace('x', 'MH')
+      for i in range(n_params):
+        pval = func.GetParameter(i)
+        self.Vars['reso_func_%s_p%s'%(f,i)].setVal(pval)
+        formula = formula.replace('[%d]'%i, '@%d'%i)
+
+    self.Vars['dcb_reso_dm_scaled'] = ROOT.RooFormulaVar("dm_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['dm'], self.MH))
+    self.Vars['dcb_reso_sigma_scaled'] = ROOT.RooFormulaVar("sigma_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['sigma'], self.MH))
+    self.Pdfs['reso_model'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.xvar,
+                                                          self.Vars['dcb_reso_dm_scaled'],
+                                                          self.Vars['dcb_reso_sigma_scaled'],
+                                                          self.ResoFuncs['a1'],
+                                                          self.ResoFuncs['n1'],
+                                                          self.ResoFuncs['a2'],
+                                                          self.ResoFuncs['n2'])
+
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  def buildTrueLineshape(self):
+
+    gamma_val = np.sqrt(2) * 0.01**2 * self.MH.getVal()
+    g0 = ROOT.RooRealVar("g0", "", gamma_val) #TODO: Add this into ssf init()
+    self.Vars['g0'] = g0
+    self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","","(CMS_hgg_mass/MH)^2/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)", ROOT.RooArgList(self.MH,g0,self.xvar))
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  def buildAnalytical(self):
+
+    self.Pdfs['final'] = ROOT.RooFFTConvPdf("final_model", "rel_bw * dcb", self.xvar, self.Pdfs['rel_bw'], self.Pdfs['reso_model'])
+    self.xvar.setRange(200, 300)
+    self.xvar.setBins(150)
+    mass = '250'
+    self.MH.setVal(int(mass))
+    frame = self.xvar.frame()
+    self.DataHists[mass].plotOn(frame)
+    self.Pdfs['final'].plotOn(frame)
+
+    c = ROOT.TCanvas("c", "Final model", 800, 600)
+    frame.SetTitle(f"Final Model, M - {mass}")
+    frame.Draw()
+    c.SaveAs("final_model_{}.png".format(mass))
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildDCBplusGaussian(self,_recursive=True):

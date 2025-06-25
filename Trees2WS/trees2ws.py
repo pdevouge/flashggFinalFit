@@ -55,12 +55,15 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_mass=None):
     if var == "CMS_hgg_mass":
       # _vars[var] = ROOT.RooRealVar(var,var,500.,100.,5000.)
       # _vars[var].setBins(160)
-      _vars[var] = ROOT.RooRealVar(var,var,400.,225.,500.)
-      _vars[var].setBins(275*2)
+      _vars[var] = ROOT.RooRealVar(var,var,400.,200.,600.)
+      _vars[var].setBins(400*2)
       # _vars[var] = ROOT.RooRealVar(var,var,float(_mass),float(_mass)-0.2*float(_mass),float(_mass)+0.2*float(_mass))
       # bin_w = 0.5 #GeV
       # mass_rg = 0.4*float(_mass)
       # _vars[var].setBins(int(mass_rg/bin_w))
+    elif var == "reduced_mass":
+      _vars[var] = ROOT.RooRealVar(var,var,0., -0.2, 0.2)
+      # _vars[var].setBins(400)
     elif var == "dZ":
       _vars[var] = ROOT.RooRealVar(var,var,0.,-20.,20.)
       _vars[var].setBins(40)
@@ -182,6 +185,9 @@ for cat in cats:
     if opt.productionMode == 'ggh': df['NNLOPSweight'] = t.arrays(['NNLOPSweight'], library='pd')
     else: df['NNLOPSweight'] = 1.
 
+  # Add column reduced mass
+  df['reduced_mass'] = df['CMS_hgg_mass'].astype(float) / float(opt.inputMass) - 1
+
   # Add columns specifying category add to overall dataframe
   df['cat'] = cat
   data = pandas.concat([data,df], ignore_index=True, axis=0, sort=False)
@@ -201,6 +207,8 @@ for cat in cats:
         sdf['type'] = "%s%s"%(s,direction)
         # Add STXS splitting var if splitting necessary
         if opt.doSTXSSplitting: sdf[stxsVar] = st.arrays(stxsVar, library='pd')
+
+        sdf['reduced_mass'] = sdf['CMS_hgg_mass'].astype(float) / float(opt.inputMass) - 1
 
         # Add column specifying category and add to systematics dataframe
         sdf['cat'] = cat

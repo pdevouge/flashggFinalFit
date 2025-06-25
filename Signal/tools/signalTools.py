@@ -17,12 +17,12 @@ def splitRVWV(_d,_argset,mode="RV"):
     print(" --> [ERROR] unrecognised mode (%s) in splitRVWV function"%mode)
     return 0
 
-def beamspotReweigh(d,widthData,widthMC,_xvar,_dZ,_x='CMS_hgg_mass',preserveNorm=True):
+def beamspotReweigh(d,widthData,widthMC,_xvar,_dZ,_reduced_mass,_x='CMS_hgg_mass',preserveNorm=True):
   isumw = d.sumEntries()
   drw = d.emptyClone()
   rw = ROOT.RooRealVar("weight","weight",-100000,1000000)
   for i in range(0,d.numEntries()):
-    x, dz = d.get(i).getRealValue(_x), d.get(i).getRealValue("dZ")
+    x, dz, rm = d.get(i).getRealValue(_x), d.get(i).getRealValue("dZ"), d.get(i).getRealValue("reduced_mass")
     f = 1.
     if abs(dz) < 0.1: f = 1.
     else:
@@ -33,21 +33,23 @@ def beamspotReweigh(d,widthData,widthMC,_xvar,_dZ,_x='CMS_hgg_mass',preserveNorm
     rw.setVal(f*d.weight())
     _xvar.setVal(x)
     _dZ.setVal(dz)
+    _reduced_mass.setVal(rm)
     # Add point to dataset
-    drw.add( ROOT.RooArgSet(_xvar,_dZ), rw.getVal() )
+    drw.add( ROOT.RooArgSet(_xvar,_dZ,_reduced_mass), rw.getVal() )
 
   # If preserve norm of original dataset
   if preserveNorm:
     fsumw = drw.sumEntries()
     drw_pn = d.emptyClone()
     for i in range(0,drw.numEntries()):
-      x, dz = drw.get(i).getRealValue(_x), drw.get(i).getRealValue("dZ")
+      x, dz, rm = drw.get(i).getRealValue(_x), drw.get(i).getRealValue("dZ"), drw.get(i).getRealValue("reduced_mass")
       f = isumw/fsumw if fsumw!=0. else 1.
       rw.setVal(f*drw.weight())
       _xvar.setVal(x)
       _dZ.setVal(dz)
+      _reduced_mass.setVal(rm)
       # Add point to dataset
-      drw_pn.add( ROOT.RooArgSet(_xvar,_dZ), rw.getVal() )
+      drw_pn.add( ROOT.RooArgSet(_xvar,_dZ, _reduced_mass), rw.getVal() )
     # Set reweighted dataset
     drw = drw_pn.Clone()
 
