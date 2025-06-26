@@ -11,6 +11,69 @@ def LoadTranslations(jsonfilename):
 def Translate(name, ndict):
     return ndict[name] if name in ndict else name
 
+
+def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=False):
+  if _from_formulas: _extension += '_from_formula'
+  else: _extension += '_from_singlefit'
+
+  if _mass != '': massPoints = [_mass]
+  else: massPoints = ssf.massPoints
+  for mass in massPoints.split(','):
+    canv = ROOT.TCanvas()
+    canv.SetLeftMargin(0.15)
+    frame = ssf.reduced_mass.frame()
+    ssf.DataHists[mass].plotOn(frame)
+    if _from_formulas:
+      ssf.MH.setVal(float(mass))
+      ssf.MH.setConstant(True)
+      ssf.Pdfs['final_dcb_reso_from_func'].plotOn(frame)
+    else:
+      ssf.Pdfs['dcb_reso_%s'%mass].plotOn(frame)
+    frame.SetTitle(f"Reduced Mass - {mass}")
+    frame.Draw()
+    canv.SaveAs("%s/individualDCB_%s_%s.png"%(_outdir,mass,_extension))
+    canv.SaveAs("%s/individualDCB_%s_%s.pdf"%(_outdir,mass,_extension))
+
+def plotDCBParameters(ssf,_outdir='./'):
+  for f in ['dm', 'sigma', 'a1', 'n1', 'a2', 'n2']:
+    canv = ROOT.TCanvas()
+    canv.SetLeftMargin(0.15)
+    g = ROOT.TGraphErrors(len(ssf.massPoints.split(',')))
+    for i, mass in enumerate(ssf.massPoints.split(',')):
+      k = f"res_param_{mass}"
+      var = ssf.Vars['%s_%s' % (k, f)]
+      val = var.getVal()
+      err = var.getError()  # Get fit uncertainty
+      g.SetPoint(i, float(mass), val)
+      g.SetPointError(i, 0, err)  # No x-error, y-error from fit
+
+    g.SetTitle(f"{f} vs Mass;Mass;{f}")
+    g.SetMarkerStyle(20)
+    g.SetMarkerSize(1.2)
+    g.SetLineWidth(2)
+
+    g.Draw("AP")
+    ssf.ResoFuncs["%s_function"%f].Draw("same")
+    canv.SaveAs("%s/DCB_parameters_%s.png"%(_outdir,f))
+    canv.SaveAs("%s/DCB_parameters_%s.pdf"%(_outdir,f))
+
+def plotTrueLineshape(ssf, outdir='./'):
+  return
+
+def plotAnalyticalModel(ssf,_outdir='./'):
+  for mass in ssf.massPoints.split(','):
+    canv = ROOT.TCanvas()
+    canv.SetLeftMargin(0.15)
+    ssf.xvar.setRange(int(mass)-0.2*int(mass), int(mass)+0.2*int(mass))
+    ssf.MH.setVal(int(mass))
+    frame = ssf.xvar.frame()
+    ssf.DataHists[mass].plotOn(frame)
+    ssf.Pdfs['final'].plotOn(frame)
+    frame.SetTitle(f"Final Model, M - {mass}")
+    frame.Draw()
+    canv.SaveAs("%s/analytical_model%s.png"%(_outdir,mass))
+    canv.SaveAs("%s/analytical_model%s.pdf"%(_outdir,mass))
+
 # Function to extract the sigma effective of a histogram
 # Function to extract the sigma effective of a histogram
 def getEffSigma(_h):

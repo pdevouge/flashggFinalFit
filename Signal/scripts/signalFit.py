@@ -39,6 +39,7 @@ def get_options():
   parser.add_option('--skipBeamspotReweigh', dest='skipBeamspotReweigh', default=True, action="store_true", help="Skip beamspot reweigh to match beamspot distribution in data")
   parser.add_option('--doPlots', dest='doPlots', default=False, action="store_true", help="Produce Signal Fitting plots")
   parser.add_option("--doVoigtian", dest='doVoigtian', default=False, action="store_true", help="Use Voigtians instead of Gaussians for signal models with Higgs width as parameter")
+  parser.add_option("--useInterpolation", dest='useInterpolation', default=False, action="store_true", help="Use signal interpolation instead of analytical form")
   parser.add_option("--useDCB", dest='useDCB', default=False, action="store_true", help="Use DCB in signal fitting")
   parser.add_option("--useDiagonalProcForShape", dest='useDiagonalProcForShape', default=False, action="store_true", help="Use shape of diagonal process, keeping normalisation (requires diagonal mapping produced by getDiagProc script)")
   parser.add_option('--skipVertexScenarioSplit', dest='skipVertexScenarioSplit', default=True, action="store_true", help="Skip vertex scenario split")
@@ -287,51 +288,67 @@ if opt.doVoigtian:
 ssfMap = od()
 name = "Total" if opt.skipVertexScenarioSplit else "RV"
 ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
-ssfRV.buildResoModel()
-ssfRV.buildTrueLineshape()
-ssfRV.buildAnalytical()
-sys.exit()
-if opt.useDCB: ssfRV.buildDCBplusGaussian()
-else: ssfRV.buildNGaussians(nRV)
-ssfRV.runFit()
-ssfRV.buildSplines()
+if opt.useInterpolation:
+  if opt.useDCB: ssfRV.buildDCBplusGaussian()
+  else: ssfRV.buildNGaussians(nRV)
+  ssfRV.runFit()
+  ssfRV.buildSplines()
+else:
+  ssfRV.buildResoModel()
+  ssfRV.buildTrueLineshape()
+  ssfRV.buildAnalytical()
+
 ssfMap[name] = ssfRV
 
 if not opt.skipVertexScenarioSplit:
   name = "WV"
   ssfWV = SimultaneousFit(name,opt.proc,opt.cat,datasetWVForFit,xvar.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
-  if opt.useDCB: ssfWV.buildDCBplusGaussian()
-  else: ssfWV.buildNGaussians(nWV)
-  ssfWV.runFit()
-  ssfWV.buildSplines()
+  if opt.useInterpolation:
+    if opt.useDCB: ssfWV.buildDCBplusGaussian()
+    else: ssfWV.buildNGaussians(nRV)
+    ssfWV.runFit()
+    ssfWV.buildSplines()
+  else:
+    ssfWV.buildResoModel()
+    ssfWV.buildTrueLineshape()
+    ssfWV.buildAnalytical()
+
   ssfMap[name] = ssfWV
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # FINAL MODEL: construction
-print("\n --> Constructing final model")
-fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.ext,opt.year,sqrts__,nominalDatasets,xvar,MH,MHLow,MHHigh,opt.massPoints,xsbrMap,procSyst,opt.scales,opt.scalesCorr,opt.scalesGlobal,opt.smears,opt.doVoigtian,opt.useDCB,opt.skipVertexScenarioSplit,opt.skipSystematics)
+# print("\n --> Constructing final model")
+# fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.ext,opt.year,sqrts__,nominalDatasets,xvar,MH,MHLow,MHHigh,opt.massPoints,xsbrMap,procSyst,opt.scales,opt.scalesCorr,opt.scalesGlobal,opt.smears,opt.doVoigtian,opt.useDCB,opt.skipVertexScenarioSplit,opt.skipSystematics)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SAVE: to output workspace
-foutDir = "%s/outdir_%s/signalFit2/output"%(swd__,opt.ext)
-foutName = "%s/outdir_%s/signalFit2/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,opt.ext,opt.ext,opt.proc,opt.year,opt.cat)
-print("\n --> Saving output workspace to file: %s"%foutName)
-if not os.path.isdir(foutDir): os.system("mkdir %s"%foutDir)
-fout = ROOT.TFile(foutName,"RECREATE")
-outWS = ROOT.RooWorkspace("%s_%s"%(outputWSName__,sqrts__),"%s_%s"%(outputWSName__,sqrts__))
-fm.save(outWS)
-outWS.Write()
-fout.Close()
+# # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# # SAVE: to output workspace
+# foutDir = "%s/outdir_%s/signalFit/output"%(swd__,opt.ext)
+# foutName = "%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,opt.ext,opt.ext,opt.proc,opt.year,opt.cat)
+# print("\n --> Saving output workspace to file: %s"%foutName)
+# if not os.path.isdir(foutDir): os.system("mkdir %s"%foutDir)
+# fout = ROOT.TFile(foutName,"RECREATE")
+# outWS = ROOT.RooWorkspace("%s_%s"%(outputWSName__,sqrts__),"%s_%s"%(outputWSName__,sqrts__))
+# fm.save(outWS)
+# outWS.Write()
+# fout.Close()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # PLOTTING
 if opt.doPlots:
   print("\n --> Making plots...")
-  if not os.path.isdir("%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext))
-  if opt.skipVertexScenarioSplit:
-    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
-  if not opt.skipVertexScenarioSplit:
-    plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_extension="RV_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
-    plotPdfComponents(ssfWV,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_extension="WV_",_proc=procWVFit,_cat=catRVFit, _mass=float(MHNominal))
-  # Plot interpolation
-  plotInterpolation(fm,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext))
-  plotSplines(fm,_outdir="%s/outdir_%s/signalFit2/Plots"%(swd__,opt.ext),_nominalMass=MHNominal,splinesToPlot=['xs','br','ea'])
+  if not os.path.isdir("%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
+  if not opt.useInterpolation:
+    if not os.path.isdir("%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
+    plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
+    plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext), _from_formulas=True)
+    plotDCBParameters(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
+    plotTrueLineshape(ssfRV)
+    plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
+  else:
+    if opt.skipVertexScenarioSplit:
+      plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
+    if not opt.skipVertexScenarioSplit:
+      plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="RV_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
+      plotPdfComponents(ssfWV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="WV_",_proc=procWVFit,_cat=catRVFit, _mass=float(MHNominal))
+    # Plot interpolation
+    plotInterpolation(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
+    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_nominalMass=MHNominal,splinesToPlot=['xs','br','ea'])
