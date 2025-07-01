@@ -58,10 +58,11 @@ def plotDCBParameters(ssf,_outdir='./'):
     canv.SetLeftMargin(0.15)
     g = ROOT.TGraphErrors(len(ssf.massPoints.split(',')))
     for i, mass in enumerate(ssf.massPoints.split(',')):
+      ssf.MH.setVal(float(mass))
       k = f"res_param_{mass}"
-      var = ssf.Vars['%s_%s' % (k, f)]
+      var = ssf.Vars['%s_%s' % (k, f)] #if f not in ['sigma', 'a1', 'n1', 'a2', 'n2'] else ssf.ResoFuncs[f'{f}_formula']
       val = var.getVal()
-      err = var.getError()  # Get fit uncertainty
+      err = var.getError() #if f not in ['sigma', 'a1', 'n1', 'a2', 'n2'] else 0 # Get fit uncertainty
       g.SetPoint(i, float(mass), val)
       g.SetPointError(i, 0, err)  # No x-error, y-error from fit
 
