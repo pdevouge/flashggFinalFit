@@ -63,7 +63,7 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_mass=None):
       # _vars[var].setBins(int(mass_rg/bin_w))
     elif var == "reduced_mass":
       _vars[var] = ROOT.RooRealVar(var,var,0., -0.2, 0.2)
-      # _vars[var].setBins(400)
+      _vars[var].setBins(100)
     elif var == "dZ":
       _vars[var] = ROOT.RooRealVar(var,var,0.,-20.,20.)
       _vars[var].setBins(40)
@@ -278,13 +278,14 @@ for stxsId in data[stxsVar].unique():
 
     # Define RooDataSet
     dName = "%s_%s_%s_%s_%s"%(opt.productionMode,opt.inputMass,opt.inputWidth,sqrts__,cat)
-    d = ROOT.RooDataSet(dName,dName,aset,'weight')
+    # d = ROOT.RooDataSet(dName,dName,aset,'weight')
 
     # Loop over events in dataframe and add entry
-    for row in df[mask][varNames].to_numpy():
-      for i, val in enumerate(row):
-        aset[i].setVal(val)
-      d.add(aset,aset.getRealValue("weight"))
+    # for row in df[mask][varNames].to_numpy():
+    #   for i, val in enumerate(row):
+    #     aset[i].setVal(val)
+    #   d.add(aset,aset.getRealValue("weight"))
+    d = ROOT.RooDataSet.from_pandas(df[mask][varNames], aset, dName,dName, weight_name="weight")
 
     # Add to workspace
     getattr(ws,'import')(d)

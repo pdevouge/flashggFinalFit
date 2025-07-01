@@ -29,8 +29,26 @@ def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=Fa
       ssf.Pdfs['final_dcb_reso_from_func'].plotOn(frame)
     else:
       ssf.Pdfs['dcb_reso_%s'%mass].plotOn(frame)
-    frame.SetTitle(f"Reduced Mass - {mass}")
+
+    # Create legend
+    legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
+    legend.SetBorderSize(0)
+    legend.SetFillStyle(0)
+    legend.SetTextSize(0.04)
+    legend.AddEntry(ssf.DataHists[mass], "Signal MC", "lep")
+    legend.AddEntry(ssf.Pdfs['dcb_reso_%s'%mass], "DCB fit", "l")  # Use curve from frame
+    chi2 = frame.chiSquare()
+    pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
+    pave_text.SetBorderSize(0)
+    pave_text.SetFillStyle(0)
+    pave_text.SetTextSize(0.04)
+    pave_text.AddText("#chi^{2} / n(dof) = %.2f"%chi2)  # Add chi2/ndf text
+
+    # Draw the TPaveText on the canvas
     frame.Draw()
+    legend.Draw()
+    pave_text.Draw()
+    frame.SetTitle(f"Reduced Mass - {mass}")
     canv.SaveAs("%s/individualDCB_%s_%s.png"%(_outdir,mass,_extension))
     canv.SaveAs("%s/individualDCB_%s_%s.pdf"%(_outdir,mass,_extension))
 
@@ -69,8 +87,25 @@ def plotAnalyticalModel(ssf,_outdir='./'):
     frame = ssf.xvar.frame()
     ssf.DataHists[mass].plotOn(frame)
     ssf.Pdfs['final'].plotOn(frame)
+
+    # Create legend
+    legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
+    legend.SetBorderSize(0)
+    legend.SetFillStyle(0)
+    legend.SetTextSize(0.04)
+    legend.AddEntry(ssf.DataHists[mass], "Signal MC", "lep")
+    legend.AddEntry(ssf.Pdfs['dcb_reso_%s'%mass], "Analytical model \n (rel. BW * DCB)", "l")  # Use curve from frame
+    chi2 = frame.chiSquare()
+    pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
+    pave_text.SetBorderSize(0)
+    pave_text.SetFillStyle(0)
+    pave_text.SetTextSize(0.04)
+    pave_text.AddText("#chi^{2} / n(dof) = %.2f"%chi2)  # Add chi2/ndf text
+
     frame.SetTitle(f"Final Model, M - {mass}")
     frame.Draw()
+    legend.Draw()
+    pave_text.Draw()
     canv.SaveAs("%s/analytical_model%s.png"%(_outdir,mass))
     canv.SaveAs("%s/analytical_model%s.pdf"%(_outdir,mass))
 

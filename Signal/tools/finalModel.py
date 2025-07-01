@@ -76,6 +76,7 @@ def initialiseXSBR():
 class FinalModel:
   # Constructor
   def __init__(self,_ssfMap,_proc,_cat,_ext,_year,_sqrts,_datasets,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_xsbrMap,_procSyst,_scales,_scalesCorr,_scalesGlobal,_smears,_doVoigtian,_useDCB,_skipVertexScenarioSplit,_skipSystematics):
+    self.doAnalyticalForm = True
     self.ssfMap = _ssfMap
     self.proc = _proc
     self.procSyst = _procSyst # Signal process used for systematics (useful for low stat cases)
@@ -118,14 +119,17 @@ class FinalModel:
     # If not skip systematics: add nuisance params to dict
     if not self.skipSystematics: self.buildNuisanceMap()
     # Build final pdfs
-    if not self.skipVertexScenarioSplit:
-      self.buildRVFracFunction()
-      self.buildPdf(self.ssfMap['RV'],ext="rv",useDCB=self.useDCB)
-      self.buildPdf(self.ssfMap['WV'],ext="wv",useDCB=self.useDCB)
-      self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(outputWSObjectTitle__,self.name),"%s_%s"%(outputWSObjectTitle__,self.name),ROOT.RooArgList(self.Pdfs['rv'],self.Pdfs['wv']),ROOT.RooArgList(self.Functions['fracRV']))
+    if not self.doAnalyticalForm:
+      if not self.skipVertexScenarioSplit:
+        self.buildRVFracFunction()
+        self.buildPdf(self.ssfMap['RV'],ext="rv",useDCB=self.useDCB)
+        self.buildPdf(self.ssfMap['WV'],ext="wv",useDCB=self.useDCB)
+        self.Pdfs['final'] = ROOT.RooAddPdf("%s_%s"%(outputWSObjectTitle__,self.name),"%s_%s"%(outputWSObjectTitle__,self.name),ROOT.RooArgList(self.Pdfs['rv'],self.Pdfs['wv']),ROOT.RooArgList(self.Functions['fracRV']))
+      else:
+        self.buildPdf(self.ssfMap['Total'],ext='total',useDCB=self.useDCB)
+        self.Pdfs['final'] = self.Pdfs['total']
     else:
-      self.buildPdf(self.ssfMap['Total'],ext='total',useDCB=self.useDCB)
-      self.Pdfs['final'] = self.Pdfs['total']
+      self.Pdfs['final'] = self.ssfMap['Total'].Pdfs['final']
     # Build final normalisation, datasets and extended Pdfs
     self.buildNorm()
     self.buildDatasets()

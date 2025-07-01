@@ -261,7 +261,7 @@ class SimultaneousFit:
                                                            self.Vars['%s_a2'%k],
                                                            self.Vars['%s_n2'%k])
       # Fit single DCB to data
-      result = self.Pdfs['dcb_reso_%s'%mass].fitTo(self.DataHists[mass], ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(True), ROOT.RooFit.PrintLevel(-1), )
+      result = self.Pdfs['dcb_reso_%s'%mass].fitTo(self.DataHists[mass], ROOT.RooFit.Save(),  ROOT.RooFit.PrintLevel(-1), )
       result.Print()
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
