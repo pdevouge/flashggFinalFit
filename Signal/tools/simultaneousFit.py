@@ -153,7 +153,7 @@ def nChi2Addition(X,ssf,verbose=False):
   chi2sum = 0
   K = 0 # number of non empty bins
   C = len(X)-1 # number of fit params (-1 for MH)
-  for mp,d in ssf.DataHists.items():
+  for mp,d in ssf.DataHists['reco_mass'].items():
     ssf.MH.setVal(int(mp))
     chi2, k  = calcChi2(ssf.xvar,ssf.Pdfs['final'],d,_verbose=verbose)
     chi2sum += chi2
@@ -166,12 +166,13 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_reduced_mass,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_true_mass,_reduced_mass,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
     self.datasetForFit = _datasetForFit
     self.xvar = _xvar
+    self.true_mass = _true_mass
     self.reduced_mass = _reduced_mass
     self.MH = _MH
     self.MHLow = _MHLow
@@ -200,6 +201,9 @@ class SimultaneousFit:
     self.Splines = od()
     # Prepare RooDataHists for fit
     self.DataHists = od()
+    self.DataHists['reco_mass'] = od()
+    self.DataHists['reduced_mass'] = od()
+    self.DataHists['gen_mass'] = od()
     self.prepareDataHists()
     # Fit containers
     self.FitParameters = None
@@ -235,12 +239,25 @@ class SimultaneousFit:
       self.Vars['weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
       for i in range(0,d.numEntries()):
         self.xvar.setVal(d.get(i).getRealValue(self.xvar.GetName()))
+        self.true_mass.setVal(d.get(i).getRealValue(self.true_mass.GetName()))
         self.reduced_mass.setVal(d.get(i).getRealValue(self.reduced_mass.GetName()))
         self.Vars['weight'].setVal((1/sumw)*d.weight())
-        drw.add(ROOT.RooArgSet(self.xvar,self.reduced_mass,self.Vars['weight']),self.Vars['weight'].getVal())
+        drw.add(ROOT.RooArgSet(self.xvar,self.true_mass,self.reduced_mass,self.Vars['weight']),self.Vars['weight'].getVal())
       # Convert to RooDataHist
-      self.DataHists[k] = ROOT.RooDataHist("%s_hist"%d.GetName(),"%s_hist"%d.GetName(),ROOT.RooArgSet(self.xvar, self.reduced_mass),drw)
+      self.DataHists['reco_mass'][k] = ROOT.RooDataHist("%s_hist_reco"%d.GetName(),"%s_hist_reco"%d.GetName(),ROOT.RooArgSet(self.xvar),drw)
+      self.DataHists['reduced_mass'][k] = ROOT.RooDataHist("%s_hist_reduced"%d.GetName(),"%s_hist_reduced"%d.GetName(),ROOT.RooArgSet(self.reduced_mass),drw)
+      self.DataHists['gen_mass'][k] = ROOT.RooDataHist("%s_hist_true"%d.GetName(),"%s_hist_true"%d.GetName(),ROOT.RooArgSet(self.true_mass),drw)
 
+    # d = self.datasetForFit['250']
+    # sumw = d.sumEntries()
+    # for i in range(0,d.numEntries()):
+    #   print('Bin %s'%i)
+    #   print("m reco:   ",d.get(i).getRealValue(self.xvar.GetName()))
+    #   print("m gen :   ",d.get(i).getRealValue(self.true_mass.GetName()))
+    #   print("m red :   ",d.get(i).getRealValue(self.reduced_mass.GetName()))
+    #   print("weight:   ",(1/sumw)*d.weight())
+    # import sys
+    # sys.exit()
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to construct the resolution model from the available mass points
   def fitReducedMasses(self):
@@ -261,7 +278,7 @@ class SimultaneousFit:
                                                            self.Vars['%s_a2'%k],
                                                            self.Vars['%s_n2'%k])
       # Fit single DCB to data
-      result = self.Pdfs['dcb_reso_%s'%mass].fitTo(self.DataHists[mass], ROOT.RooFit.Save(),  ROOT.RooFit.PrintLevel(-1), )
+      result = self.Pdfs['dcb_reso_%s'%mass].fitTo(self.DataHists['reduced_mass'][mass], ROOT.RooFit.Save(),  ROOT.RooFit.PrintLevel(-1), ROOT.RooFit.SumW2Error(True))
       result.Print()
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -318,7 +335,7 @@ class SimultaneousFit:
                                                           self.ResoFuncs['a2_formula'] if 'a2' in fixed else self.Vars[f'{k}_a2'],
                                                           self.ResoFuncs['n2_formula'] if 'n2' in fixed else self.Vars[f'{k}_n2'])
 
-      result = self.Pdfs['dcb_reso_%s_from_func'%mass].fitTo(self.DataHists[mass], ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(True), ROOT.RooFit.PrintLevel(-1), )
+      result = self.Pdfs['dcb_reso_%s_from_func'%mass].fitTo(self.DataHists['reduced_mass'][mass], ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(True), ROOT.RooFit.PrintLevel(-1), )
       result.Print()
 
     # Get updated values for unfixed parameters
@@ -345,36 +362,62 @@ class SimultaneousFit:
         self.Vars['reso_func_%s_p%s'%(f,i)].setVal(pval)
     # NB: no need to store the new formula, since it is already stored in the list of vars, we can just update it
 
+
+    import pickle
+    with open('../../../../../Analysis/Samples_genmass_fixed/Final_model_investigation_preEE/RSGrav_DCB_norm_weight_subrange.pkl','rb') as f:
+      param = pickle.load(f)
+    for k in ['mean','sigma','alphaL','nL','alphaR','nR']:
+      formula = param[k]['formula'].replace('[0]',str(param[k]['coeffs'][0][1])).replace('[1]','('+str(param[k]['coeffs'][1][1])+')').replace('x','MH')
+      self.ResoFuncs[k] = ROOT.RooFormulaVar(f"{k}_formula", formula, ROOT.RooArgList(self.MH))
+
+    # self.Pdfs['final_dcb_reso_from_func'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.reduced_mass,
+    #                                                     self.ResoFuncs['dm_formula'],
+    #                                                     self.ResoFuncs['sigma_formula'],
+    #                                                     self.ResoFuncs['a1_formula'],
+    #                                                     self.ResoFuncs['n1_formula'],
+    #                                                     self.ResoFuncs['a2_formula'],
+    #                                                     self.ResoFuncs['n2_formula'])
+
     self.Pdfs['final_dcb_reso_from_func'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.reduced_mass,
-                                                        self.ResoFuncs['dm_formula'],
-                                                        self.ResoFuncs['sigma_formula'],
-                                                        self.ResoFuncs['a1_formula'],
-                                                        self.ResoFuncs['n1_formula'],
-                                                        self.ResoFuncs['a2_formula'],
-                                                        self.ResoFuncs['n2_formula'])
+                                                        self.ResoFuncs['mean'],
+                                                        self.ResoFuncs['sigma'],
+                                                        self.ResoFuncs['alphaL'],
+                                                        self.ResoFuncs['nL'],
+                                                        self.ResoFuncs['alphaR'],
+                                                        self.ResoFuncs['nR'])
 
     # Create the resolution function
-    self.Vars['dcb_reso_dm_scaled'] = ROOT.RooFormulaVar("dm_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['dm_formula'], self.MH))
-    self.Vars['dcb_reso_sigma_scaled'] = ROOT.RooFormulaVar("sigma_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['sigma_formula'], self.MH))
+    # self.Vars['dcb_reso_dm_scaled'] = ROOT.RooFormulaVar("dm_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['dm_formula'], self.MH))
+    # self.Vars['dcb_reso_sigma_scaled'] = ROOT.RooFormulaVar("sigma_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['sigma_formula'], self.MH))
+    # self.Pdfs['final_reso_model'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.xvar,
+    #                                                       self.Vars['dcb_reso_dm_scaled'],
+    #                                                       self.Vars['dcb_reso_sigma_scaled'],
+    #                                                       self.ResoFuncs['a1_formula'],
+    #                                                       self.ResoFuncs['n1_formula'],
+    #                                                       self.ResoFuncs['a2_formula'],
+    #                                                       self.ResoFuncs['n2_formula'])
+
+    self.Vars['dcb_reso_dm_scaled'] = ROOT.RooFormulaVar("dm_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['mean'], self.MH))
+    self.Vars['dcb_reso_sigma_scaled'] = ROOT.RooFormulaVar("sigma_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['sigma'], self.MH))
     self.Pdfs['final_reso_model'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.xvar,
                                                           self.Vars['dcb_reso_dm_scaled'],
                                                           self.Vars['dcb_reso_sigma_scaled'],
-                                                          self.ResoFuncs['a1_formula'],
-                                                          self.ResoFuncs['n1_formula'],
-                                                          self.ResoFuncs['a2_formula'],
-                                                          self.ResoFuncs['n2_formula'])
-
+                                                          self.ResoFuncs['alphaL'],
+                                                          self.ResoFuncs['nL'],
+                                                          self.ResoFuncs['alphaR'],
+                                                          self.ResoFuncs['nR'])
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildTrueLineshape(self):
 
     g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * 0.01^2 * MH", ROOT.RooArgList(self.MH))
     self.Vars['g0'] = g0
-    self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","","(CMS_hgg_mass/MH)^2/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)", ROOT.RooArgList(self.MH,g0,self.xvar))
+    self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","","(CMS_hgg_mass/MH)^2/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)", ROOT.RooArgList(self.MH,self.Vars['g0'],self.xvar))
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildAnalytical(self):
 
+    self.xvar.setBins(10000, "cache");
     self.Pdfs['final'] = ROOT.RooFFTConvPdf("final_model", "rel_bw * dcb", self.xvar, self.Pdfs['rel_bw'], self.Pdfs['final_reso_model'])
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

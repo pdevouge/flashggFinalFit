@@ -13,8 +13,8 @@ def Translate(name, ndict):
 
 
 def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=False):
-  if _from_formulas: _extension += '_from_formula'
-  else: _extension += '_from_singlefit'
+  if _from_formulas: _extension += 'from_formula'
+  else: _extension += 'from_singlefit'
 
   if _mass != '': massPoints = [_mass]
   else: massPoints = ssf.massPoints
@@ -22,7 +22,7 @@ def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=Fa
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
     frame = ssf.reduced_mass.frame()
-    ssf.DataHists[mass].plotOn(frame)
+    ssf.DataHists['reduced_mass'][mass].plotOn(frame)
     if _from_formulas:
       ssf.MH.setVal(float(mass))
       ssf.MH.setConstant(True)
@@ -35,7 +35,7 @@ def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=Fa
     legend.SetBorderSize(0)
     legend.SetFillStyle(0)
     legend.SetTextSize(0.04)
-    legend.AddEntry(ssf.DataHists[mass], "Signal MC", "lep")
+    legend.AddEntry(ssf.DataHists['reduced_mass'][mass], "Signal MC", "lep")
     legend.AddEntry(ssf.Pdfs['dcb_reso_%s'%mass], "DCB fit", "l")  # Use curve from frame
     chi2 = frame.chiSquare()
     pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
@@ -76,17 +76,47 @@ def plotDCBParameters(ssf,_outdir='./'):
     canv.SaveAs("%s/DCB_parameters_%s.png"%(_outdir,f))
     canv.SaveAs("%s/DCB_parameters_%s.pdf"%(_outdir,f))
 
-def plotTrueLineshape(ssf, outdir='./'):
-  return
+def plotTrueLineshape(ssf, _outdir='./'):
+
+  for mass in ssf.massPoints.split(','):
+    canv = ROOT.TCanvas()
+    canv.SetLeftMargin(0.15)
+    ssf.xvar.setRange(int(mass)-0.01*int(mass), int(mass)+0.01*int(mass))
+    ssf.MH.setVal(int(mass))
+    frame = ssf.xvar.frame()
+    ssf.Pdfs['rel_bw'].plotOn(frame, LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
+
+    h_mgen = ROOT.TH1F("h_mgen", "mgen distribution", 100000, int(mass)-0.01*int(mass), int(mass)+0.01*int(mass))
+    for i in range(ssf.DataHists['gen_mass'][mass].numEntries()):
+      row = ssf.DataHists['gen_mass'][mass].get(i)
+      w = ssf.DataHists['gen_mass'][mass].weight()
+      val = row.getRealValue("true_mass")
+      h_mgen.Fill(val, w)
+
+    scale = frame.GetMaximum() / h_mgen.GetMaximum()
+    h_mgen.Scale(scale)
+
+    h_mgen.SetMarkerColor(ROOT.kBlack)
+    h_mgen.SetLineColor(ROOT.kBlack)
+    h_mgen.SetMarkerStyle(20)
+    h_mgen.SetMarkerSize(0.9)
+
+    frame.SetTitle(f"True lineshape model, M - {mass}")
+    frame.Draw()
+    h_mgen.Draw("same E")
+    canv.SaveAs("%s/true_lineshape_%s.png"%(_outdir,mass))
+    canv.SaveAs("%s/true_lineshape_%s.pdf"%(_outdir,mass))
+
 
 def plotAnalyticalModel(ssf,_outdir='./'):
   for mass in ssf.massPoints.split(','):
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
-    ssf.xvar.setRange(int(mass)-0.2*int(mass), int(mass)+0.2*int(mass))
+    ssf.xvar.setRange(int(mass)-0.1*int(mass), int(mass)+0.1*int(mass))
     ssf.MH.setVal(int(mass))
+    ssf.MH.setConstant(True)
     frame = ssf.xvar.frame()
-    ssf.DataHists[mass].plotOn(frame)
+    ssf.DataHists['reco_mass'][mass].plotOn(frame)
     ssf.Pdfs['final'].plotOn(frame)
 
     # Create legend
@@ -94,8 +124,8 @@ def plotAnalyticalModel(ssf,_outdir='./'):
     legend.SetBorderSize(0)
     legend.SetFillStyle(0)
     legend.SetTextSize(0.04)
-    legend.AddEntry(ssf.DataHists[mass], "Signal MC", "lep")
-    legend.AddEntry(ssf.Pdfs['dcb_reso_%s'%mass], "Analytical model \n (rel. BW * DCB)", "l")  # Use curve from frame
+    legend.AddEntry(ssf.DataHists['reco_mass'][mass], "Signal MC", "lep")
+    legend.AddEntry(ssf.Pdfs['dcb_reso_%s'%mass], "rel. BW * DCB", "l")  # Use curve from frame
     chi2 = frame.chiSquare()
     pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
     pave_text.SetBorderSize(0)
@@ -107,8 +137,8 @@ def plotAnalyticalModel(ssf,_outdir='./'):
     frame.Draw()
     legend.Draw()
     pave_text.Draw()
-    canv.SaveAs("%s/analytical_model%s.png"%(_outdir,mass))
-    canv.SaveAs("%s/analytical_model%s.pdf"%(_outdir,mass))
+    canv.SaveAs("%s/analytical_model_%s.png"%(_outdir,mass))
+    canv.SaveAs("%s/analytical_model_%s.pdf"%(_outdir,mass))
 
 # Function to extract the sigma effective of a histogram
 # Function to extract the sigma effective of a histogram
@@ -189,7 +219,7 @@ def plotFTest(ssfs,_opt=1,_outdir='./',_extension='',_proc='',_cat='',_mass='125
     hists[k].GetXaxis().SetRangeUser(115,140)
   # Extract data histogram
   hists['data'] = ssf.xvar.createHistogram("h_data%s"%_extension,ROOT.RooFit.Binning(ssf.nBins))
-  ssf.DataHists[_mass].fillHistogram(hists['data'],ROOT.RooArgList(ssf.xvar))
+  ssf.DataHists['reco_mass'][_mass].fillHistogram(hists['data'],ROOT.RooArgList(ssf.xvar))
   hists['data'].Scale(float(ssf.nBins)/1600)
   hists['data'].SetMarkerStyle(20)
   hists['data'].SetMarkerColor(1)
@@ -307,7 +337,7 @@ def plotPdfComponents(ssf,_outdir='./',_extension='',_proc='',_cat='', _mass='')
   #hists['final'].GetXaxis().SetRangeUser(100,150)
   # Create data histogram
   hists['data'] = ssf.xvar.createHistogram("h_data%s"%_extension,ROOT.RooFit.Binning(ssf.nBins))
-  ssf.DataHists[str(int(_mass))].fillHistogram(hists['data'],ROOT.RooArgList(ssf.xvar))
+  ssf.DataHists['reco_mass'][str(int(_mass))].fillHistogram(hists['data'],ROOT.RooArgList(ssf.xvar))
   hists['data'].SetTitle("")
   hists['data'].GetXaxis().SetTitle("m_{#gamma#gamma} [GeV]")
   hists['data'].SetMinimum(0)

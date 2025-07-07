@@ -33,7 +33,7 @@ def get_options():
   parser.add_option("--year", dest='year', default='2016', help="Year")
   parser.add_option("--analysis", dest='analysis', default='STXS', help="Analysis handle: used to specify replacement map and XS*BR normalisations")
   parser.add_option('--massPoints', dest='massPoints', default='250,300,350,400,450,500', help="Mass points to fit")
-  parser.add_option('--minMass', dest='minMass', default='250', help="Lowest mass point considered")
+  parser.add_option('--minMass', dest='minMass', default='200', help="Lowest mass point considered")
   parser.add_option('--maxMass', dest='maxMass', default='600', help="Highest mass point considered")
   parser.add_option('--doEffAccFromJson', dest='doEffAccFromJson', default=False, action="store_true", help="Extract eff x acc from json (produced by getEffAcc). Else, extract from nominal weights in flashgg workspaces")
   parser.add_option('--skipBeamspotReweigh', dest='skipBeamspotReweigh', default=True, action="store_true", help="Skip beamspot reweigh to match beamspot distribution in data")
@@ -56,7 +56,7 @@ def get_options():
   parser.add_option('--beamspotWidthData', dest='beamspotWidthData', default=3.5, type='float', help="Width of beamspot in data [cm]")
   parser.add_option('--beamspotWidthMC', dest='beamspotWidthMC', default=3.7, type='float', help="Width of beamspot in MC [cm]")
   parser.add_option('--MHPolyOrder', dest='MHPolyOrder', default=0, type='int', help="Order of polynomial for MH dependence")
-  parser.add_option('--nBins', dest='nBins', default=160, type='int', help="Number of bins for fit")
+  parser.add_option('--nBins', dest='nBins', default=400, type='int', help="Number of bins for fit")
   # Minimizer options
   parser.add_option('--minimizerMethod', dest='minimizerMethod', default='TNC', help="(Scipy) Minimizer method")
   parser.add_option('--minimizerTolerance', dest='minimizerTolerance', default=1e-8, type='float', help="(Scipy) Minimizer toleranve")
@@ -71,7 +71,7 @@ MHHigh = opt.maxMass
 print("MHLow", opt.minMass)
 print("MHHigh", opt.maxMass)
 
-MHNominal = '400'
+MHNominal = '250'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SETUP: signal fit
@@ -102,8 +102,9 @@ xvar = inputWS0.var(opt.xvar)
 xvarFit = xvar.Clone()
 print(xvar)
 dZ = inputWS0.var("dZ")
+true_mass = inputWS0.var("true_mass")
 reduced_mass = inputWS0.var("reduced_mass")
-aset = ROOT.RooArgSet(xvar,dZ,reduced_mass)
+aset = ROOT.RooArgSet(xvar,dZ,true_mass,reduced_mass)
 f0.Close()
 
 # Create MH var
@@ -269,25 +270,28 @@ if not opt.skipBeamspotReweigh:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # If using nGaussian fit then extract nGaussians from fTest json file
-if not opt.useDCB:
-  with open("%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.ext,catRVFit)) as jf: ngauss = json.load(jf)
-  nRV = int(ngauss["%s__%s"%(procRVFit,catRVFit)]['nRV'])
-  if opt.skipVertexScenarioSplit: print(" --> Fitting function: convolution of nGaussians (%g)"%nRV)
+if opt.useInterpolation:
+  if not opt.useDCB:
+    with open("%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.ext,catRVFit)) as jf: ngauss = json.load(jf)
+    nRV = int(ngauss["%s__%s"%(procRVFit,catRVFit)]['nRV'])
+    if opt.skipVertexScenarioSplit: print(" --> Fitting function: convolution of nGaussians (%g)"%nRV)
+    else:
+      with open("%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.ext,catWVFit)) as jf: ngauss = json.load(jf)
+      nWV = int(ngauss["%s__%s"%(procWVFit,catWVFit)]['nWV'])
+      print(" --> Fitting function: convolution of nGaussians (RV=%g,WV=%g)"%(nRV,nWV))
   else:
-    with open("%s/outdir_%s/fTest/json/nGauss_%s.json"%(swd__,opt.ext,catWVFit)) as jf: ngauss = json.load(jf)
-    nWV = int(ngauss["%s__%s"%(procWVFit,catWVFit)]['nWV'])
-    print(" --> Fitting function: convolution of nGaussians (RV=%g,WV=%g)"%(nRV,nWV))
-else:
-  print(" --> Fitting function: DCB + 1 Gaussian")
+    print(" --> Fitting function: DCB + 1 Gaussian")
 
-if opt.doVoigtian:
-  print(" --> Will add natural Higgs width as parameter in Pdf (Gaussians -> Voigtians)")
+  if opt.doVoigtian:
+    print(" --> Will add natural Higgs width as parameter in Pdf (Gaussians -> Voigtians)")
+else:
+  print(" --> Fitting function: Analytical form => DCB * BW")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # FIT: simultaneous signal fit (ssf)
 ssfMap = od()
 name = "Total" if opt.skipVertexScenarioSplit else "RV"
-ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
 if opt.useInterpolation:
   if opt.useDCB: ssfRV.buildDCBplusGaussian()
   else: ssfRV.buildNGaussians(nRV)
@@ -302,7 +306,7 @@ ssfMap[name] = ssfRV
 
 if not opt.skipVertexScenarioSplit:
   name = "WV"
-  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,datasetWVForFit,xvar.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,datasetWVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
   if opt.useInterpolation:
     if opt.useDCB: ssfWV.buildDCBplusGaussian()
     else: ssfWV.buildNGaussians(nRV)
@@ -341,8 +345,10 @@ if opt.doPlots:
     plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
     plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext), _from_formulas=True)
     plotDCBParameters(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
-    plotTrueLineshape(ssfRV)
-    plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
+    if not os.path.isdir("%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext))
+    plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext))
+    if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
+    plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
   else:
     if opt.skipVertexScenarioSplit:
       plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))

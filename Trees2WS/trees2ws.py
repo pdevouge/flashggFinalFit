@@ -14,6 +14,8 @@ def get_options():
   parser.add_option('--inputConfig',dest='inputConfig', default="", help='Input config: specify list of variables/systematics/analysis categories')
   parser.add_option('--inputTreeFile',dest='inputTreeFile', default="./output_0.root", help='Input tree file')
   parser.add_option('--inputMass',dest='inputMass', default="500", help='Input mass')
+  parser.add_option('--minMass',dest='minMass', default="200", help='Min mass to consider')
+  parser.add_option('--maxMass',dest='maxMass', default="600", help='Max mass to consider')
   parser.add_option('--inputWidth',dest='inputWidth', default="", help='Input width')
   parser.add_option('--productionMode',dest='productionMode', default="ggh", help='Production mode [ggh,vbf,wh,zh,tth,thq,ggzh,bbh]')
   parser.add_option('--year',dest='year', default="2016", help='Year')
@@ -43,7 +45,7 @@ def leave():
   exit(0)
 
 # Function to add vars to workspace
-def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_mass=None):
+def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_minMass='200',_maxMass='600',_mass=None):
   # Add intLumi var
   intLumi = ROOT.RooRealVar("intLumi","intLumi",1000.,0.,999999999.)
   intLumi.setConstant(True)
@@ -55,12 +57,15 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_mass=None):
     if var == "CMS_hgg_mass":
       # _vars[var] = ROOT.RooRealVar(var,var,500.,100.,5000.)
       # _vars[var].setBins(160)
-      _vars[var] = ROOT.RooRealVar(var,var,400.,200.,600.)
-      _vars[var].setBins(400*2)
+      _vars[var] = ROOT.RooRealVar(var,var,400.,float(_minMass),float(_maxMass))
+      _vars[var].setBins((int(_maxMass)-int(_minMass))*2)
       # _vars[var] = ROOT.RooRealVar(var,var,float(_mass),float(_mass)-0.2*float(_mass),float(_mass)+0.2*float(_mass))
       # bin_w = 0.5 #GeV
       # mass_rg = 0.4*float(_mass)
       # _vars[var].setBins(int(mass_rg/bin_w))
+    elif var == "true_mass":
+      _vars[var] = ROOT.RooRealVar(var,var,400.,float(_minMass),float(_maxMass))
+      _vars[var].setBins((int(_maxMass)-int(_minMass)))
     elif var == "reduced_mass":
       _vars[var] = ROOT.RooRealVar(var,var,0., -0.2, 0.2)
       _vars[var].setBins(100)
@@ -185,6 +190,8 @@ for cat in cats:
     if opt.productionMode == 'ggh': df['NNLOPSweight'] = t.arrays(['NNLOPSweight'], library='pd')
     else: df['NNLOPSweight'] = 1.
 
+  # Add column true mass
+  df['true_mass'] = df['gen_dipho_mass'].astype(float)
   # Add column reduced mass
   df['reduced_mass'] = df['CMS_hgg_mass'].astype(float) / float(opt.inputMass) - 1
 
@@ -265,7 +272,7 @@ for stxsId in data[stxsVar].unique():
   ws = ROOT.RooWorkspace(inputWSName__.split("/")[1],inputWSName__.split("/")[1])
 
   # Add variables to workspace
-  varNames = add_vars_to_workspace(ws,df,stxsVar,opt.inputMass)
+  varNames = add_vars_to_workspace(ws,df,stxsVar,opt.minMass,opt.maxMass,opt.inputMass)
 
   # Loop over cats
   for cat in cats:

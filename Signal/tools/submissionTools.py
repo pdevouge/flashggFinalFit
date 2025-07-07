@@ -18,13 +18,17 @@ def writePreamble(_file):
   _file.write("cd %s\n"%swd__)
   _file.write("export PYTHONPATH=$PYTHONPATH:%s/tools:%s/tools\n\n"%(cwd__,swd__))
 
-def writeCondorSub(_file,_exec,_queue,_nJobs,_jobOpts,doHoldOnFailure=True,doPeriodicRetry=True):
+def writeCondorSub(_file,_exec,_queue,_nJobs,_jobOpts,_opts,doHoldOnFailure=True,doPeriodicRetry=True):
+  _jobdir = "%s/outdir_%s/%s/jobs"%(swd__,_opts['ext'],_opts['mode'])
   _file.write("executable = %s.sh\n"%_exec)
+  _file.write("initialdir = %s\n"%_jobdir)
   _file.write("arguments  = $(ProcId)\n")
   _file.write("output     = %s.$(ClusterId).$(ProcId).out\n"%_exec)
+  _file.write("log        = %s.$(ClusterId).$(ProcId).log\n"%_exec)
   _file.write("error      = %s.$(ClusterId).$(ProcId).err\n\n"%_exec)
-  _file.write('transfer_output_files      = ""\n')
-  _file.write('output_destination      = ""\n')
+  # _file.write('transfer_output_files      = ""\n')
+  _file.write('output_destination      = "%s"\n'%_jobdir)
+  _file.write('request_memory = 10GB\n')
   if _jobOpts != '':
     _file.write("# User specified job options\n")
     for jo in _jobOpts.split(":"): _file.write("%s\n"%jo)
@@ -64,7 +68,8 @@ def writeSubFiles(_opts):
           pcidx = pidx*_opts['nCats']+cidx
           p,c = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx]
           _f.write("if [ $1 -eq %g ]; then\n"%pcidx)
-          _f.write("  python3 %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+          _f.write("python3 %s/scripts/test.py\n"%swd__)
+          # _f.write("  python3 %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
           _f.write("fi\n")
 
     # For looping over categories
@@ -74,7 +79,8 @@ def writeSubFiles(_opts):
         _f.write("if [ $1 -eq %g ]; then\n"%cidx)
         for pidx in range(_opts['nProcs']):
           p = _opts['procs'].split(",")[pidx]
-          _f.write("  python3 %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+          _f.write("python3 %s/scripts/test.py\n"%swd__)
+          # _f.write("  python3 %s/scripts/signalFit.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --analysis %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(swd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['analysis'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
         _f.write("fi\n")
 
     elif _opts['mode'] == "calcPhotonSyst":
@@ -108,8 +114,8 @@ def writeSubFiles(_opts):
     # Condor submission file
     _fsub = open("%s/%s.sub"%(_jobdir,_executable),"w")
     if _opts['mode'] == "signalFit":
-      if( not _opts['groupSignalFitJobsByCat'] ): writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats']*_opts['nProcs'],_opts['jobOpts'])
-      else: writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats'],_opts['jobOpts'])
+      if( not _opts['groupSignalFitJobsByCat'] ): writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats']*_opts['nProcs'],_opts['jobOpts'],_opts)
+      else: writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats'],_opts['jobOpts'],_opts)
     elif( _opts['mode'] == "calcPhotonSyst" )|( _opts['mode'] == "fTest" )|( _opts['mode'] == "packageSignal" ): writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats'],_opts['jobOpts'])
     _fsub.close()
 
