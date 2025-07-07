@@ -71,7 +71,7 @@ MHHigh = opt.maxMass
 print("MHLow", opt.minMass)
 print("MHHigh", opt.maxMass)
 
-MHNominal = '250'
+MHNominal = '400'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SETUP: signal fit

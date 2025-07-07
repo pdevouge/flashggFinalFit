@@ -248,16 +248,6 @@ class SimultaneousFit:
       self.DataHists['reduced_mass'][k] = ROOT.RooDataHist("%s_hist_reduced"%d.GetName(),"%s_hist_reduced"%d.GetName(),ROOT.RooArgSet(self.reduced_mass),drw)
       self.DataHists['gen_mass'][k] = ROOT.RooDataHist("%s_hist_true"%d.GetName(),"%s_hist_true"%d.GetName(),ROOT.RooArgSet(self.true_mass),drw)
 
-    # d = self.datasetForFit['250']
-    # sumw = d.sumEntries()
-    # for i in range(0,d.numEntries()):
-    #   print('Bin %s'%i)
-    #   print("m reco:   ",d.get(i).getRealValue(self.xvar.GetName()))
-    #   print("m gen :   ",d.get(i).getRealValue(self.true_mass.GetName()))
-    #   print("m red :   ",d.get(i).getRealValue(self.reduced_mass.GetName()))
-    #   print("weight:   ",(1/sumw)*d.weight())
-    # import sys
-    # sys.exit()
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to construct the resolution model from the available mass points
   def fitReducedMasses(self):
@@ -362,50 +352,24 @@ class SimultaneousFit:
         self.Vars['reso_func_%s_p%s'%(f,i)].setVal(pval)
     # NB: no need to store the new formula, since it is already stored in the list of vars, we can just update it
 
-
-    import pickle
-    with open('../../../../../Analysis/Samples_genmass_fixed/Final_model_investigation_preEE/RSGrav_DCB_norm_weight_subrange.pkl','rb') as f:
-      param = pickle.load(f)
-    for k in ['mean','sigma','alphaL','nL','alphaR','nR']:
-      formula = param[k]['formula'].replace('[0]',str(param[k]['coeffs'][0][1])).replace('[1]','('+str(param[k]['coeffs'][1][1])+')').replace('x','MH')
-      self.ResoFuncs[k] = ROOT.RooFormulaVar(f"{k}_formula", formula, ROOT.RooArgList(self.MH))
-
-    # self.Pdfs['final_dcb_reso_from_func'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.reduced_mass,
-    #                                                     self.ResoFuncs['dm_formula'],
-    #                                                     self.ResoFuncs['sigma_formula'],
-    #                                                     self.ResoFuncs['a1_formula'],
-    #                                                     self.ResoFuncs['n1_formula'],
-    #                                                     self.ResoFuncs['a2_formula'],
-    #                                                     self.ResoFuncs['n2_formula'])
-
     self.Pdfs['final_dcb_reso_from_func'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.reduced_mass,
-                                                        self.ResoFuncs['mean'],
-                                                        self.ResoFuncs['sigma'],
-                                                        self.ResoFuncs['alphaL'],
-                                                        self.ResoFuncs['nL'],
-                                                        self.ResoFuncs['alphaR'],
-                                                        self.ResoFuncs['nR'])
+                                                        self.ResoFuncs['dm_formula'],
+                                                        self.ResoFuncs['sigma_formula'],
+                                                        self.ResoFuncs['a1_formula'],
+                                                        self.ResoFuncs['n1_formula'],
+                                                        self.ResoFuncs['a2_formula'],
+                                                        self.ResoFuncs['n2_formula'])
 
     # Create the resolution function
-    # self.Vars['dcb_reso_dm_scaled'] = ROOT.RooFormulaVar("dm_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['dm_formula'], self.MH))
-    # self.Vars['dcb_reso_sigma_scaled'] = ROOT.RooFormulaVar("sigma_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['sigma_formula'], self.MH))
-    # self.Pdfs['final_reso_model'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.xvar,
-    #                                                       self.Vars['dcb_reso_dm_scaled'],
-    #                                                       self.Vars['dcb_reso_sigma_scaled'],
-    #                                                       self.ResoFuncs['a1_formula'],
-    #                                                       self.ResoFuncs['n1_formula'],
-    #                                                       self.ResoFuncs['a2_formula'],
-    #                                                       self.ResoFuncs['n2_formula'])
-
-    self.Vars['dcb_reso_dm_scaled'] = ROOT.RooFormulaVar("dm_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['mean'], self.MH))
-    self.Vars['dcb_reso_sigma_scaled'] = ROOT.RooFormulaVar("sigma_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['sigma'], self.MH))
+    self.Vars['dcb_reso_dm_scaled'] = ROOT.RooFormulaVar("dm_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['dm_formula'], self.MH))
+    self.Vars['dcb_reso_sigma_scaled'] = ROOT.RooFormulaVar("sigma_scaled", "@0 * @1", ROOT.RooArgList(self.ResoFuncs['sigma_formula'], self.MH))
     self.Pdfs['final_reso_model'] = ROOT.RooDoubleCBFast("dcb_reso_model","dcb_reso_model",self.xvar,
                                                           self.Vars['dcb_reso_dm_scaled'],
                                                           self.Vars['dcb_reso_sigma_scaled'],
-                                                          self.ResoFuncs['alphaL'],
-                                                          self.ResoFuncs['nL'],
-                                                          self.ResoFuncs['alphaR'],
-                                                          self.ResoFuncs['nR'])
+                                                          self.ResoFuncs['a1_formula'],
+                                                          self.ResoFuncs['n1_formula'],
+                                                          self.ResoFuncs['a2_formula'],
+                                                          self.ResoFuncs['n2_formula'])
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildTrueLineshape(self):
