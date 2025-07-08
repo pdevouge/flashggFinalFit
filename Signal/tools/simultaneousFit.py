@@ -190,6 +190,7 @@ class SimultaneousFit:
     self.dMH = ROOT.RooFormulaVar("dMH","dMH","@0-400.0",ROOT.RooArgList(self.MH))
     # self.xvar.setVal(125)
     self.xvar.setBins(self.nBins)
+    self.reduced_mass.setBins(self.nBins)
     # Dicts to store all fit vars, polynomials, pdfs and splines
     self.nGaussians = 1
     self.Vars = od()
@@ -275,6 +276,7 @@ class SimultaneousFit:
   def buildResoModel(self,_verbose='Q'):
 
     self.fitReducedMasses()
+
     for f in ['dm', 'sigma', 'a1', 'n1', 'a2', 'n2']:
       self.Varlists['reso_func_%s_params'%f] = ROOT.RooArgList('reso_func_%s_params'%f)
 

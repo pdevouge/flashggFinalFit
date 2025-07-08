@@ -12,7 +12,7 @@ def Translate(name, ndict):
     return ndict[name] if name in ndict else name
 
 
-def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=False):
+def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=False, _bins=100):
   if _from_formulas: _extension += 'from_formula'
   else: _extension += 'from_singlefit'
 
@@ -22,7 +22,7 @@ def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=Fa
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
     frame = ssf.reduced_mass.frame()
-    ssf.DataHists['reduced_mass'][mass].plotOn(frame)
+    ssf.DataHists['reduced_mass'][mass].plotOn(frame, ROOT.RooFit.Binning(_bins))
     if _from_formulas:
       ssf.MH.setVal(float(mass))
       ssf.MH.setConstant(True)
@@ -76,37 +76,33 @@ def plotDCBParameters(ssf,_outdir='./'):
     canv.SaveAs("%s/DCB_parameters_%s.png"%(_outdir,f))
     canv.SaveAs("%s/DCB_parameters_%s.pdf"%(_outdir,f))
 
-def plotTrueLineshape(ssf, _outdir='./'):
+def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150):
 
   for mass in ssf.massPoints.split(','):
+    ssf.MH.setVal(int(mass))
+    range_m, range_p = int(mass)-_range*int(mass), int(mass)+_range*int(mass)
+
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
-    ssf.xvar.setRange(int(mass)-0.01*int(mass), int(mass)+0.01*int(mass))
-    ssf.MH.setVal(int(mass))
-    frame = ssf.xvar.frame()
-    ssf.Pdfs['rel_bw'].plotOn(frame, LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
 
-    h_mgen = ROOT.TH1F("h_mgen", "mgen distribution", 100000, int(mass)-0.01*int(mass), int(mass)+0.01*int(mass))
-    for i in range(ssf.DataHists['gen_mass'][mass].numEntries()):
-      row = ssf.DataHists['gen_mass'][mass].get(i)
-      w = ssf.DataHists['gen_mass'][mass].weight()
-      val = row.getRealValue("true_mass")
-      h_mgen.Fill(val, w)
+    ssf.xvar.setRange(range_m, range_p)
+    ssf.true_mass.setRange(range_m, range_p)
 
-    scale = frame.GetMaximum() / h_mgen.GetMaximum()
-    h_mgen.Scale(scale)
+    frame1 = ssf.xvar.frame(range_m, range_p, _nbins)
+    ssf.Pdfs['rel_bw'].plotOn(frame1, LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
 
-    h_mgen.SetMarkerColor(ROOT.kBlack)
-    h_mgen.SetLineColor(ROOT.kBlack)
-    h_mgen.SetMarkerStyle(20)
-    h_mgen.SetMarkerSize(0.9)
+    frame2 = ssf.true_mass.frame(range_m, range_p, _nbins)
+    ssf.datasetForFit[mass].plotOn(frame2, ROOT.RooFit.Binning(_nbins, range_m, range_p),
+                                   ROOT.RooFit.Rescale(1/ssf.datasetForFit[mass].sumEntries()))
 
-    frame.SetTitle(f"True lineshape model, M - {mass}")
-    frame.Draw()
-    h_mgen.Draw("same E")
+    frame1.SetMaximum(1.1 * frame1.GetMaximum())
+    bin_width = (range_p - range_m) / _nbins
+    frame1.GetYaxis().SetTitle(f"Events / {bin_width:.3f} GeV")
+    frame1.SetTitle(f"True lineshape model, M - {mass}")
+    frame1.Draw()
+    frame2.Draw("same")
     canv.SaveAs("%s/true_lineshape_%s.png"%(_outdir,mass))
     canv.SaveAs("%s/true_lineshape_%s.pdf"%(_outdir,mass))
-
 
 def plotAnalyticalModel(ssf,_outdir='./'):
   for mass in ssf.massPoints.split(','):
