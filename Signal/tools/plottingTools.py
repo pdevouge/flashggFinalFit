@@ -76,31 +76,28 @@ def plotDCBParameters(ssf,_outdir='./'):
     canv.SaveAs("%s/DCB_parameters_%s.png"%(_outdir,f))
     canv.SaveAs("%s/DCB_parameters_%s.pdf"%(_outdir,f))
 
-def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150):
+def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=100):
 
   for mass in ssf.massPoints.split(','):
     ssf.MH.setVal(int(mass))
     range_m, range_p = int(mass)-_range*int(mass), int(mass)+_range*int(mass)
 
+    # Here it is easier to create a 'temporary' rel BW based on true mass, for plotting purposes
+    rel_bw = ROOT.RooGenericPdf("temp_rel_bw","","(true_mass/MH)^2/((true_mass^2-MH^2)^2+true_mass^2*g0^2)", ROOT.RooArgList(ssf.MH,ssf.Vars['g0'],ssf.true_mass))
+
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
 
-    ssf.xvar.setRange(range_m, range_p)
-    ssf.true_mass.setRange(range_m, range_p)
-
-    frame1 = ssf.xvar.frame(range_m, range_p, _nbins)
-    ssf.Pdfs['rel_bw'].plotOn(frame1, LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
-
-    frame2 = ssf.true_mass.frame(range_m, range_p, _nbins)
-    ssf.datasetForFit[mass].plotOn(frame2, ROOT.RooFit.Binning(_nbins, range_m, range_p),
+    frame = ssf.true_mass.frame(range_m, range_p, _nbins)
+    rel_bw.plotOn(frame, LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
+    # Cannot use ssf.DataHists['gen_mass'] for data, as the binning content cannot be altered and is not adapted to this plot
+    ssf.datasetForFit[mass].plotOn(frame, ROOT.RooFit.Binning(_nbins, range_m, range_p),
                                    ROOT.RooFit.Rescale(1/ssf.datasetForFit[mass].sumEntries()))
 
-    frame1.SetMaximum(1.1 * frame1.GetMaximum())
     bin_width = (range_p - range_m) / _nbins
-    frame1.GetYaxis().SetTitle(f"Events / {bin_width:.3f} GeV")
-    frame1.SetTitle(f"True lineshape model, M - {mass}")
-    frame1.Draw()
-    frame2.Draw("same")
+    frame.GetYaxis().SetTitle(f"Events / {bin_width:.3f} GeV")
+    frame.SetTitle(f"True lineshape model, M - {mass}")
+    frame.Draw()
     canv.SaveAs("%s/true_lineshape_%s.png"%(_outdir,mass))
     canv.SaveAs("%s/true_lineshape_%s.pdf"%(_outdir,mass))
 
