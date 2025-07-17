@@ -14,10 +14,14 @@ pLUT = od()
 pLUT['Reso_DCB'] = od()
 pLUT['Reso_DCB']['dm'] = [0, -0.01, 0.01]
 pLUT['Reso_DCB']['sigma'] = [0.01, 0.001, 0.1]
-pLUT['Reso_DCB']['n1'] = [4., 3., 10.] # nL
-pLUT['Reso_DCB']['n2'] = [10., 4., 20.] # nR
-pLUT['Reso_DCB']['a1'] = [1.5, 0.5, 2.0] # alphaL
-pLUT['Reso_DCB']['a2'] = [1.5, 0.5, 2.0] # alphaR
+# pLUT['Reso_DCB']['n1'] = [4., 3., 10.] # nL
+# pLUT['Reso_DCB']['n2'] = [10., 4., 20.] # nR
+# pLUT['Reso_DCB']['a1'] = [1.5, 0.5, 2.0] # alphaL
+# pLUT['Reso_DCB']['a2'] = [1.5, 0.5, 2.0] # alphaR
+pLUT['Reso_DCB']['n1'] = [5.5, 3., 6.] # nL
+pLUT['Reso_DCB']['n2'] = [10., 7., 13.] # nR
+pLUT['Reso_DCB']['a1'] = [1., 0.8, 1.5] # alphaL
+pLUT['Reso_DCB']['a2'] = [1.5, 1.2, 1.7] # alphaR
 pLUT['Reso_func'] = od()
 pLUT['Reso_func']['dm'] = ['[0]+[1]*x']
 pLUT['Reso_func']['sigma'] = ['[0]+[1]*x']
@@ -237,16 +241,20 @@ class SimultaneousFit:
     for k,d in self.datasetForFit.items():
       sumw = d.sumEntries()
       drw = d.emptyClone()
+      drw_scaled   = d.emptyClone()
       self.Vars['weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
+      self.Vars['scaled_weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
       for i in range(0,d.numEntries()):
         self.xvar.setVal(d.get(i).getRealValue(self.xvar.GetName()))
         self.true_mass.setVal(d.get(i).getRealValue(self.true_mass.GetName()))
         self.reduced_mass.setVal(d.get(i).getRealValue(self.reduced_mass.GetName()))
         self.Vars['weight'].setVal((1/sumw)*d.weight())
         drw.add(ROOT.RooArgSet(self.xvar,self.true_mass,self.reduced_mass,self.Vars['weight']),self.Vars['weight'].getVal())
+        self.Vars['scaled_weight'].setVal((1/sumw)*d.weight()*8.1*1000)
+        drw_scaled.add(ROOT.RooArgSet(self.xvar,self.true_mass,self.reduced_mass,self.Vars['weight']),self.Vars['scaled_weight'].getVal())
       # Convert to RooDataHist
       self.DataHists['reco_mass'][k] = ROOT.RooDataHist("%s_hist_reco"%d.GetName(),"%s_hist_reco"%d.GetName(),ROOT.RooArgSet(self.xvar),drw)
-      self.DataHists['reduced_mass'][k] = ROOT.RooDataHist("%s_hist_reduced"%d.GetName(),"%s_hist_reduced"%d.GetName(),ROOT.RooArgSet(self.reduced_mass),drw)
+      self.DataHists['reduced_mass'][k] = ROOT.RooDataHist("%s_hist_reduced"%d.GetName(),"%s_hist_reduced"%d.GetName(),ROOT.RooArgSet(self.reduced_mass),drw_scaled)
       self.DataHists['gen_mass'][k] = ROOT.RooDataHist("%s_hist_true"%d.GetName(),"%s_hist_true"%d.GetName(),ROOT.RooArgSet(self.true_mass),drw)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -259,6 +267,13 @@ class SimultaneousFit:
       for f in ['dm','sigma','a1','n1','a2','n2']:
         self.Vars['%s_%s'%(k,f)] = ROOT.RooRealVar("%s_%s"%(k,f),"%s_%s"%(k,f),pLUT['Reso_DCB']["%s"%f][0],pLUT['Reso_DCB']["%s"%f][1],pLUT['Reso_DCB']["%s"%f][2])
         self.Varlists[k].add( self.Vars['%s_%s'%(k,f)] )
+
+      # Fix 'a1' and 'a2'
+      self.Vars['%s_a1'%(k)].setVal(1)
+      self.Vars['%s_a1'%(k)].setConstant(True)
+
+      self.Vars['%s_a2'%(k)].setVal(1.4)
+      self.Vars['%s_a2'%(k)].setConstant(True)
 
       # Build DCB for individual mass
       self.Pdfs['dcb_reso_%s'%mass] = ROOT.RooDoubleCBFast("dcb_reso_%s"%mass,"dcb_reso_%s"%mass,self.reduced_mass,
