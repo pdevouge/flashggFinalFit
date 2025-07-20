@@ -23,6 +23,7 @@
 #include "boost/algorithm/string/predicate.hpp"
 
 #include "../interface/PdfModelBuilder.h"
+#include "../interface/NewPdfModels.h"
 
 #include "HiggsAnalysis/CombinedLimit/interface/HGGRooPdfs.h"
 #include "HiggsAnalysis/CombinedLimit/interface/RooBernsteinFast.h"
@@ -47,6 +48,10 @@ PdfModelBuilder::PdfModelBuilder():
   recognisedPdfTypes.push_back("Laurent");
   recognisedPdfTypes.push_back("KeysPdf");
   recognisedPdfTypes.push_back("File");
+  recognisedPdfTypes.push_back("InvPow");
+  recognisedPdfTypes.push_back("InvPowLin");
+  recognisedPdfTypes.push_back("Expow");
+  recognisedPdfTypes.push_back("Dijet");
 
   wsCache = new RooWorkspace("PdfModelBuilderCache");
 
@@ -78,7 +83,7 @@ RooAbsPdf* PdfModelBuilder::getChebychev(string prefix, int order){
   for (int i=0; i<order; i++){
     string name = Form("%s_p%d",prefix.c_str(),i);
     //params.insert(pair<string,RooRealVar*>(name, new RooRealVar(name.c_str(),name.c_str(),1.0,0.,5.)));
-    RooRealVar *param = new RooRealVar(name.c_str(),name.c_str(),0.01,-10.,10.);
+    RooRealVar *param = new RooRealVar(name.c_str(),name.c_str(),0.01,-100.,100.);
     //RooFormulaVar *form = new RooFormulaVar(Form("%s_sq",name.c_str()),Form("%s_sq",name.c_str()),"@0*@0",RooArgList(*param));
     params.insert(pair<string,RooRealVar*>(name,param));
     //prods.insert(pair<string,RooFormulaVar*>(name,form));
@@ -91,6 +96,50 @@ RooAbsPdf* PdfModelBuilder::getChebychev(string prefix, int order){
 
 }
 
+RooAbsPdf* PdfModelBuilder::getInvPow(string prefix, int order) {
+    if (order != 1) {
+        cerr << "[ERROR] InvPow function does not support order >1. Using order=1." << endl;
+        return nullptr;
+    }
+    RooRealVar* p0 = new RooRealVar(Form("%s_p0", prefix.c_str()), "", 1.0, 0.1, 10.0);
+    RooRealVar* p1 = new RooRealVar(Form("%s_p1", prefix.c_str()), "", 0.01, 0.0, 0.1);
+    RooRealVar* p2 = new RooRealVar(Form("%s_p2", prefix.c_str()), "", -2.0, -10.0, 10.0);
+    return new InvPow(prefix.c_str(), "", *obs_var, *p0, *p1, *p2);
+}
+
+RooAbsPdf* PdfModelBuilder::getInvPowLin(string prefix, int order) {
+    if (order != 1) {
+        cerr << "[ERROR] InvPowLin function does not support order >1. Using order=1." << endl;
+        return nullptr;
+    }
+    RooRealVar* p0 = new RooRealVar(Form("%s_p0", prefix.c_str()), "", 1.0, 0.1, 10.0);
+    RooRealVar* p1 = new RooRealVar(Form("%s_p1", prefix.c_str()), "", 0.01, -0.1, 0.0);
+    RooRealVar* p2 = new RooRealVar(Form("%s_p2", prefix.c_str()), "", -2.0, -10.0, 10.0);
+    RooRealVar* p3 = new RooRealVar(Form("%s_p3", prefix.c_str()), "", 0.001, -0.01, 0.01);
+    return new InvPowLin(prefix.c_str(), "", *obs_var, *p0, *p1, *p2, *p3);
+}
+
+RooAbsPdf* PdfModelBuilder::getExpow(string prefix, int order) {
+    if (order != 1) {
+        cerr << "[ERROR] Expow function does not support order >1. Using order=1." << endl;
+        return nullptr;
+    }
+    RooRealVar* p0 = new RooRealVar(Form("%s_p0", prefix.c_str()), "", 1e10, 0.1, 1e12);
+    RooRealVar* p1 = new RooRealVar(Form("%s_p1", prefix.c_str()), "", -0.001, -5.0, 0.0);
+    RooRealVar* p2 = new RooRealVar(Form("%s_p2", prefix.c_str()), "", -2.7, -50.0, 50.0);
+    return new Expow(prefix.c_str(), "", *obs_var, *p0, *p1, *p2);
+}
+
+RooAbsPdf* PdfModelBuilder::getDijet(string prefix, int order) {
+    if (order != 1) {
+        cerr << "[ERROR] Dijet function does not support order >1. Using order=1." << endl;
+        return nullptr;
+    }
+    RooRealVar* p1 = new RooRealVar(Form("%s_p1", prefix.c_str()), "", 6.0, -10.0, 10.0);
+    RooRealVar* p2 = new RooRealVar(Form("%s_p2", prefix.c_str()), "", -1.0, -5.0, 5.0);
+    return new Dijet(prefix.c_str(), "", *obs_var, *p1, *p2);
+}
+
 RooAbsPdf* PdfModelBuilder::getBernstein(string prefix, int order){
   
   RooArgList *coeffList = new RooArgList();
@@ -98,7 +147,7 @@ RooAbsPdf* PdfModelBuilder::getBernstein(string prefix, int order){
   for (int i=0; i<order; i++){
     string name = Form("%s_p%d",prefix.c_str(),i);
     //params.insert(pair<string,RooRealVar*>(name, new RooRealVar(name.c_str(),name.c_str(),1.0,0.,5.)));
-    RooRealVar *param = new RooRealVar(name.c_str(),name.c_str(),0.1*(i+1),-15.,15.);
+    RooRealVar *param = new RooRealVar(name.c_str(),name.c_str(),0.1*(i+1),-15,15);
     RooFormulaVar *form = new RooFormulaVar(Form("%s_sq",name.c_str()),Form("%s_sq",name.c_str()),"@0*@0",RooArgList(*param));
     params.insert(pair<string,RooRealVar*>(name,param));
     prods.insert(pair<string,RooFormulaVar*>(name,form));
@@ -137,7 +186,7 @@ RooAbsPdf* PdfModelBuilder::getBernstein(string prefix, int order){
 RooAbsPdf* PdfModelBuilder::getPowerLawGeneric(string prefix, int order){
   
   if (order%2==0){
-    cerr << "ERROR -- addPowerLaw -- only odd number of params allowed" << endl;
+    cerr << "ERROR -- addPowerLaw(" << order << ")  -- only odd number of params allowed" << endl;
     return NULL;
   }
   else {
@@ -211,8 +260,8 @@ RooAbsPdf* PdfModelBuilder::getExponential(string prefix, int order){
     double high=0.;
     if (order>0){
       start=-0.001/double(i);
-      low=-0.01;
-      high=0.01;
+      low=-1;
+      high=1;
     }
     RooRealVar *var = new RooRealVar(Form("%s_p%d",prefix.c_str(),i),Form("%s_p%d",prefix.c_str(),i),start,low,high);
     coefList.add(*var);
@@ -226,7 +275,7 @@ RooAbsPdf* PdfModelBuilder::getExponential(string prefix, int order){
 RooAbsPdf* PdfModelBuilder::getPowerLawSingle(string prefix, int order){
   
   if (order%2==0){
-    cerr << "ERROR -- addPowerLaw -- only odd number of params allowed" << endl;
+    cerr << "ERROR -- addPowerLaw(" << order << ")  -- only odd number of params allowed" << endl;
     return NULL;
   }
   else {
@@ -237,14 +286,14 @@ RooAbsPdf* PdfModelBuilder::getPowerLawSingle(string prefix, int order){
     RooArgList *pows = new RooArgList();
     for (int i=1; i<=nfracs; i++){
       string name =  Form("%s_f%d",prefix.c_str(),i);
-      params.insert(pair<string,RooRealVar*>(name, new RooRealVar(name.c_str(),name.c_str(),0.9-float(i-1)*1./nfracs,0.,1.)));
+      params.insert(pair<string,RooRealVar*>(name, new RooRealVar(name.c_str(),name.c_str(),0.9-float(i-1)*1./nfracs,0.,1e2)));
       //params[name]->removeRange();
       fracs->add(*params[name]);
     }
     for (int i=1; i<=npows; i++){
       string name =  Form("%s_p%d",prefix.c_str(),i);
       string ename =  Form("%s_e%d",prefix.c_str(),i);
-      params.insert(pair<string,RooRealVar*>(name, new RooRealVar(name.c_str(),name.c_str(),TMath::Max(-9.,-1.*(i+1)),-9.,1.)));
+      params.insert(pair<string,RooRealVar*>(name, new RooRealVar(name.c_str(),name.c_str(),TMath::Max(-9.,-1.*(i+1)),-10,0.001)));
       //params[name]->removeRange();
       utilities.insert(pair<string,RooAbsPdf*>(ename, new RooPower(ename.c_str(),ename.c_str(),*obs_var,*params[name])));
       pows->add(*utilities[ename]);
@@ -335,7 +384,7 @@ RooAbsPdf* PdfModelBuilder::getPdfFromFile(string &prefix){
 RooAbsPdf* PdfModelBuilder::getExponentialSingle(string prefix, int order){
   
   if (order%2==0){
-    cerr << "ERROR -- addExponential -- only odd number of params allowed" << endl;
+    cerr << "ERROR -- addExponential(" << order << ")  -- only odd number of params allowed" << endl;
     return NULL;
   }
   else {
@@ -390,6 +439,11 @@ void PdfModelBuilder::addBkgPdf(string type, int nParams, string name, bool cach
   if (type=="Laurent") pdf = getLaurentSeries(name,nParams);
   if (type=="KeysPdf") pdf = getKeysPdf(name);
   if (type=="File") pdf = getPdfFromFile(name);
+  if (type=="InvPow") pdf = getInvPow(name,nParams);
+  if (type=="InvPowLin") pdf = getInvPowLin(name,nParams);
+  if (type=="Expow") pdf = getExpow(name,nParams);
+  if (type=="Dijet") pdf = getDijet(name,nParams);
+
 
   if (cache) {
     wsCache->import(*pdf);
