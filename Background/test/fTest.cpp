@@ -793,17 +793,15 @@ int getBestFitFunction(RooMultiPdf *bkg, RooDataSet *data, RooCategory *cat, boo
 
 
 int main(int argc, char* argv[]){
-setTDRStyle();
-writeExtraText = true;       // if extra text
-extraText  = "Work in Progress";//"Preliminary";  // default extra text is "Preliminary"
-lumi_8TeV  = "19.1 fb^{-1}"; // default is "19.7 fb^{-1}"
-lumi_7TeV  = "4.9 fb^{-1}";  // default is "5.1 fb^{-1}"
-lumi_13TeV = "34.74 fb^{-1}";
-// lumi_sqrtS = "13.6 TeV";       // used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
-lumi_sqrtS = "";
-string year_ = "2022";
-//int year_ = 2017;
-double binWidth = 1; // (mgg_high - mgg_low) / nBinsForMass;
+
+  setTDRStyle();
+  writeExtraText = true;       // if extra text
+  extraText  = "Preliminary";  // default extra text is "Preliminary"
+  lumi_8TeV  = "19.1 fb^{-1}"; // default is "19.7 fb^{-1}"
+  lumi_7TeV  = "4.9 fb^{-1}";  // default is "5.1 fb^{-1}"
+  lumi_sqrtS = "13 TeV";       // used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
+  string year_ = "2016";
+  //int year_ = 2017;
 
 string fileName;
 int ncats;
@@ -903,7 +901,7 @@ if (saveMultiPdf){
     //intL  = (RooRealVar*)inWS->var("IntLumi");
     intL  = intLumi_;
     sqrts = (RooRealVar*)inWS->var("SqrtS");
-    if (!sqrts){ sqrts = new RooRealVar("SqrtS","SqrtS",13.6); }
+    if (!sqrts){ sqrts = new RooRealVar("SqrtS","SqrtS",13); }
     // std::cout << "[INFO] got intL and sqrts " << intL << ", " << sqrts << std::endl;
 
   } else {
