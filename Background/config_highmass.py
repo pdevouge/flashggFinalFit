@@ -2,13 +2,13 @@
 backgroundScriptCfg = {
 
   # Setup
-  'inputWS': 'workspaces/data/data_2022inclusive.root',  # Input RooWorkspace
+  'inputWS': '../../Data/Pre/root/ws/allData_PreEE.root ',  # Input RooWorkspace
 
   # 'cats': 'auto',         # Let it automatically detect category names from the workspace
-  'cats': '2022inclusive',
+  'cats': 'inclusive',
   'catOffset': 0,         # No offset needed since this is a single file
-  'ext': 'm130-300', # Will name output directories like: outputs_fTest_2022inclusive/
-  'year': '2022',         # Shown in plots; adjust if merging multiple years
+  'ext': 'm130-300bis', # Will name output directories like: outputs_fTest_2022inclusive/
+  'year': '2022preEE',         # Shown in plots; adjust if merging multiple years
 
   # Job submission options
   'batch': 'local',       # You can change to 'condor' if you'd prefer distributed batch mode
