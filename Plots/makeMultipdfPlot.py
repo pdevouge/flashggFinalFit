@@ -47,8 +47,8 @@ xvar.setUnit(opt.xvar.split(",")[2])
 xvar_arglist, xvar_argset = ROOT.RooArgList(xvar), ROOT.RooArgSet(xvar)
 
 # Exact multipdf object and pdfindex
-multipdf = w.pdf("CMS_hgg_%s_13TeV_bkgshape"%opt.cat)
-pdfindex_bf = w.cat("pdfindex_%s_13TeV"%opt.cat).getIndex()
+multipdf = w.pdf("CMS_hgg_%s_13p6TeV_bkgshape"%opt.cat)
+pdfindex_bf = w.cat("pdfindex_%s_2022_13p6TeV"%opt.cat).getIndex()
 bpdf_bf_name = None
 bpdfs = od()
 for ipdf in range(multipdf.getNumPdfs()): 

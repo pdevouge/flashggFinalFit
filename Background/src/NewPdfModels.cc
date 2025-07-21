@@ -8,42 +8,39 @@
 
 // InvPow Implementation
 InvPow::InvPow(const char *name, const char *title, RooAbsReal& _mgg,
-               RooAbsReal& _p0, RooAbsReal& _p1, RooAbsReal& _p2) :
+               RooAbsReal& _p1, RooAbsReal& _p2) :
     RooAbsPdf(name, title),
     mgg("mgg", "mgg", this, _mgg),
-    p0("p0", "p0", this, _p0),
     p1("p1", "p1", this, _p1),
     p2("p2", "p2", this, _p2) {}
 
 Double_t InvPow::evaluate() const {
-    return p0 * pow(1 + mgg*p1, p2);
+    return pow(1 + mgg*p1, p2);
 }
 
 // InvPowLin Implementation
 InvPowLin::InvPowLin(const char *name, const char *title, RooAbsReal& _mgg,
-                    RooAbsReal& _p0, RooAbsReal& _p1, RooAbsReal& _p2, RooAbsReal& _p3) :
+                    RooAbsReal& _p1, RooAbsReal& _p2, RooAbsReal& _p3) :
     RooAbsPdf(name, title),
     mgg("mgg", "mgg", this, _mgg),
-    p0("p0", "p0", this, _p0),
     p1("p1", "p1", this, _p1),
     p2("p2", "p2", this, _p2),
     p3("p3", "p3", this, _p3) {}
 
 Double_t InvPowLin::evaluate() const {
-    return p0 * pow(1 + mgg*p1, p2 + p3*mgg);
+    return pow(1 + mgg*p1, p2 + p3*mgg);
 }
 
 // Expow Implementation
 Expow::Expow(const char *name, const char *title, RooAbsReal& _mgg,
-            RooAbsReal& _p0, RooAbsReal& _p1, RooAbsReal& _p2) :
+            RooAbsReal& _p1, RooAbsReal& _p2) :
     RooAbsPdf(name, title),
     mgg("mgg", "mgg", this, _mgg),
-    p0("p0", "p0", this, _p0),
     p1("p1", "p1", this, _p1),
     p2("p2", "p2", this, _p2) {}
 
 Double_t Expow::evaluate() const {
-    return p0 * exp(p1*mgg) * pow(mgg, p2);
+    return exp(p1*mgg) * pow(mgg, p2);
 }
 
 // Dijet Implementation
@@ -62,7 +59,6 @@ Double_t Dijet::evaluate() const {
 InvPow::InvPow(const InvPow& other, const char* name) :
     RooAbsPdf(other, name),
     mgg("mgg", this, other.mgg),
-    p0("p0", this, other.p0),
     p1("p1", this, other.p1),
     p2("p2", this, other.p2) {}
 
@@ -70,7 +66,6 @@ InvPow::InvPow(const InvPow& other, const char* name) :
 InvPowLin::InvPowLin(const InvPowLin& other, const char* name) :
     RooAbsPdf(other, name),
     mgg("mgg", this, other.mgg),
-    p0("p0", this, other.p0),
     p1("p1", this, other.p1),
     p2("p2", this, other.p2),
     p3("p3", this, other.p3) {}
@@ -79,7 +74,6 @@ InvPowLin::InvPowLin(const InvPowLin& other, const char* name) :
 Expow::Expow(const Expow& other, const char* name) :
     RooAbsPdf(other, name),
     mgg("mgg", this, other.mgg),
-    p0("p0", this, other.p0),
     p1("p1", this, other.p1),
     p2("p2", this, other.p2) {}
 
