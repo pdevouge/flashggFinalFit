@@ -144,12 +144,12 @@ class FinalModel:
     fp = self.xsbrMap[self.proc]['factor'] if 'factor' in self.xsbrMap[self.proc] else 1.
     mp = self.xsbrMap[self.proc]['mode']
     xs = np.ones_like(mh)
-    # xs = fp*self.XSBR[mp]
+    # xs = fp*self.XSBR[mp] #TODO
     self.Splines['xs'] = ROOT.RooSpline1D("fxs_%s_%s"%(self.proc,self.sqrts),"fxs_%s_%s"%(self.proc,self.sqrts),self.MH,len(mh),mh,xs)
     # BR
     fd = self.xsbrMap['decay']['factor'] if 'factor' in self.xsbrMap['decay'] else 1.
     md = self.xsbrMap['decay']['mode']
-    # br = fd*self.XSBR[md]
+    # br = fd*self.XSBR[md] #TODO
     br = np.ones_like(mh)
     self.Splines['br'] = ROOT.RooSpline1D("fbr_%s"%self.sqrts,"fbr_%s"%self.sqrts,self.MH,len(mh),mh,br)
 

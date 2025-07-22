@@ -28,8 +28,8 @@ def get_options():
   parser.add_option('--doSTXSMerging', dest='doSTXSMerging', default=False, action="store_true", help="Calculate additional migrations uncertainties for merged STXS bins (for 'mnorm' tier in systematics)")
   parser.add_option('--doSTXSScaleCorrelationScheme', dest='doSTXSScaleCorrelationScheme', default=False, action="store_true", help="Partially de-correlate scale uncertainties for different phase space regions")
   # For output
-  parser.add_option('--saveDataFrame', dest='saveDataFrame', default=False, action="store_true", help='Save final dataframe as pkl file') 
-  parser.add_option('--output', dest='output', default='Datacard', help='Datacard name') 
+  parser.add_option('--saveDataFrame', dest='saveDataFrame', default=False, action="store_true", help='Save final dataframe as pkl file')
+  parser.add_option('--output', dest='output', default='Datacard', help='Datacard name')
   return parser.parse_args()
 (opt,args) = get_options()
 
@@ -49,7 +49,7 @@ pkl_files = glob.glob("./yields%s/*.pkl"%extStr)
 pkl_files.sort() # Categories in alphabetical order
 data = pd.DataFrame()
 for f_pkl_name in pkl_files:
-  with open(f_pkl_name,"rb") as f_pkl: 
+  with open(f_pkl_name,"rb") as f_pkl:
     df = pickle.load(f_pkl)
     data = pd.concat([data,df], ignore_index=True, axis=0, sort=False)
 
@@ -66,15 +66,15 @@ if opt.doSystematics:
   theoryFactoryType = {}
   mask = (~data['cat'].str.contains("NOTAG"))&(data['type']=='sig')
   for s in experimental_systematics:
-    if s['type'] == 'factory': 
+    if s['type'] == 'factory':
       # Fix for HEM as only in 2018 workspaces
       if s['name'] == 'JetHEM': experimentalFactoryType[s['name']] = "a_h"
-      else: 
+      else:
         experimentalFactoryType[s['name']] = factoryType(data[mask],s)
   for s in theory_systematics:
-    if s['type'] == 'factory': 
+    if s['type'] == 'factory':
       theoryFactoryType[s['name']] = factoryType(data[mask],s)
-  
+
   # Experimental:
   print(" --> Adding experimental systematics variations to dataFrame")
   # Add constant systematics to dataFrame
@@ -107,7 +107,9 @@ if opt.prune:
     # Extract XS*BR using tools.XSBR
     data['xsbr'] = '-'
     from tools.XSBR import *
-    XSBR = extractXSBR(data,mass=opt.mass,analysis=opt.analysis)
+    XSBR = {} #TODO extractXSBR(data,mass=opt.mass,analysis=opt.analysis)
+    XSBR["XS_rsg"] = 1.0
+    XSBR['BR'] = 1.0
     data.loc[mask,'xsbr'] = data[mask].apply(lambda x: XSBR["XS_%s"%x['procOriginal']]*XSBR['BR'], axis=1)
 
     # Extract eff*acc using total proc yield: strictly should include NOTAG
@@ -133,7 +135,7 @@ if opt.prune:
     # Extract per category yields
     catYields = od()
     for cat in data.cat.unique(): catYields[cat] = data[(data['cat']==cat)&(data['type']=='sig')].nominal_yield.sum()
-    
+
     # Set prune = 1 if < threshold of total cat yield
     mask = (data['nominal_yield']<opt.pruneThreshold*data.apply(lambda x: catYields[x['cat']], axis=1))&(data['type']=='sig')&(~data['cat'].str.contains('NOTAG'))
     data.loc[mask,'prune'] = 1
@@ -141,7 +143,7 @@ if opt.prune:
   # Finally set all NOTAG events to be pruned
   mask = data['cat'].str.contains("NOTAG")
   data.loc[mask,'prune'] = 1
-    
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SAVE DATAFRAME
 if opt.saveDataFrame:
@@ -156,7 +158,7 @@ fdataName = "%s.txt"%opt.output
 print(" --> Writing to datacard file: %s"%fdataName)
 from tools.writeToDatacard import writePreamble, writeProcesses, writeSystematic, writeMCStatUncertainty, writePdfIndex, writeBreak
 fdata = open(fdataName,"w")
-if not writePreamble(fdata,opt): 
+if not writePreamble(fdata,opt):
   print(" --> [ERROR] in writing preamble. Leaving...")
   leave()
 if not writeProcesses(fdata,data,opt):

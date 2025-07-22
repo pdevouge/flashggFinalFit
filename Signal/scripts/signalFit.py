@@ -71,7 +71,8 @@ MHHigh = opt.maxMass
 print("MHLow", opt.minMass)
 print("MHHigh", opt.maxMass)
 
-MHNominal = '400'
+masses = opt.massPoints.split(",")
+MHNominal = masses[len(masses)//2] # Use middle mass point as nominal mass. TOFIX
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SETUP: signal fit

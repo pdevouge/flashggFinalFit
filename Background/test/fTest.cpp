@@ -1044,6 +1044,10 @@ for (int cat=startingCategory; cat<ncats; cat++){
         exit(1);
   }
   if(mass) {
+        mgg_low = mass->getMin();
+        mgg_high = mass->getMax();
+        nBinsForPlot = (mgg_high - mgg_low)/10;
+        nBinsForMass = (mgg_high - mgg_low);
         mass->setBins(nBinsForMass);
         std::cout << "[DEBUG] Using " << nBinsForMass << " bins for ["
                 << mass->getMin() << ", " << mass->getMax() << "]" << std::endl;
