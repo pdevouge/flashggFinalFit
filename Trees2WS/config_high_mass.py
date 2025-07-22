@@ -7,7 +7,7 @@ trees2wsCfg = {
 
   # Variables to be added to dataframe: use wildcard * for common strings
   'mainVars':["CMS_hgg_mass","gen_dipho_mass","category","dZ","weight","weight_*"], # Var for the nominal RooDataSets
-  'dataVars':["CMS_hgg_mass","gen_dipho_mass","category","weight"], # Vars to be added for data
+  'dataVars':["CMS_hgg_mass","weight"], # Vars to be added for data
   'stxsVar':'',
   'systematicsVars':[], # Variables to add to sytematic RooDataHists
   'theoryWeightContainers':{},

@@ -15,7 +15,7 @@ crabConfig_*
 
 # ROOT-related files
 *.root
-*.C
+
 *_cc.d
 *_cc.so
 *_C.d
@@ -31,7 +31,7 @@ AutoDict_*
 *.pdf
 *.out
 *.tmp
-*.pcm
+
 *.o
 
 # Output dirs in signal and bkg

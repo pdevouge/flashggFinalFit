@@ -65,6 +65,10 @@ class PdfModelBuilder {
     RooAbsPdf* getLaurentSeries(string prefix, int order);
     RooAbsPdf* getKeysPdf(string prefix);
     RooAbsPdf* getPdfFromFile(string &prefix);
+    RooAbsPdf* getInvPow(string prefix, int order);
+    RooAbsPdf* getInvPowLin(string prefix, int order); 
+    RooAbsPdf* getExpow(string prefix, int order);
+    RooAbsPdf* getDijet(string prefix, int order);
 
   private:
    
