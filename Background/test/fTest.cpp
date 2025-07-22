@@ -51,8 +51,8 @@
 
 #include "TColor.h"
 
-const int kLightBrown = TColor::GetColor(205, 133, 63);  // Define it globally
-
+const int kLightBrown = TColor::GetColor(205, 133, 63);
+const int kDarkOrange = TColor::GetColor(0.5*255, 0.8*255, 0);
 using namespace std;
 using namespace RooFit;
 using namespace boost;
@@ -63,10 +63,10 @@ bool BLIND = false;
 bool runFtestCheckWithToys=false;
 int mgg_low =130;
 int mgg_high =300;
-int nBinsForPlot = 17 ; //4*(mgg_high-mgg_low);
-int nBinsForMass = 170;
+int nBinsForPlot = 17 ;
+int nBinsForMass = 170; //4*(mgg_high-mgg_low);
 double binWidth = 1; //(mgg_high - mgg_low)/nBinsForMass;
-//int k12=0;
+
 RooRealVar *intLumi_ = new RooRealVar("IntLumi","hacked int lumi", 1000.);
 
 TRandom3 *RandomGen = new TRandom3();
@@ -134,7 +134,6 @@ void runFit(RooAbsPdf *pdf, RooDataSet *data, double *NLL, int *stat_t, int MaxT
           std::cout << "Ntries exceeded for pdf: " << pdf->GetName() << std::endl;
           break;}
 	  RooFitResult *fitTest = pdf->fitTo(*data, RooFit::Save(1), RooFit::Minimizer("Minuit2", "minimize"), RooFit::Strategy(2), RooFit::SumW2Error(kTRUE), RooFit::PrintLevel(-1), RooFit::MaxCalls(100000),  RooFit::Optimize(0));
-
     stat = fitTest->status();
 	  minnll = fitTest->minNll();
       if (stat==0) {std::cout << "Succeeded fit (status " << stat << ") for pdf: " << pdf->GetName() << std::endl;}
@@ -205,9 +204,9 @@ double getProbabilityFtest(double chi2, int ndof, RooAbsPdf *pdfNull, RooAbsPdf 
     int MaxTries = 2;
     while (stat_n!=0){
       if (ntries>=MaxTries) break;
-      RooFitResult *fitNull = pdfNull->fitTo(*binnedtoy,RooFit::Save(1),RooFit::Strategy(1),RooFit::SumW2Error(kTRUE), //FIXME
-                                            RooFit::Minimizer("Minuit2","minimize"),RooFit::Minos(0),RooFit::Hesse(0),RooFit::PrintLevel(-1));
-      //,RooFit::Optimize(0));
+	  RooFitResult *fitNull = pdfNull->fitTo(*binnedtoy,RooFit::Save(1),RooFit::Strategy(2),RooFit::SumW2Error(kTRUE) //FIXME
+		,RooFit::Minimizer("Minuit2","minimize"),RooFit::Minos(0),RooFit::Hesse(0),RooFit::PrintLevel(-1), RooFit::MaxCalls(100000) );
+		//,RooFit::Optimize(0));
 
       nllNull = fitNull->minNll();
       stat_n = fitNull->status();
@@ -290,7 +289,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
   data->plotOn(plot_chi2,Binning(nBinsForMass),Name("data"));
 
   pdf->plotOn(plot_chi2,Name("pdf"));
-  int np = pdf->getParameters(*data)->getSize() + 1;
+  int np = pdf->getParameters(*data)->getSize();
 
   double chi2 = plot_chi2->chiSquare("pdf","data",np)/binWidth;
   std::cout << "[INFO] Calculating GOF for pdf " << pdf->GetName() << ", using " <<np << " fitted parameters" <<std::endl;
@@ -402,11 +401,12 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   TPad *pad2 = new TPad("pad2","pad2",0,0,1,0.35);
   pad1->SetBottomMargin(0.18);
   pad1->SetTopMargin(0.14);     // Increase top margin
-  pad1->SetLeftMargin(0.2);    // Increase left margin
+  pad1->SetLeftMargin(0.16);    // Increase left margin
 
   pad2->SetTopMargin(0.08);
   pad2->SetBottomMargin(0.30);
-  pad2->SetLeftMargin(0.2);
+  pad2->SetLeftMargin(0.16);
+
 
   pad1->Draw();
   pad2->Draw();
@@ -453,9 +453,10 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   TLatex *lat = new TLatex();
   lat->SetNDC();
   lat->SetTextFont(42);  // Standard font (bold=62)
-  lat->SetTextSize(0.035); // Increased from default 0.03
+  lat->SetTextSize(0.05); // Increased from default 0.03
   lat->SetTextColor(kBlack);
-  lat->DrawLatex(0.4,0.93,Form("#chi^{2}/ndof = %.1f | Prob = %.2f | Status = %d", chi2, *prob, status));
+  lat->SetTextAlign(31); // Right align horizontally
+  lat->DrawLatex(0.973,0.88,Form("#chi^{2}/ndof = %.3f | Prob = %.2f | Status = %d", chi2, *prob, status));
   pad2->cd();
   TH1 *hdummy = new TH1D("hdummyweight","",nBinsForPlot,mgg_low,mgg_high);
   //hdummy->SetMaximum(hdatasub->GetHistogram()->GetMaximum()+1);
@@ -502,7 +503,7 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
 
 void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet *data, string name, vector<string> flashggCats_, int cat, int bestFitPdf=-1, bool useDiff = false){
   // multipdf plotting function
-  int color[8] = { kBlue, kRed, kGreen+2, kMagenta, kGray, kOrange, kCyan, kLightBrown};
+  int color[9] = { kYellow, kRed, kGreen+2, kMagenta, kGray, kDarkOrange, kCyan, kLightBrown, kBlue};
   TLegend *leg = new TLegend(0.5,0.4,0.93,0.8);
 
   leg->SetFillColor(0);
@@ -531,17 +532,17 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   TPad *pad2 = new TPad("pad2","pad2",0,0,1,0.35);
   pad1->SetBottomMargin(0.18);
   pad1->SetTopMargin(0.14);     // Increase top margin
-  pad1->SetLeftMargin(0.2);    // Increase left margin
+  pad1->SetLeftMargin(0.16);    // Increase left margin
 
   pad2->SetTopMargin(0.08);
   pad2->SetBottomMargin(0.30);
-  pad2->SetLeftMargin(0.2);
+  pad2->SetLeftMargin(0.16);
 
 
   pad1->Draw();
   pad2->Draw();
   pad1->cd();
-  // end xtra bit for ratio plot///
+  // end extra bit for ratio plot///
 
   int currentIndex = catIndex->getIndex();
   TObject *datLeg = plot->getObject(int(plot->numItems()-1));
@@ -552,7 +553,7 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   int bestcol= -1;
   for (int icat=0;icat<catIndex->numTypes();icat++){
     int col;
-    if (icat<=7) col=color[icat];
+    if (icat<=10) col=color[icat];
     else {col=kBlack; style++;}
     catIndex->setIndex(icat);
     RooAbsPdf* basepdf = pdfs->getCurrentPdf();
@@ -569,13 +570,20 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
     nomBkgCurve = (RooCurve*)plot->getObject(plot->numItems()-1);
     bestcol = col;
     }
-    leg->AddEntry(pdfLeg,Form("%s%s",pdfs->getCurrentPdf()->GetName(),ext.c_str()),"L");
+    //Calculating reduced chi square for adding in legends
+    RooPlot *plot_chi2 = mass->frame();
+    data->plotOn(plot_chi2,Binning(nBinsForMass));
+    basepdf->plotOn(plot_chi2);
+    int np = basepdf->getParameters(*data)->getSize() + 1; //using the same np as if it was an extend pdf
+    double chi2 = plot_chi2->chiSquare(np);
+
+    leg->AddEntry(pdfLeg,Form("%s%s(%.4f)",pdfs->getCurrentPdf()->GetName(),ext.c_str(),chi2),"L");
   }
   // plot->SetTitle(Form("Category %s",flashggCats_[cat].c_str()));
   if (BLIND) plot->SetMinimum(0.0001);
   plot->Draw();
   // plot->GetYaxis()->SetTitle("Events / bin size [GeV^{ -1 }]");
-  //plot->GetYaxis()->SetNoExponent(kTRUE);
+  plot->GetYaxis()->SetNoExponent(kTRUE);
   plot->GetYaxis()->SetTitleOffset(2);
   leg->Draw("same");
   CMS_lumi( canv, 2022, 0);  // second argument is iperiod
@@ -720,8 +728,8 @@ void plot(RooRealVar *mass, map<string,RooAbsPdf*> pdfs, RooDataSet *data, strin
   plot->GetXaxis()->SetTitle("m_{#gamma#gamma} [GeV]");
   if (BLIND) plot->SetMinimum(0.0001);
   plot->Draw();
-  //plot->GetYaxis()->SetNoExponent(kTRUE);
-  plot->GetYaxis()->SetTitleOffset(2);
+  plot->GetYaxis()->SetNoExponent(kTRUE);
+  plot->GetYaxis()->SetTitleOffset(2.4);
 
   leg->Draw("same");
   CMS_lumi( canv, 2022, 0);
@@ -821,15 +829,17 @@ int getBestFitFunction(RooMultiPdf *bkg, RooDataSet *data, RooCategory *cat, boo
 
 
 int main(int argc, char* argv[]){
-
-  setTDRStyle();
-  writeExtraText = true;       // if extra text
-  extraText  = "Preliminary";  // default extra text is "Preliminary"
-  lumi_8TeV  = "19.1 fb^{-1}"; // default is "19.7 fb^{-1}"
-  lumi_7TeV  = "4.9 fb^{-1}";  // default is "5.1 fb^{-1}"
-  lumi_sqrtS = "13 TeV";       // used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
-  string year_ = "2016";
-  //int year_ = 2017;
+setTDRStyle();
+writeExtraText = true;       // if extra text
+extraText  = "Work in Progress";//"Preliminary";  // default extra text is "Preliminary"
+lumi_8TeV  = "19.1 fb^{-1}"; // default is "19.7 fb^{-1}"
+lumi_7TeV  = "4.9 fb^{-1}";  // default is "5.1 fb^{-1}"
+lumi_13TeV = "34.74 fb^{-1}";
+// lumi_sqrtS = "13.6 TeV";       // used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
+lumi_sqrtS = "13 TeV";
+string year_ = "2022";
+//int year_ = 2017;
+double binWidth = 1; // (mgg_high - mgg_low) / nBinsForMass;
 
 string fileName;
 int ncats;
@@ -1109,78 +1119,73 @@ for (int cat=startingCategory; cat<ncats; cat++){
     std::vector<int> pdforders;
 
     int counter =0;
+
     //	while (prob<0.05){
 
           // With:
-          int max_order = 5; // Default for most functions
-          if (*funcType == "InvPow" || *funcType == "InvPowLin" ||
-                    *funcType == "Expow" || *funcType == "Dijet") {
-              max_order = 1; // New functions remain order=1
-          }
+          int max_order;
+        if (*funcType == "InvPow" || *funcType == "InvPowLin" ||
+            *funcType == "Expow" || *funcType == "Dijet") {
+            max_order = 1; // Newer functions only allow order = 1
+        } else{
+            max_order = 5; // Old functions allow order up to 5
+        }
+        std::cout << "functype: " << *funcType << max_order <<std::endl;
+
+        if (max_order == 1) {
+            RooAbsPdf *bkgPdf = getPdf(pdfsModel, *funcType, 1, Form("ftest_pdf_%d_%s", (cat+catOffset), ext.c_str()));
+            if (bkgPdf) {
+                 std::cout << "[DEBUG] Printing binned dataset before fitting..." << std::endl;
+                 std::cout << "[DEBUG] Dataset contains " << data->numEntries() << " entries" << std::endl;
+                 data->printMultiline(std::cout, 15);
+
+                int fitStatus = 0;
+                runFit(bkgPdf, data, &thisNll, &fitStatus, 5);
+                if (fitStatus != 0) std::cout << "[WARNING] Fit failed for " << bkgPdf->GetName() << std::endl;
+
+                double gofProb = 0;
+                if (!saveMultiPdf) plot(mass, bkgPdf, data, Form("%s/%s1_cat%d.pdf", outDir.c_str(), funcType->c_str(), (cat+catOffset)), flashggCats_, fitStatus, &gofProb, binWidth); //fixme
+
+                // Set name for multipdf plot
+                std::string pdfname = Form("env_pdf_%d_%s1", (cat+catOffset), namingMap[*funcType].c_str());
+                bkgPdf->SetName(pdfname.c_str());
+
+                // Store for truth plotting
+                pdfs.insert({Form("%s1", funcType->c_str()), bkgPdf});
 
 
-          if (max_order == 1) {
-              RooAbsPdf *bkgPdf = getPdf(pdfsModel, *funcType, 1, Form("ftest_pdf_%d_%s", (cat+catOffset), ext.c_str()));
-              if (bkgPdf) {
-                  std::cout << "[DEBUG] Printing binned dataset before fitting..." << std::endl;
-                  std::cout << "[DEBUG] Dataset contains " << data->numEntries() << " entries" << std::endl;
-                  data->printMultiline(std::cout, 15);
 
-                  int fitStatus = 0;
-                  runFit(bkgPdf, data, &thisNll, &fitStatus, 5);
-                  if (fitStatus != 0)
-                      std::cout << "[WARNING] Fit failed for " << bkgPdf->GetName() << std::endl;
+                double chi2 = 0;
+                double prob = 0;
+                prob = getGoodnessOfFit(mass, bkgPdf, data, Form("%s/Ftest_from_%s1_cat%d", outDir.c_str(), funcType->c_str(), (cat+catOffset)), binWidth); //fixme
+                if (prev_pdf != nullptr) {
+                    chi2 = 2. * (prevNll - thisNll);
+                    if (chi2 < 0.) chi2 = 0.;
+                    prob = getProbabilityFtest(chi2, 1, prev_pdf, bkgPdf, mass, data,
+                        Form("%s/Ftest_from_%s1_cat%d.pdf", outDir.c_str(), funcType->c_str(), (cat+catOffset)));
+                }
+                std::cout << "[INFO]  F-test Prob(chi2>chi2(data)) == " << prob << std::endl;
+                std::cout << "[INFO]\t " << *funcType << " order: 1 " <<"prevNLL: " << prevNll << " thisNLL: " << thisNll << " Reduced_chi^2: " << chi2 << " Prob : " << prob << std::endl;
 
-                  double gofProb = 0;
+                // Set prev_pdf for the next function
+                prev_pdf = bkgPdf;
+                prevNll = thisNll;
+                prev_order = 1;
+                cache_order = 1;
+                cache_pdf = bkgPdf;
+                // storedPdfs.add(*bkgPdf);
+                // if ((2.*thisNll + bkgPdf->getVariables()->getSize()) < MinimimNLLSoFar) {
+                //     simplebestFitPdfIndex = storedPdfs.getSize()-1;
+                //     MinimimNLLSoFar = 2.*thisNll + bkgPdf->getVariables()->getSize();
+                // }
 
-                  plot(mass, bkgPdf, data,
-                        Form("%s/%s1_cat%d.pdf", outDir.c_str(), funcType->c_str(), (cat+catOffset)),
-                        flashggCats_, fitStatus, &gofProb, binWidth, plotDiff_);
-
-                  // Set name for multipdf plot
-                  std::string pdfname = Form("env_pdf_%d_%s1", (cat+catOffset), namingMap[*funcType].c_str());
-                  bkgPdf->SetName(pdfname.c_str());
-
-                  // Store for truth plotting
-                  pdfs.insert({Form("%s1", funcType->c_str()), bkgPdf});
-
-                  // Always compute and print F-test prob
-                  double chi2 = 0;
-                  double prob = 0;
-                  if (prev_pdf != nullptr) {
-                      chi2 = 2. * (prevNll - thisNll);
-                      if (chi2 < 0.) chi2 = 0.;
-                      prob = getProbabilityFtest(chi2, 1, prev_pdf, bkgPdf, mass, data,
-                          Form("%s/Ftest_from_%s1_cat%d.pdf", outDir.c_str(), funcType->c_str(), (cat+catOffset)));
-                  }
-                  std::cout << "[INFO]  F-test Prob(chi2>chi2(data)) == " << prob << std::endl;
-                  std::cout << "[INFO]\t " << *funcType << " 1 " << prevNll << " " << thisNll << " " << chi2 << " " << prob << std::endl;
-
-                  // Set prev_pdf for the next function
-                  prev_pdf = bkgPdf;
-                  prevNll = thisNll;
-                  prev_order = 1;
-                  cache_order = 1;
-                  cache_pdf = bkgPdf;
-                  choices.insert(pair<string, int>(*funcType, 1));
-                  storedPdfs.add(*bkgPdf);  // Add to multipdf
-                  if ((2.*thisNll + bkgPdf->getVariables()->getSize()) < MinimimNLLSoFar) {
-                      simplebestFitPdfIndex = storedPdfs.getSize()-1;
-                      MinimimNLLSoFar = 2.*thisNll + bkgPdf->getVariables()->getSize();
-                  }
-
-                  std::cout << "[DEBUG] For " << *funcType << ", final cache_pdf is "
-                            << (bkgPdf ? bkgPdf->GetName() : "NULL") << std::endl;
+                //std::cout << "[DEBUG] For " << *funcType << ", final cache_pdf is "
+                //          << (bkgPdf ? bkgPdf->GetName() : "NULL") << std::endl;
               }
-
-              continue;
-          }
-
-
+            //continue;
+        }else{
     //	while (prob<0.05){
-
-
-          while (prob<0.05 && order <= max_order){
+      while (prob<0.05 && order <= max_order){
           // while (prob<0.05 && order < 5){ //FIXME
       RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,Form("ftest_pdf_%d_%s",(cat+catOffset),ext.c_str()));
       if (!bkgPdf){
@@ -1188,7 +1193,6 @@ for (int cat=startingCategory; cat<ncats; cat++){
         order++;
       }
       else {
-
         //RooFitResult *fitRes = bkgPdf->fitTo(*data,Save(true),RooFit::Minimizer("Minuit2","minimize"));
         int fitStatus = 0;
         //thisNll = fitRes->minNll();
@@ -1219,16 +1223,11 @@ for (int cat=startingCategory; cat<ncats; cat++){
         order++;
       }
       counter++;
-    }
+    }}
 
-    fprintf(resFile,"%15s & %d & %5.2f & %5.2f \\\\\n",funcType->c_str(),cache_order+1,chi2,prob);
-    if (max_order == 1) {
-              choices.insert(pair<string, int>(*funcType, 1)); // Force order=1
-          } else {
-              choices.insert(pair<string,int>(*funcType,cache_order)); // Original logic
-          }
-
-    pdfs.insert(pair<string,RooAbsPdf*>(Form("%s%d",funcType->c_str(),cache_order),cache_pdf));
+        fprintf(resFile,"%15s & %d & %5.2f & %5.2f \\\\\n",funcType->c_str(),cache_order+1,chi2,prob);
+        choices.insert(pair<string,int>(*funcType,cache_order));
+        pdfs.insert(pair<string,RooAbsPdf*>(Form("%s%d",funcType->c_str(),cache_order),cache_pdf));
 
     int truthOrder = cache_order;
 
@@ -1237,39 +1236,39 @@ for (int cat=startingCategory; cat<ncats; cat++){
           std::cout << " ------------------------------------------------------------------------------------------------- " << std::endl;
           std::cout << " -----------------------------------Multipdf plotting started------------------------------------- " << std::endl;
           std::cout << " ------------------------------------------------------------------------------------------------- " << std::endl;
+            chi2=0.;
+            thisNll=0.;
+            prevNll=0.;
+            prob=0.;
+            order=1;
+            prev_order=0;
+            cache_order=0;
+            std::cout << "[INFO] Determining Envelope Functions for Family " << *funcType << ", cat " << cat << std::endl;
+            std::cout << "[INFO] Upper end Threshold for highest order function " << upperEnvThreshold <<std::endl;
 
-      chi2=0.;
-      thisNll=0.;
-      prevNll=0.;
-      prob=0.;
-      order=1;
-      prev_order=0;
-      cache_order=0;
-      std::cout << "\n[INFO] Determining Envelope Functions for Family " << *funcType << ", cat " << cat << std::endl;
-      std::cout << "[INFO] Upper end Threshold for highest order function " << upperEnvThreshold <<std::endl;
+            while (prob<1){ //upperEnvThreshold){
+                RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()));
+                if (!bkgPdf ){
+                    // assume this order is not allowed
+                    if (order > max_order) { std::cout << " [WARNING] could not add order: " << order << std::endl; break ;}
+                    order++;
+                }
+                else {
+                    //RooFitResult *fitRes;
+                    if (order > max_order) { std::cout << " [WARNING] could not add order: " << order << std::endl; break ;}
+                    int fitStatus=0;
+                    runFit(bkgPdf,data,&thisNll,&fitStatus,/*max iterations*/5);//bkgPdf->fitTo(*data,Save(true),RooFit::Minimizer("Minuit2","minimize"));
+                    //thisNll = fitRes->minNll();
+                    if (fitStatus!=0) std::cout << "[WARNING] Warning -- Fit status for " << bkgPdf->GetName() << " at " << fitStatus <<std::endl;
+                    double myNll = 2.*thisNll;
+                    chi2 = 2.*(prevNll-thisNll);
+                    if (chi2<0. && order>1) chi2=0.;
+                    prob = TMath::Prob(chi2,order-prev_order);
 
-      while (prob<upperEnvThreshold){
-        RooAbsPdf *bkgPdf = getPdf(pdfsModel,*funcType,order,Form("env_pdf_%d_%s",(cat+catOffset),ext.c_str()));
-        if (!bkgPdf ){
-          // assume this order is not allowed
-          if (order >6) { std::cout << " [WARNING] could not add ] " << std::endl; break ;}
-          order++;
-        }
-        else {
-          //RooFitResult *fitRes;
-          int fitStatus=0;
-          runFit(bkgPdf,data,&thisNll,&fitStatus,/*max iterations*/5);//bkgPdf->fitTo(*data,Save(true),RooFit::Minimizer("Minuit2","minimize"));
-          //thisNll = fitRes->minNll();
-          if (fitStatus!=0) std::cout << "[WARNING] Warning -- Fit status for " << bkgPdf->GetName() << " at " << fitStatus <<std::endl;
-          double myNll = 2.*thisNll;
-          chi2 = 2.*(prevNll-thisNll);
-          if (chi2<0. && order>1) chi2=0.;
-          prob = TMath::Prob(chi2,order-prev_order);
-
-          cout << "[INFO] \t " << *funcType << " " << order << " " << prevNll << " " << thisNll << " " << chi2 << " " << prob << endl;
-          prevNll=thisNll;
-          cache_order=prev_order;
-          cache_pdf=prev_pdf;
+                    cout << "[INFO] \t " << *funcType << " order: " << order << " prevNLL: " << prevNll << " thisnll: " << thisNll << " chi2: " << chi2 << " prob: " << prob << endl;
+                    prevNll=thisNll;
+                    cache_order=prev_order;
+                    cache_pdf=prev_pdf;
 
           // Calculate goodness of fit for the thing to be included (will use toys for lowstats)!
           double gofProb =0;
@@ -1277,23 +1276,23 @@ for (int cat=startingCategory; cat<ncats; cat++){
 
           if ((prob < upperEnvThreshold) ) { // Looser requirements for the envelope
 
-            if (gofProb > 0.01 || order == truthOrder ) {  // Good looking fit or one of our regular truth functions
+                        if (gofProb > 0.01 || order == truthOrder ) {  // Good looking fit or one of our regular truth functions
+                            std::cout << "[INFO] Adding to Envelope " << bkgPdf->GetName() << " gofProb:  "<< gofProb
+                                << " 2xNLL + c is " << myNll + bkgPdf->getVariables()->getSize() <<  std::endl;
+                            allPdfs.insert(pair<string,RooAbsPdf*>(Form("%s%d",funcType->c_str(),order),bkgPdf));
+                            std::cout << "[DEBUG] Considering for Envelope: " << bkgPdf->GetName() << " | p(GOF) = " << gofProb << ", p(Chi²) = " << prob << std::endl;
 
-              std::cout << "[INFO] Adding to Envelope " << bkgPdf->GetName() << " "<< gofProb
-                << " 2xNLL + c is " << myNll + bkgPdf->getVariables()->getSize() <<  std::endl;
-              allPdfs.insert(pair<string,RooAbsPdf*>(Form("%s%d",funcType->c_str(),order),bkgPdf));
-                              std::cout << "[DEBUG] Considering for Envelope: " << bkgPdf->GetName() << " | p(GOF) = " << gofProb << ", p(Chi²) = " << prob << std::endl;
 
               storedPdfs.add(*bkgPdf);
               pdforders.push_back(order);
 
-              // Keep track but we shall redo this later
-              if ((myNll + bkgPdf->getVariables()->getSize()) < MinimimNLLSoFar) {
-                simplebestFitPdfIndex = storedPdfs.getSize()-1;
-                MinimimNLLSoFar = myNll + bkgPdf->getVariables()->getSize();
-              }
-            }
-          }
+                            // Keep track but we shall redo this later
+                            if ((myNll + bkgPdf->getVariables()->getSize()) < MinimimNLLSoFar) {
+                                simplebestFitPdfIndex = storedPdfs.getSize()-1;
+                                MinimimNLLSoFar = myNll + bkgPdf->getVariables()->getSize();
+                            }
+                        }
+                    }
 
           prev_order=order;
           prev_pdf=bkgPdf;
@@ -1337,7 +1336,7 @@ for (int cat=startingCategory; cat<ncats; cat++){
     RooRealVar nBackground(Form("CMS_hgg_%s_%s_bkgshape_norm",catname.c_str(),ext.c_str()),"nbkg",data->sumEntries(),0,3*data->sumEntries());
     //nBackground.removeRange(); // bug in roofit will break combine until dev branch brought in
     //double check the best pdf!
-    int bestFitPdfIndex = getBestFitFunction(pdf,data,&catIndex,!verbose);
+    int bestFitPdfIndex = getBestFitFunction(pdf,data,&catIndex,verbose);
     catIndex.setIndex(bestFitPdfIndex);
     std::cout << "// ------------------------------------------------------------------------- //" <<std::endl;
     std::cout << "[INFO] Created MultiPdf " << pdf->GetName() << ", in Category " << cat << " with a total of " << catIndex.numTypes() << " pdfs"<< std::endl;
