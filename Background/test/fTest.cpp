@@ -362,7 +362,7 @@ double getGoodnessOfFit(RooRealVar *mass, RooAbsPdf *mpdf, RooDataSet *data, std
 
 }
 
-void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector<string> flashggCats_, int status, double *prob, double binWidth){
+void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector<string> flashggCats_, int status, double *prob, double binWidth, bool useDiff = false){
   /*
   for plotting single pdf fit plots
   but with an additional subplot plotting
@@ -408,12 +408,11 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   pad2->SetBottomMargin(0.30);
   pad2->SetLeftMargin(0.2);
 
-
   pad1->Draw();
   pad2->Draw();
   pad1->cd();
   pdf->plotOn(plot);//,RooFit::NormRange("fitdata_1,fitdata_2"));
-  pdf->paramOn(plot,RooFit::Layout(0.34,0.96,0.89),RooFit::Format("NEF",AutoPrecision(6)));
+  pdf->paramOn(plot,RooFit::Layout(0.34,0.96,0.85),RooFit::Format("NEF",AutoPrecision(6)));
   plot->getAttText()->SetTextSize(0.02);
   if (BLIND) plot->SetMinimum(0.0001);
   plot->GetYaxis()->SetTitleOffset(2);  // Increase space between y-axis and title
@@ -442,9 +441,13 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   double rel_err_high = errhi / bkgval;
   bool drawZeroBins_ =1;
   if (!drawZeroBins_) if(fabs(ytmp)<1e-5) continue;
-  hdatasub->SetPoint(point,xtmp,ytmp/bkgval);
-  //hdatasub->SetPoint(point,xtmp,ytmp-bkgval);
-  hdatasub->SetPointError(point,0.,0.,rel_err_low,rel_err_high );
+  if (!useDiff) {
+    hdatasub->SetPoint(point, xtmp, ytmp / bkgval);
+    hdatasub->SetPointError(point, 0., 0., rel_err_low, rel_err_high);
+  } else {
+    hdatasub->SetPoint(point, xtmp, ytmp - bkgval);
+    hdatasub->SetPointError(point, 0., 0., errlow, errhi);
+  }
   point++;
   }
   TLatex *lat = new TLatex();
@@ -457,11 +460,16 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   TH1 *hdummy = new TH1D("hdummyweight","",nBinsForPlot,mgg_low,mgg_high);
   //hdummy->SetMaximum(hdatasub->GetHistogram()->GetMaximum()+1);
   //hdummy->SetMinimum(hdatasub->GetHistogram()->GetMinimum()-1);
-  hdummy->SetMaximum(1.05);
-  hdummy->SetMinimum(0.95);
-  //hdatasub->GetYaxis()->SetRangeUser(0.95, 1.05);
-  //hdummy->GetYaxis()->SetTitle("data - best fit PDF");
-  hdummy->GetYaxis()->SetTitle("data/(best fit)");
+  if (!useDiff) {
+    hdummy->SetMaximum(1.05);
+    hdummy->SetMinimum(0.95);
+    hdummy->GetYaxis()->SetTitle("data/(best fit)");
+  } else {
+    hdummy->SetMaximum(hdatasub->GetHistogram()->GetMaximum()+1);
+    hdummy->SetMinimum(hdatasub->GetHistogram()->GetMinimum()-1);
+    hdummy->GetYaxis()->SetTitle("data - best fit");
+  }
+
   hdummy->GetYaxis()->SetTitleSize(0.09);
   hdummy->GetYaxis()->SetLabelSize(0.07);
   hdummy->GetYaxis()->SetTitleOffset(0.6);
@@ -471,10 +479,17 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   hdummy->Draw("HIST");
   hdummy->GetYaxis()->SetNdivisions(808);
 
-  TLine *line3 = new TLine(mgg_low, 1., mgg_high, 1.);
-  line3->SetLineColor(kBlue);
-  line3->SetLineWidth(2.5);
-  line3->Draw();
+  if (!useDiff) {
+    TLine *line3 = new TLine(mgg_low, 1., mgg_high, 1.);
+    line3->SetLineColor(kBlue);
+    line3->SetLineWidth(2.5);
+    line3->Draw();
+  } else {
+    TLine *line3 = new TLine(mgg_low, 0., mgg_high, 0.);
+    line3->SetLineColor(kRed);
+    line3->SetLineWidth(2.5);
+    line3->Draw();
+  }
 
   hdatasub->Draw("PESAME");
   // end extra bit for ratio plot///
@@ -485,7 +500,7 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   delete lat;
 }
 
-void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet *data, string name, vector<string> flashggCats_, int cat, int bestFitPdf=-1){
+void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet *data, string name, vector<string> flashggCats_, int cat, int bestFitPdf=-1, bool useDiff = false){
   // multipdf plotting function
   int color[8] = { kBlue, kRed, kGreen+2, kMagenta, kGray, kOrange, kCyan, kLightBrown};
   TLegend *leg = new TLegend(0.5,0.4,0.93,0.8);
@@ -588,21 +603,29 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   double rel_err_high = errhi / bkgval;
   bool drawZeroBins_ =1;
   if (!drawZeroBins_) if(fabs(ytmp)<1e-5) continue;
-  hdatasub->SetPoint(point,xtmp,ytmp/bkgval);
-  //hdatasub->SetPoint(point,xtmp,ytmp-bkgval);
-  hdatasub->SetPointError(point,0.,0.,rel_err_low,rel_err_high );
+  if (!useDiff) {
+    hdatasub->SetPoint(point, xtmp, ytmp / bkgval);
+    hdatasub->SetPointError(point, 0., 0., rel_err_low, rel_err_high);
+  } else {
+    hdatasub->SetPoint(point, xtmp, ytmp - bkgval);
+    hdatasub->SetPointError(point, 0., 0., errlow, errhi);
+  }
   point++;
   }
   pad2->cd();
   //TH1 *hdummy = new TH1D("hdummyweight","",mgg_high-mgg_low,mgg_low,mgg_high);
   TH1 *hdummy = new TH1D("hdummyweight","",nBinsForPlot,mgg_low,mgg_high);
-  //hdummy->SetMaximum(hdatasub->GetHistogram()->GetMaximum()+1);
-  //hdummy->SetMinimum(hdatasub->GetHistogram()->GetMinimum()-1);
-  hdummy->SetMaximum(1.05);
-  hdummy->SetMinimum(0.95);
 
-  //hdummy->GetYaxis()->SetTitle("data - best fit PDF");
-  hdummy->GetYaxis()->SetTitle("data/(best fit)");
+  if (!useDiff) {
+    hdummy->SetMaximum(1.05);
+    hdummy->SetMinimum(0.95);
+    hdummy->GetYaxis()->SetTitle("data/(best fit)");
+  } else {
+    hdummy->SetMaximum(hdatasub->GetHistogram()->GetMaximum()+1);
+    hdummy->SetMinimum(hdatasub->GetHistogram()->GetMinimum()-1);
+    hdummy->GetYaxis()->SetTitle("data - best fit");
+  }
+
   hdummy->GetYaxis()->SetTitleSize(0.09);
   hdummy->GetYaxis()->SetLabelSize(0.07);
   hdummy->GetYaxis()->SetTitleOffset(0.6);
@@ -612,12 +635,17 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   hdummy->Draw("HIST");
   hdummy->GetYaxis()->SetNdivisions(808);
 
-  // TLine *line3 = new TLine(mgg_low,0.,mgg_high,0.);
-  TLine *line3 = new TLine(mgg_low,1.,mgg_high,1.);  //line3 for ratio
-  line3->SetLineColor(bestcol);
-  //line3->SetLineStyle(kDashed);
-  line3->SetLineWidth(2.5);
-  line3->Draw();
+  if (!useDiff) {
+    TLine *line3 = new TLine(mgg_low, 1., mgg_high, 1.);
+    line3->SetLineColor(bestcol);
+    line3->SetLineWidth(2.5);
+    line3->Draw();
+  } else {
+    TLine *line3 = new TLine(mgg_low, 0., mgg_high, 0.);
+    line3->SetLineColor(bestcol);
+    line3->SetLineWidth(2.5);
+    line3->Draw();
+  }
 
   hdatasub->Draw("PESAME");
   // enf extra bit for ratio plot///
@@ -817,6 +845,7 @@ int isFlashgg_ =1;
 string flashggCatsStr_;
 vector<string> flashggCats_;
 bool isData_ =0;
+bool plotDiff_ =0;
 
 po::options_description desc("Allowed options");
 desc.add_options()
@@ -833,6 +862,7 @@ desc.add_options()
   ("unblind",  									        "Dont blind plots")
   ("isFlashgg",  po::value<int>(&isFlashgg_)->default_value(1),  								    	        "Use Flashgg output ")
   ("isData",  po::value<bool>(&isData_)->default_value(0),  								    	        "Use Data not MC ")
+  ("plotDifference", po::bool_switch(&plotDiff_)->default_value(false), "Plot data - fit instead of data / fit")
   ("flashggCats,f", po::value<string>(&flashggCatsStr_)->default_value("UntaggedTag_0,UntaggedTag_1,UntaggedTag_2,UntaggedTag_3,UntaggedTag_4,VBFTag_0,VBFTag_1,VBFTag_2,TTHHadronicTag,TTHLeptonicTag,VHHadronicTag,VHTightTag,VHLooseTag,VHEtTag"),       "Flashgg category names to consider")
   ("year", po::value<string>(&year_)->default_value("2016"),       "Dataset year")
   ("catOffset", po::value<int>(&catOffset)->default_value(0),       "Category numbering scheme offset")
@@ -1105,7 +1135,7 @@ for (int cat=startingCategory; cat<ncats; cat++){
 
                   plot(mass, bkgPdf, data,
                         Form("%s/%s1_cat%d.pdf", outDir.c_str(), funcType->c_str(), (cat+catOffset)),
-                        flashggCats_, fitStatus, &gofProb, binWidth);
+                        flashggCats_, fitStatus, &gofProb, binWidth, plotDiff_);
 
                   // Set name for multipdf plot
                   std::string pdfname = Form("env_pdf_%d_%s1", (cat+catOffset), namingMap[*funcType].c_str());
@@ -1178,7 +1208,7 @@ for (int cat=startingCategory; cat<ncats; cat++){
         }
         double gofProb=0;
         // otherwise we get it later ...
-        if (!saveMultiPdf) plot(mass,bkgPdf,data,Form("%s/%s%d_cat%d.pdf",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb, binWidth);
+        if (!saveMultiPdf) plot(mass,bkgPdf,data,Form("%s/%s%d_cat%d.pdf",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb, binWidth,plotDiff_);
         cout << "[INFO]\t" << "FunctionType: " << *funcType << ", " << "Order: " << order << ", " << "PreviousNLL: " << prevNll << ", " << "CurrentNLL: " << thisNll << ", " << "Chi2: " << chi2 << ", " << "Prob: " << prob << endl;
         //fprintf(resFile,"%15s && %d && %10.2f && %10.2f && %10.2f \\\\\n",funcType->c_str(),order,thisNll,chi2,prob);
         prevNll=thisNll;
@@ -1243,7 +1273,7 @@ for (int cat=startingCategory; cat<ncats; cat++){
 
           // Calculate goodness of fit for the thing to be included (will use toys for lowstats)!
           double gofProb =0;
-          plot(mass,bkgPdf,data,Form("%s/%s%d_cat%d.pdf",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb, binWidth);
+          plot(mass,bkgPdf,data,Form("%s/%s%d_cat%d.pdf",outDir.c_str(),funcType->c_str(),order,(cat+catOffset)),flashggCats_,fitStatus,&gofProb, binWidth,plotDiff_);
 
           if ((prob < upperEnvThreshold) ) { // Looser requirements for the envelope
 
@@ -1325,7 +1355,7 @@ for (int cat=startingCategory; cat<ncats; cat++){
     outputws->import(catIndex);
     outputws->import(dataBinned);
     outputws->import(*data);
-    plot(mass,pdf,&catIndex,data,Form("%s/multipdf_%s",outDir.c_str(),catname.c_str()),flashggCats_,cat,bestFitPdfIndex);
+    plot(mass,pdf,&catIndex,data,Form("%s/multipdf_%s",outDir.c_str(),catname.c_str()),flashggCats_,cat,bestFitPdfIndex,plotDiff_);
 
   }
 

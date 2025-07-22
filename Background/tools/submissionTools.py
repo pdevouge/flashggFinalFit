@@ -46,7 +46,7 @@ def writeSubFiles(_opts):
   _jobdir = "%s/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode'])
   # Remove current job files
   if len(glob.glob("%s/*"%_jobdir)): os.system("rm %s/*"%_jobdir)
-  
+
   # CONDOR
   if _opts['batch'] == "condor":
     _executable = "condor_%s_%s"%(_opts['mode'],_opts['ext'])
@@ -58,11 +58,12 @@ def writeSubFiles(_opts):
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
         co = _opts['catOffset']+cidx
+        plotDiff = '--plotDiff' if _opts['plotDiff'] else ''
         _f.write("if [ $1 -eq %g ]; then\n"%cidx)
-        _cmd = "%s/runBackgroundScripts.sh -i %s -p %s -f %s --ext %s --catOffset %g --intLumi %s --year %s --batch %s --queue %s --sigFile %s --isData --fTest"%(bwd__,_opts['dataFile'],_opts['procs'],c,_opts['ext'],co,_opts['lumi'],_opts['year'],_opts['batch'],_opts['queue'],_opts['signalFitWSFile'])
+        _cmd = "%s/runBackgroundScripts.sh -i %s -p %s -f %s --ext %s --catOffset %g --intLumi %s --year %s --batch %s --queue %s --sigFile %s --isData --fTest %s"%(bwd__,_opts['dataFile'],_opts['procs'],c,_opts['ext'],co,_opts['lumi'],_opts['year'],_opts['batch'],_opts['queue'],_opts['signalFitWSFile'],plotDiff)
         _f.write("  %s\n"%_cmd)
         _f.write("fi\n")
-      
+
     # Close .sh file
     _f.close()
     os.system("chmod 775 %s/%s.sh"%(_jobdir,_executable))
@@ -71,7 +72,7 @@ def writeSubFiles(_opts):
     _fsub = open("%s/%s.sub"%(_jobdir,_executable),"w")
     if( _opts['mode'] == "fTestParallel" ): writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats'],_opts['jobOpts'])
     _fsub.close()
-    
+
   # SGE...
   if (_opts['batch'] == "IC")|(_opts['batch'] == "SGE")|(_opts['batch'] == "local" ):
     _executable = "sub_%s_%s"%(_opts['mode'],_opts['ext'])
@@ -83,13 +84,14 @@ def writeSubFiles(_opts):
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
         co = _opts['catOffset']+cidx
+        plotDiff = '--plotDiff' if _opts['plotDiff'] else ''
         _f = open("%s/%s_%s.sh"%(_jobdir,_executable,c),"w")
         writePreamble(_f)
-        _cmd = "%s/runBackgroundScripts.sh -i %s -p %s -f %s --ext %s --catOffset %g --intLumi %s --year %s --batch %s --queue %s --sigFile %s --isData --fTest"%(bwd__,_opts['dataFile'],_opts['procs'],c,_opts['ext'],co,_opts['lumi'],_opts['year'],_opts['batch'],_opts['queue'],_opts['signalFitWSFile'])
+        _cmd = "%s/runBackgroundScripts.sh -i %s -p %s -f %s --ext %s --catOffset %g --intLumi %s --year %s --batch %s --queue %s --sigFile %s --isData --fTest %s"%(bwd__,_opts['dataFile'],_opts['procs'],c,_opts['ext'],co,_opts['lumi'],_opts['year'],_opts['batch'],_opts['queue'],_opts['signalFitWSFile'],plotDiff)
         _f.write("%s\n"%_cmd)
         _f.close()
         os.system("chmod 775 %s/%s_%s.sh"%(_jobdir,_executable,c))
-         
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for submitting files to batch system
 def submitFiles(_opts):
@@ -111,7 +113,7 @@ def submitFiles(_opts):
     # Extract job opts
     jobOptsStr = _opts['jobOpts']
 
-    # Separate submission per category  
+    # Separate submission per category
     if( _opts['mode'] == "fTestParallel" ):
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
@@ -119,12 +121,12 @@ def submitFiles(_opts):
         cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
         run(cmdLine)
     print("  --> Finished submitting files")
-  
+
   # Running locally
   elif _opts['batch'] == 'local':
     _executable = "sub_%s_%s"%(_opts['mode'],_opts['ext'])
 
-    # Separate submission per category  
+    # Separate submission per category
     if( _opts['mode'] == "fTestParallel" ):
       for cidx in range(_opts['nCats']):
         c = _opts['cats'].split(",")[cidx]
@@ -133,4 +135,4 @@ def submitFiles(_opts):
         run(cmdLine)
     print("  --> Finished running files")
 
- 
+
