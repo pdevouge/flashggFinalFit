@@ -24,15 +24,15 @@ $(info Found OS Linux - using linux build)
 BOOST_PATH=$(shell scram tool info boost | awk -F= '/BOOST_BASE/ {  print $$2  }')
 USERINCLUDES += -I$(BOOST_PATH)/include/
 USERINCLUDES += -I $(CMSSW_BASE)/src/ -I $(CMSSW_RELEASE_BASE)/src/
-USERLIBS += -L$(BOOST_PATH)/lib/ -lboost_regex -lboost_program_options 
+USERLIBS += -L$(BOOST_PATH)/lib/ -lboost_regex -lboost_program_options
 USERINCLUDES += -I$(ROOFITSYS)/include
 USERLIBS += -L$(ROOFITSYS)/lib -lRooFit -lRooFitCore -lRooStats
-USERLIBS += -L$(CMSSW_BASE)/lib 
+USERLIBS += -L$(CMSSW_BASE)/lib
 endif
 
-USERLIBS += $(shell root-config --glibs) -lTMVA -lMinuit -lFoam -lRooFit -lRooFitCore -lMathMore -lRooStats 
+USERLIBS += $(shell root-config --glibs) -lTMVA -lMinuit -lFoam -lRooFit -lRooFitCore -lMathMore -lRooStats
 CXXFLAGS = -Wall -g -Wl,-rpath=$(BASEDIR)/lib  -std=c++17
-LDFLAGS = -shared -W 
+LDFLAGS = -shared -W
 
 CXX=g++
 LD=g++
@@ -65,21 +65,21 @@ BINS=$(subst $(TESTDIR), $(EXEDIR),$(subst .$(TEST_EXT),,$(EXES)))
 
 all:  $(BINS)
 
-$(EXEDIR)/%: $(TESTDIR)/%.cpp $(LIBDIR)/lib$(LIBNAME).so $(BASEDIR)/interface/*.h  
+$(EXEDIR)/%: $(TESTDIR)/%.cpp $(LIBDIR)/lib$(LIBNAME).so $(BASEDIR)/interface/*.h
 	@echo Compiling executable $@
 	@$(CXX) -o $@ $(CXXFLAGS) $< $(ROOT_DICT) $(ROOTCLASSES) $(LIBS) -L$(LIBDIR) -l$(LIBNAME) $(USERLIBSX)
 
-$(OBJDIR)/%.$(OBJ_EXT): $(SRCDIR)/%.cc $(ROOT_DICT) 
+$(OBJDIR)/%.$(OBJ_EXT): $(SRCDIR)/%.cc $(ROOT_DICT)
 	@echo Making object $@
 	@$(CXX) $(CXXFLAGS) -fPIC -c $<  -o $@
 
 $(LIBDIR)/lib$(LIBNAME).so: $(OBJS) $(ROOT_OBJ)
 	@echo Building shared library $@
 	@$(LD) $(LDFLAGS) -o $(LIBDIR)/lib$(LIBNAME).so $^ $(LIBS)
-	
+
 $(ROOT_DICT): $(SRCS) $(HEADERS)
 	@echo Making dictionary $@
-	@rootcint -f $@ -c -L$(ROOFITSYS)/lib -I$(ROOFITSYS)/include $(HEADERS)
+	@rootcint -f $@ -c -L$(ROOFITSYS)/lib -I$(ROOFITSYS)/include $(HEADERS) LinkDef.h
 	@$(CXX) $(CXXFLAGS) -fPIC -c $(ROOT_DICT) -o $(ROOT_OBJ)
 
 
@@ -89,14 +89,14 @@ vars:
 	@echo "LIBS: " $(LIBS)
 	@echo "CXXFLAGS: " $(CXXFLAGS)
 	@echo "Header files: " $(HEADERS)
-	@echo "Source files: " $(SRCS) 
+	@echo "Source files: " $(SRCS)
 	@echo "Root H files: " $(ROOTHEADERS)
-	@echo "Root S files: " $(ROOTCLASSES) 
+	@echo "Root S files: " $(ROOTCLASSES)
 	@echo "Object files: " $(OBJS)
 	@echo "Executables:  " $(TARGETS)
 
 clean:
-	@echo "Cleaning: " 
+	@echo "Cleaning: "
 	@echo "  " $(OBJS)
 	@echo "  " $(LIBDIR)/lib$(LIBNAME).so
 	@echo "  " $(BINS)
