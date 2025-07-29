@@ -8,7 +8,7 @@ def get_options():
   parser = OptionParser()
   parser.add_option('--mode', dest='mode', default='mu_inclusive', help="Physics Model (specified in models.py)")
   parser.add_option('--ext',dest='ext', default="", help='In case running over datacard with extension')
-  parser.add_option('--common_opts',dest='common_opts', default="-m 125 higgsMassRange=122,128", help='Common options')
+  parser.add_option('--common_opts',dest='common_opts', default="-m 250 higgsMassRange=200,400", help='Common options')
   parser.add_option('--batch', dest='batch', default='condor', help="Batch system [SGE,IC,condor]")
   parser.add_option('--queue', dest='queue', default='workday', help="Condor queue")
   parser.add_option('--ncpus', dest='ncpus', default=4, type='int', help="Number of cpus")
@@ -24,7 +24,7 @@ def run(cmd):
   print("%s\n\n"%cmd)
   os.system(cmd)
 
-if opt.mode not in models: 
+if opt.mode not in models:
   print(" --> [ERROR] opt.mode (%s) is not specified in models.py. Leaving..."%opt.mode)
   leave()
 
@@ -56,9 +56,9 @@ if opt.batch == 'condor':
   f_cdr.close()
 
 # Submit
-if opt.batch == "condor": 
+if opt.batch == "condor":
   if os.environ['PWD'].startswith("/eos"):
-    subcmd = "condor_submit -spool ./t2w_jobs/t2w_%s%s.sub"%(opt.mode,opt.ext) 
+    subcmd = "condor_submit -spool ./t2w_jobs/t2w_%s%s.sub"%(opt.mode,opt.ext)
   else:
     subcmd = "condor_submit ./t2w_jobs/t2w_%s%s.sub"%(opt.mode,opt.ext)
 elif opt.batch == 'local': subcmd = "bash ./t2w_jobs/t2w_%s%s.sh"%(opt.mode,opt.ext)

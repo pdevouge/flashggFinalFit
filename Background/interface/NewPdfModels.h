@@ -16,7 +16,6 @@ public:
 protected:
     RooRealProxy mgg, p1, p2;
     Double_t evaluate() const override;
-    ClassDef(InvPow, 1)
 };
 
 class InvPowLin : public RooAbsPdf {
@@ -30,7 +29,6 @@ public:
 protected:
     RooRealProxy mgg, p1, p2, p3;
     Double_t evaluate() const override;
-    ClassDef(InvPowLin, 1)
 };
 
 class Expow : public RooAbsPdf {
@@ -44,7 +42,6 @@ public:
 protected:
     RooRealProxy mgg, p1, p2;
     Double_t evaluate() const override;
-    ClassDef(Expow, 1)
 };
 
 class Dijet : public RooAbsPdf {
@@ -58,7 +55,6 @@ public:
 protected:
     RooRealProxy mgg, p1, p2;
     Double_t evaluate() const override;
-    ClassDef(Dijet, 1)
 };
 
 #endif

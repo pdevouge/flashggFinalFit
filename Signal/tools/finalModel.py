@@ -129,7 +129,7 @@ class FinalModel:
         self.buildPdf(self.ssfMap['Total'],ext='total',useDCB=self.useDCB)
         self.Pdfs['final'] = self.Pdfs['total']
     else:
-      self.Pdfs['final'] = self.ssfMap['Total'].Pdfs['final']
+      self.Pdfs['final'] = self.ssfMap['Total'].Pdfs['final'].clone("%s_%s"%(outputWSObjectTitle__,self.name))
     # Build final normalisation, datasets and extended Pdfs
     self.buildNorm()
     self.buildDatasets()

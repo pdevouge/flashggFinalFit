@@ -7,7 +7,6 @@
 
 
 // InvPow Implementation //
-ClassImp(InvPow)
 InvPow::InvPow(const char *name, const char *title, RooAbsReal& _mgg,
                RooAbsReal& _p1, RooAbsReal& _p2) :
     RooAbsPdf(name, title),
@@ -28,7 +27,6 @@ Double_t InvPow::evaluate() const {
 
 
 // InvPowLin Implementation //
-ClassImp(InvPowLin)
 InvPowLin::InvPowLin(const char *name, const char *title, RooAbsReal& _mgg,
                     RooAbsReal& _p1, RooAbsReal& _p2, RooAbsReal& _p3) :
     RooAbsPdf(name, title),
@@ -51,7 +49,6 @@ Double_t InvPowLin::evaluate() const {
 
 
 // Expow Implementation //
-ClassImp(Expow)
 Expow::Expow(const char *name, const char *title, RooAbsReal& _mgg,
             RooAbsReal& _p1, RooAbsReal& _p2) :
     RooAbsPdf(name, title),
@@ -72,7 +69,6 @@ Double_t Expow::evaluate() const {
 
 
 // Dijet Implementation //
-ClassImp(Dijet)
 Dijet::Dijet(const char *name, const char *title, RooAbsReal& _mgg,
             RooAbsReal& _p1, RooAbsReal& _p2) :
     RooAbsPdf(name, title),

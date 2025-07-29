@@ -79,7 +79,7 @@ $(LIBDIR)/lib$(LIBNAME).so: $(OBJS) $(ROOT_OBJ)
 
 $(ROOT_DICT): $(SRCS) $(HEADERS)
 	@echo Making dictionary $@
-	@rootcint -f $@ -c -L$(ROOFITSYS)/lib -I$(ROOFITSYS)/include $(HEADERS) LinkDef.h
+	@rootcint -f $@ -c -L$(ROOFITSYS)/lib -I$(ROOFITSYS)/include $(HEADERS)
 	@$(CXX) $(CXXFLAGS) -fPIC -c $(ROOT_DICT) -o $(ROOT_OBJ)
 
 
