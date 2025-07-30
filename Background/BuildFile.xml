@@ -8,12 +8,6 @@
 <use name="root"/>
 <use name="rootcint"/>
 <lib name="TreePlayer"/>
-<lib name="PyROOT"/>
-<library name="NewPdfModels" file="src/NewPdfModels.cc"/>
-
-<export>
-  <lib name="NewPdfModels"/>  
-</export>
 
 <export>
 <lib name="1"/>

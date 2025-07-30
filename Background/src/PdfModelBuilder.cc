@@ -23,7 +23,10 @@
 #include "boost/algorithm/string/predicate.hpp"
 
 #include "../interface/PdfModelBuilder.h"
-#include "../interface/NewPdfModels.h"
+#include "HiggsAnalysis/CombinedLimit/interface/InvPow.h"
+#include "HiggsAnalysis/CombinedLimit/interface/InvPowLin.h"
+#include "HiggsAnalysis/CombinedLimit/interface/Expow.h"
+#include "HiggsAnalysis/CombinedLimit/interface/Dijet.h"
 
 #include "HiggsAnalysis/CombinedLimit/interface/HGGRooPdfs.h"
 #include "HiggsAnalysis/CombinedLimit/interface/RooBernsteinFast.h"
@@ -41,7 +44,7 @@ PdfModelBuilder::PdfModelBuilder():
   keysPdfAttributesSet(false),
   verbosity(0)
 {
-  
+
   recognisedPdfTypes.push_back("Bernstein");
   recognisedPdfTypes.push_back("Exponential");
   recognisedPdfTypes.push_back("PowerLaw");
@@ -78,7 +81,7 @@ void PdfModelBuilder::setSignalModifierConstant(bool val){
 }
 
 RooAbsPdf* PdfModelBuilder::getChebychev(string prefix, int order){
-  
+
   RooArgList *coeffList = new RooArgList();
   for (int i=0; i<order; i++){
     string name = Form("%s_p%d",prefix.c_str(),i);
@@ -148,7 +151,7 @@ RooAbsPdf* PdfModelBuilder::getDijet(string prefix, int order) {
 }
 
 RooAbsPdf* PdfModelBuilder::getBernstein(string prefix, int order){
-  
+
   RooArgList *coeffList = new RooArgList();
   //coeffList->add(RooConst(1.0)); // no need for cnstant in this interface
   for (int i=0; i<order; i++){
@@ -191,7 +194,7 @@ RooAbsPdf* PdfModelBuilder::getBernstein(string prefix, int order){
 }
 
 RooAbsPdf* PdfModelBuilder::getPowerLawGeneric(string prefix, int order){
-  
+
   if (order%2==0){
     cerr << "ERROR -- addPowerLaw(" << order << ")  -- only odd number of params allowed" << endl;
     return NULL;
@@ -238,7 +241,7 @@ RooAbsPdf* PdfModelBuilder::getPowerLawGeneric(string prefix, int order){
 }
 
 RooAbsPdf* PdfModelBuilder::getPowerLaw(string prefix, int order){
-  
+
   RooArgList coefList;
   for (int i=0; i<order; i++){
     double start=-2.;
@@ -259,7 +262,7 @@ RooAbsPdf* PdfModelBuilder::getPowerLaw(string prefix, int order){
 }
 
 RooAbsPdf* PdfModelBuilder::getExponential(string prefix, int order){
-  
+
   RooArgList coefList;
   for (int i=0; i<order; i++){
     double start=-1.;
@@ -280,7 +283,7 @@ RooAbsPdf* PdfModelBuilder::getExponential(string prefix, int order){
 }
 
 RooAbsPdf* PdfModelBuilder::getPowerLawSingle(string prefix, int order){
-  
+
   if (order%2==0){
     cerr << "ERROR -- addPowerLaw(" << order << ")  -- only odd number of params allowed" << endl;
     return NULL;
@@ -309,7 +312,7 @@ RooAbsPdf* PdfModelBuilder::getPowerLawSingle(string prefix, int order){
     //fracs->Print("v");
     //pows->Print("v");
     //cout << "Function..." << endl;
-    RooAbsPdf *pow = new RooAddPdf(prefix.c_str(),prefix.c_str(),*pows,*fracs,true); 
+    RooAbsPdf *pow = new RooAddPdf(prefix.c_str(),prefix.c_str(),*pows,*fracs,true);
     //pow->Print("v");
     return pow;
     //bkgPdfs.insert(pair<string,RooAbsPdf*>(pow->GetName(),pow));
@@ -317,7 +320,7 @@ RooAbsPdf* PdfModelBuilder::getPowerLawSingle(string prefix, int order){
 }
 
 RooAbsPdf* PdfModelBuilder::getLaurentSeries(string prefix, int order){
- 
+
   int nlower=int(ceil(order/2.));
   int nhigher=order-nlower;
   // first do 0th order
@@ -389,7 +392,7 @@ RooAbsPdf* PdfModelBuilder::getPdfFromFile(string &prefix){
 }
 
 RooAbsPdf* PdfModelBuilder::getExponentialSingle(string prefix, int order){
-  
+
   if (order%2==0){
     cerr << "ERROR -- addExponential(" << order << ")  -- only odd number of params allowed" << endl;
     return NULL;
@@ -425,7 +428,7 @@ RooAbsPdf* PdfModelBuilder::getExponentialSingle(string prefix, int order){
 
 
 void PdfModelBuilder::addBkgPdf(string type, int nParams, string name, bool cache){
- 
+
   if (!obs_var_set){
     cerr << "ERROR -- obs Var has not been set!" << endl;
     exit(1);
@@ -438,7 +441,7 @@ void PdfModelBuilder::addBkgPdf(string type, int nParams, string name, bool cach
     cerr << "Pdf of type " << type << " is not recognised!" << endl;
     exit(1);
   }
-  RooAbsPdf *pdf=0;// avoid uninitialised variable error in cmssw  
+  RooAbsPdf *pdf=0;// avoid uninitialised variable error in cmssw
 
   if (type=="Bernstein") pdf = getBernstein(name,nParams);
   if (type=="Exponential") pdf = getExponentialSingle(name,nParams);
@@ -476,7 +479,7 @@ void PdfModelBuilder::setSignalPdf(RooAbsPdf *pdf, RooRealVar *norm){
 }
 
 void PdfModelBuilder::setSignalPdfFromMC(RooDataSet *data){
-  
+
   RooDataHist *sigMCBinned = new RooDataHist(Form("roohist_%s",data->GetName()),Form("roohist_%s",data->GetName()),RooArgSet(*obs_var),*data);
   sigPdf = new RooHistPdf(Form("pdf_%s",data->GetName()),Form("pdf_%s",data->GetName()),RooArgSet(*obs_var),*sigMCBinned);
   sigNorm = new RooConstVar(Form("sig_events_%s",data->GetName()),Form("sig_events_%s",data->GetName()),data->sumEntries());
@@ -484,7 +487,7 @@ void PdfModelBuilder::setSignalPdfFromMC(RooDataSet *data){
 }
 
 void PdfModelBuilder::makeSBPdfs(bool cache){
-  
+
   if (!signal_set){
     cerr << "ERROR - no signal model set!" << endl;
     exit(1);
@@ -493,7 +496,7 @@ void PdfModelBuilder::makeSBPdfs(bool cache){
     cerr << "ERROR - no signal modifier set!" << endl;
     exit(1);
   }
- 
+
   if (sigNorm) {
     sigYield = new RooProduct("sig_yield","sig_yield",RooArgSet(*signalModifier,*sigNorm));
   }
@@ -529,7 +532,7 @@ RooAbsPdf* PdfModelBuilder::getSigPdf(){
 }
 
 void PdfModelBuilder::plotPdfsToData(RooAbsData *data, int binning, string name, bool bkgOnly,string specificPdfName){
-  
+
   TCanvas *canv = new TCanvas();
   bool specPdf=false;
   if (specificPdfName!="") specPdf=true;
@@ -537,7 +540,7 @@ void PdfModelBuilder::plotPdfsToData(RooAbsData *data, int binning, string name,
   map<string,RooAbsPdf*> pdfSet;
   if (bkgOnly) pdfSet = bkgPdfs;
   else pdfSet = sbPdfs;
-  
+
   for (map<string,RooAbsPdf*>::iterator it=pdfSet.begin(); it!=pdfSet.end(); it++){
     if (specPdf && it->first!=specificPdfName && specificPdfName!="NONE") continue;
     RooPlot *plot = obs_var->frame();
@@ -545,7 +548,7 @@ void PdfModelBuilder::plotPdfsToData(RooAbsData *data, int binning, string name,
     if (specificPdfName!="NONE") {
 	 it->second->plotOn(plot);
 	 it->second->paramOn(plot,RooFit::Layout(0.34,0.96,0.89),RooFit::Format("NEA",AutoPrecision(1)));
-    }	
+    }
     plot->Draw();
     canv->Print(Form("%s_%s.pdf",name.c_str(),it->first.c_str()));
     canv->Print(Form("%s_%s.png",name.c_str(),it->first.c_str()));
@@ -554,7 +557,7 @@ void PdfModelBuilder::plotPdfsToData(RooAbsData *data, int binning, string name,
 }
 
 void PdfModelBuilder::fitToData(RooAbsData *data, bool bkgOnly, bool cache, bool print){
-  
+
   map<string,RooAbsPdf*> pdfSet;
   if (bkgOnly) pdfSet = bkgPdfs;
   else pdfSet = sbPdfs;
@@ -569,8 +572,8 @@ void PdfModelBuilder::fitToData(RooAbsData *data, bool bkgOnly, bool cache, bool
     }
     if (cache) {
       RooArgSet *fitargs = (RooArgSet*)it->second->getParameters(*obs_var);
-      // remove the signal strength since this will be set AFTER fitting the background 
-      fitargs->remove(*signalModifier); 
+      // remove the signal strength since this will be set AFTER fitting the background
+      fitargs->remove(*signalModifier);
       wsCache->defineSet(Form("%s_params",it->first.c_str()),*fitargs);
       wsCache->defineSet(Form("%s_observs",it->first.c_str()),*obs_var);
       wsCache->saveSnapshot(it->first.c_str(),*fitargs,true);
@@ -589,7 +592,7 @@ void PdfModelBuilder::setSeed(int seed){
 }
 
 RooDataSet* PdfModelBuilder::makeHybridDataset(vector<float> switchOverMasses, vector<RooDataSet*> dataForHybrid){
-  
+
   assert(switchOverMasses.size()==dataForHybrid.size()-1);
 
   vector<string> cut_strings;
@@ -601,11 +604,11 @@ RooDataSet* PdfModelBuilder::makeHybridDataset(vector<float> switchOverMasses, v
   }
   cut_strings.push_back(Form("cutstring%d",int(switchOverMasses.size())));
   obs_var->setRange(Form("cutstring%d",int(switchOverMasses.size())),switchOverMasses[switchOverMasses.size()-1],obs_var->getMax());
-  
+
   obs_var->Print("v");
   assert(cut_strings.size()==dataForHybrid.size());
-  
-	RooDataSet *data=0;// avoid uninitialised variable error in cmssw  
+
+	RooDataSet *data=0;// avoid uninitialised variable error in cmssw
   for (unsigned int i=0; i<dataForHybrid.size(); i++){
     RooDataSet *cutData = (RooDataSet*)dataForHybrid[i]->reduce(Name("hybridToy"),Title("hybridToy"),CutRange(cut_strings[i].c_str()));
     //RooDataSet *cutData = new RooDataSet("hybridToy","hybridToy",RooArgSet(*obs_var),Import(*dataForHybrid[i]),CutRange(cut_strings[i].c_str()));
@@ -616,7 +619,7 @@ RooDataSet* PdfModelBuilder::makeHybridDataset(vector<float> switchOverMasses, v
 }
 
 void PdfModelBuilder::throwHybridToy(string postfix, int nEvents, vector<float> switchOverMasses, vector<string> functions, bool bkgOnly, bool binned, bool poisson, bool cache){
-  
+
   assert(switchOverMasses.size()==functions.size()-1);
   toyHybridData.clear();
 
@@ -659,13 +662,13 @@ void PdfModelBuilder::throwToy(string postfix, int nEvents, bool bkgOnly, bool b
   map<string,RooAbsPdf*> pdfSet;
   if (bkgOnly) {
     pdfSet = bkgPdfs;
-    if (!bkgHasFit) cerr << "WARNING -- bkg has not been fit to data. Are you sure this is wise?" << endl; 
+    if (!bkgHasFit) cerr << "WARNING -- bkg has not been fit to data. Are you sure this is wise?" << endl;
   }
   else {
     pdfSet = sbPdfs;
     if (!sbHasFit) cerr << "WARNING -- sb has not been fit to data. Are you sure this is wise?" << endl;
   }
-  
+
   for (map<string,RooAbsPdf*>::iterator it=pdfSet.begin(); it!=pdfSet.end(); it++){
     if (cache) {
       wsCache->loadSnapshot(it->first.c_str());
@@ -689,7 +692,7 @@ void PdfModelBuilder::throwToy(string postfix, int nEvents, bool bkgOnly, bool b
     }
     toyData.insert(pair<string,RooAbsData*>(toy->GetName(),toy));
   }
-  
+
 }
 
 map<string,RooAbsData*> PdfModelBuilder::getToyData(){
@@ -709,7 +712,7 @@ void PdfModelBuilder::plotHybridToy(string prefix, int binning, vector<float> sw
   else {
     pdfSet = sbPdfs;
   }
-  
+
   int tempColors[4] = {kBlue,kRed,kGreen+2,kMagenta};
 
   vector<string> cut_strings;
@@ -721,7 +724,7 @@ void PdfModelBuilder::plotHybridToy(string prefix, int binning, vector<float> sw
   }
   cut_strings.push_back(Form("cutstring%d",int(switchOverMasses.size())));
   obs_var->setRange(Form("cutstring%d",int(switchOverMasses.size())),switchOverMasses[switchOverMasses.size()-1],obs_var->getMax());
-  
+
   RooPlot *plot = obs_var->frame();
   TCanvas *canv = new TCanvas();
   int i=0;
@@ -730,7 +733,7 @@ void PdfModelBuilder::plotHybridToy(string prefix, int binning, vector<float> sw
       // check if in list of hybrid functions
       if (pdfIt->first.find(*func)!=string::npos) {
         for (map<string,RooAbsData*>::iterator toyIt = toyData.begin(); toyIt != toyData.end(); toyIt++){
-          //cout << "pdf: " << pdfIt->first << " - toy: " << toyIt->first << endl; 
+          //cout << "pdf: " << pdfIt->first << " - toy: " << toyIt->first << endl;
           if (toyIt->first.find(pdfIt->first)!=string::npos){
             RooAbsData *data = toyIt->second->reduce(CutRange(cut_strings[i].c_str()));
             data->plotOn(plot,Binning(binning),MarkerColor(tempColors[i]),LineColor(tempColors[i]),CutRange(cut_strings[i].c_str()));
@@ -751,7 +754,7 @@ void PdfModelBuilder::plotHybridToy(string prefix, int binning, vector<float> sw
 }
 
 void PdfModelBuilder::plotToysWithPdfs(string prefix, int binning, bool bkgOnly){
-  
+
   map<string,RooAbsPdf*> pdfSet;
   if (bkgOnly) {
     pdfSet = bkgPdfs;
@@ -762,7 +765,7 @@ void PdfModelBuilder::plotToysWithPdfs(string prefix, int binning, bool bkgOnly)
   TCanvas *canv = new TCanvas();
   for (map<string,RooAbsPdf*>::iterator pdfIt = pdfSet.begin(); pdfIt != pdfSet.end(); pdfIt++){
     for (map<string,RooAbsData*>::iterator toyIt = toyData.begin(); toyIt != toyData.end(); toyIt++){
-      //cout << "pdf: " << pdfIt->first << " - toy: " << toyIt->first << endl; 
+      //cout << "pdf: " << pdfIt->first << " - toy: " << toyIt->first << endl;
       if (toyIt->first.find(pdfIt->first)!=string::npos){
         RooPlot *plot = obs_var->frame();
         toyIt->second->plotOn(plot,Binning(binning));
@@ -779,7 +782,7 @@ void PdfModelBuilder::plotToysWithPdfs(string prefix, int binning, bool bkgOnly)
 }
 
 void PdfModelBuilder::saveWorkspace(string filename){
-  
+
   TFile *outFile = new TFile(filename.c_str(),"RECREATE");
   outFile->cd();
   wsCache->Write();
