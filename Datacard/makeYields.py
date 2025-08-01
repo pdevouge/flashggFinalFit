@@ -28,6 +28,7 @@ def get_options():
   parser.add_option('--cat', dest='cat', default='', help='Analysis category')
   parser.add_option('--procs', dest='procs', default='auto', help='Comma separated list of signal processes. auto = automatically inferred from input workspaces')
   parser.add_option('--ext', dest='ext', default='', help='Extension for saving')
+  parser.add_option('--width', dest='width', default='001', help='Input workspace width')
   parser.add_option('--mass', dest='mass', default='125', help='Input workspace mass')
   parser.add_option('--mergeYears', dest='mergeYears', default=False, action="store_true", help="Merge category across years")
   parser.add_option('--skipBkg', dest='skipBkg', default=False, action="store_true", help="Only add signal processes to datacard")
@@ -100,8 +101,8 @@ for year in years:
     else: _cat = "%s_%s"%(opt.cat,year)
 
     # Input flashgg ws
-    _inputWSFile = glob.glob("%s/*M%s_kMpl001*_%s.root"%(inputWSDirMap[year],opt.mass,proc))[0]
-    _nominalDataName = "%s_%s_001_%s_%s"%(_proc_s0,opt.mass,sqrts__,opt.cat)
+    _inputWSFile = glob.glob("%s/*M%s_kMpl%s*_%s.root"%(inputWSDirMap[year],opt.mass,opt_width,proc))[0]
+    _nominalDataName = "%s_%s_%s_%s_%s"%(_proc_s0,opt.mass,opt.width,sqrts__,opt.cat)
 
     # If opt.skipZeroes check nominal yield if 0 then do not add
     skipProc = False

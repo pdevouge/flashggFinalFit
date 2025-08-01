@@ -45,6 +45,7 @@ if opt.inputConfig != '':
     options['ext']          = _cfg['ext']
     options['analysis']     = _cfg['analysis']
     options['year']         = _cfg['year']
+    options['width']        = _cfg['width']
     options['massPoints']   = _cfg['massPoints']
     options['scales']       = _cfg['scales']
     options['scalesCorr']   = _cfg['scalesCorr']
@@ -58,14 +59,14 @@ if opt.inputConfig != '':
     options['jobOpts']                 = opt.jobOpts
     options['groupSignalFitJobsByCat'] = opt.groupSignalFitJobsByCat
     options['printOnly']               = opt.printOnly
-  
+
     #Delete copy of file
     os.system("rm config.py")
-  
+
   else:
     print("[ERROR] %s config file does not exist. Leaving..."%opt.inputConfig)
     leave()
-else: 
+else:
   print("[ERROR] Please specify config file to run from. Leaving..."%opt.inputConfig)
   leave()
 
@@ -102,6 +103,7 @@ options['massLow'], options['massHigh'] = '%s'%min(mps), '%s'%max(mps)
 print(" --> Input flashgg ws dir: %s"%options['inputWSDir'])
 print(" --> Processes: %s"%options['procs'])
 print(" --> Categories: %s"%options['cats'])
+print(" --> Width: %s"%options['width'])
 print(" --> Mass points: %s --> Low = %s, High = %s"%(options['massPoints'],options['massLow'],options['massHigh']))
 print(" --> Extension: %s"%options['ext'])
 print(" --> Analysis: %s"%options['analysis'])
@@ -141,7 +143,7 @@ writeSubFiles(options)
 print("  --> Finished writing submission scripts")
 
 # Submit scripts to batch system
-if not options['printOnly']: 
+if not options['printOnly']:
   submitFiles(options)
 else:
   print("  --> Running with printOnly option. Will not submit scripts")
