@@ -7,7 +7,7 @@ backgroundScriptCfg = {
   # 'cats': 'auto',         # Let it automatically detect category names from the workspace
   'cats': 'inclusive',
   'catOffset': 0,         # No offset needed since this is a single file
-  'ext': 'highmass_200-400', # Will name output directories like: outputs_fTest_2022inclusive/
+  'ext': 'highmass_500-1000_new', # Will name output directories like: outputs_fTest_2022inclusive/
   'year': '2022preEE',         # Shown in plots; adjust if merging multiple years
 
   # Job submission options

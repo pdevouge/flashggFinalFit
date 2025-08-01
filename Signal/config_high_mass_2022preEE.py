@@ -5,7 +5,7 @@ _year = '2022preEE'
 signalScriptCfg = {
 
   # Setup
-  'inputWSDir':'../../low_width_RSG_all_masses/root/ws_rsg/',
+  'inputWSDir':'../../2022preEE/workspaces/signal/',
   'procs':'rsg', # if auto: inferred automatically from filenames
   'cats':'inclusive', # if auto: inferred automatically from (0) workspace
   'ext':'highmass_%s_500-1000'%_year,

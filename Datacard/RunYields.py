@@ -16,6 +16,7 @@ def get_options():
   parser.add_option('--inputWSDirMap', dest='inputWSDirMap', default='2016=/vols/cms/jl2117/hgg/ws/UL/Sept20/MC_final/signal_2016', help="Map. Format: year=inputWSDir (separate years by comma)")
   parser.add_option('--procs', dest='procs', default='auto', help='Comma separated list of signal processes. auto = automatically inferred from input workspaces')
   parser.add_option('--ext', dest='ext', default='test', help='Extension for saving')
+  parser.add_option('--width', dest='width', default='001', help='Input workspace width')
   parser.add_option('--mass', dest='mass', default='125', help='Input workspace mass')
   parser.add_option('--mergeYears', dest='mergeYears', default=False, action="store_true", help="Merge category across years")
   parser.add_option('--skipBkg', dest='skipBkg', default=False, action="store_true", help="Only add signal processes to datacard")
@@ -52,6 +53,7 @@ options['cats'] = opt.cats
 options['inputWSDirMap'] = opt.inputWSDirMap
 options['procs'] = opt.procs
 options['ext'] = opt.ext
+options['width'] = opt.width
 options['mass'] = opt.mass
 options['sigModelWSDir'] = opt.sigModelWSDir
 options['sigModelExt'] = opt.sigModelExt
