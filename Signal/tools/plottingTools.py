@@ -22,32 +22,31 @@ def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=Fa
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
     frame = ssf.reduced_mass.frame()
-    ssf.DataHists['reduced_mass'][mass].plotOn(frame, ROOT.RooFit.Binning(_bins))
+    ssf.DataHists['reduced_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"), ROOT.RooFit.Binning(_bins))
     if _from_formulas:
       ssf.MH.setVal(float(mass))
       ssf.MH.setConstant(True)
-      ssf.Pdfs['final_dcb_reso_from_func'].plotOn(frame)
+      ssf.Pdfs['final_dcb_reso_from_func'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
     else:
-      ssf.Pdfs['dcb_reso_%s'%mass].plotOn(frame)
+      ssf.Pdfs['dcb_reso_%s'%mass].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
+    frame.Draw()
 
     # Create legend
     legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
     legend.SetBorderSize(0)
     legend.SetFillStyle(0)
     legend.SetTextSize(0.04)
-    legend.AddEntry(ssf.DataHists['reduced_mass'][mass], "Signal MC", "lep")
-    legend.AddEntry(ssf.Pdfs['dcb_reso_%s'%mass], "DCB fit", "l")  # Use curve from frame
+    legend.AddEntry("mc", "Signal MC", "lep")
+    legend.AddEntry("pdf", "DCB fit", "l")  # Use curve from frame
+    legend.Draw()
     chi2 = frame.chiSquare()
     pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
     pave_text.SetBorderSize(0)
     pave_text.SetFillStyle(0)
     pave_text.SetTextSize(0.04)
     pave_text.AddText("#chi^{2} / n(dof) = %.2f"%chi2)  # Add chi2/ndf text
-
-    # Draw the TPaveText on the canvas
-    frame.Draw()
-    legend.Draw()
     pave_text.Draw()
+
     frame.SetTitle(f"Reduced Mass - {mass}")
     canv.SaveAs("%s/individualDCB_%s_%s.png"%(_outdir,mass,_extension))
     canv.SaveAs("%s/individualDCB_%s_%s.pdf"%(_outdir,mass,_extension))
@@ -70,34 +69,46 @@ def plotDCBParameters(ssf,_outdir='./'):
     g.SetMarkerStyle(20)
     g.SetMarkerSize(1.2)
     g.SetLineWidth(2)
-
     g.Draw("AP")
     ssf.ResoFuncs["%s_function"%f].Draw("same")
     canv.SaveAs("%s/DCB_parameters_%s.png"%(_outdir,f))
     canv.SaveAs("%s/DCB_parameters_%s.pdf"%(_outdir,f))
 
-def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=100):
+def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150):
+  # Here it is easier to create a 'temporary' rel BW based on true mass, for plotting purposes
+  formula = ssf.Pdfs['rel_bw'].expression()
+  formula = formula.replace("x[0]",ssf.MH.GetName()).replace("x[1]",ssf.Vars['g0'].GetName()).replace("x[2]",ssf.true_mass.GetName())
+  rel_bw = ROOT.RooGenericPdf("temp_rel_bw","",formula, ROOT.RooArgList(ssf.MH,ssf.Vars['g0'],ssf.true_mass))
 
   for mass in ssf.massPoints.split(','):
     ssf.MH.setVal(int(mass))
     range_m, range_p = int(mass)-_range*int(mass), int(mass)+_range*int(mass)
-
-    # Here it is easier to create a 'temporary' rel BW based on true mass, for plotting purposes
-    rel_bw = ROOT.RooGenericPdf("temp_rel_bw","","(true_mass/MH)^2/((true_mass^2-MH^2)^2+true_mass^2*g0^2)", ROOT.RooArgList(ssf.MH,ssf.Vars['g0'],ssf.true_mass))
+    ssf.true_mass.setRange(range_m, range_p)
 
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
-
     frame = ssf.true_mass.frame(range_m, range_p, _nbins)
-    rel_bw.plotOn(frame, LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
-    # Cannot use ssf.DataHists['gen_mass'] for data, as the binning content cannot be altered and is not adapted to this plot
-    ssf.datasetForFit[mass].plotOn(frame, ROOT.RooFit.Binning(_nbins, range_m, range_p),
-                                   ROOT.RooFit.Rescale(1/ssf.datasetForFit[mass].sumEntries()))
-
-    bin_width = (range_p - range_m) / _nbins
-    frame.GetYaxis().SetTitle(f"Events / {bin_width:.3f} GeV")
-    frame.SetTitle(f"True lineshape model, M - {mass}")
+    ssf.datasetForFit[mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+    rel_bw.plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
     frame.Draw()
+
+    # Create legend
+    legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
+    legend.SetBorderSize(0)
+    legend.SetFillStyle(0)
+    legend.SetTextSize(0.04)
+    legend.AddEntry("mc", "True mass MC", "lep")
+    legend.AddEntry("pdf", "True lineshape", "l")  # Use curve from frame
+    legend.Draw()
+    chi2 = frame.chiSquare()
+    pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
+    pave_text.SetBorderSize(0)
+    pave_text.SetFillStyle(0)
+    pave_text.SetTextSize(0.04)
+    pave_text.AddText("#chi^{2} / n(dof) = %.2f"%chi2)  # Add chi2/ndf text
+    pave_text.Draw()
+
+    frame.SetTitle(f"True lineshape model, M - {mass}")
     canv.SaveAs("%s/true_lineshape_%s.png"%(_outdir,mass))
     canv.SaveAs("%s/true_lineshape_%s.pdf"%(_outdir,mass))
 
@@ -109,27 +120,27 @@ def plotAnalyticalModel(ssf,_outdir='./'):
     ssf.MH.setVal(int(mass))
     ssf.MH.setConstant(True)
     frame = ssf.xvar.frame()
-    ssf.DataHists['reco_mass'][mass].plotOn(frame)
-    ssf.Pdfs['final'].plotOn(frame)
+    ssf.DataHists['reco_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+    ssf.Pdfs['final'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
+    frame.Draw()
 
     # Create legend
     legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
     legend.SetBorderSize(0)
     legend.SetFillStyle(0)
     legend.SetTextSize(0.04)
-    legend.AddEntry(ssf.DataHists['reco_mass'][mass], "Signal MC", "lep")
-    legend.AddEntry(ssf.Pdfs['dcb_reso_%s'%mass], "rel. BW * DCB", "l")  # Use curve from frame
+    legend.AddEntry("mc", "Reco mass MC", "lep")
+    legend.AddEntry("pdf", "rel. BW * DCB", "l")  # Use curve from frame
+    legend.Draw()
     chi2 = frame.chiSquare()
     pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
     pave_text.SetBorderSize(0)
     pave_text.SetFillStyle(0)
     pave_text.SetTextSize(0.04)
     pave_text.AddText("#chi^{2} / n(dof) = %.2f"%chi2)  # Add chi2/ndf text
+    pave_text.Draw()
 
     frame.SetTitle(f"Final Model, M - {mass}")
-    frame.Draw()
-    legend.Draw()
-    pave_text.Draw()
     canv.SaveAs("%s/analytical_model_%s.png"%(_outdir,mass))
     canv.SaveAs("%s/analytical_model_%s.pdf"%(_outdir,mass))
 

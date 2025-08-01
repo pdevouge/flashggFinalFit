@@ -269,11 +269,11 @@ class SimultaneousFit:
         self.Varlists[k].add( self.Vars['%s_%s'%(k,f)] )
 
       # Fix 'a1' and 'a2'
-      self.Vars['%s_a1'%(k)].setVal(1)
-      self.Vars['%s_a1'%(k)].setConstant(True)
+      # self.Vars['%s_a1'%(k)].setVal(1)
+      # self.Vars['%s_a1'%(k)].setConstant(True)
 
-      self.Vars['%s_a2'%(k)].setVal(1.4)
-      self.Vars['%s_a2'%(k)].setConstant(True)
+      # self.Vars['%s_a2'%(k)].setVal(1.4)
+      # self.Vars['%s_a2'%(k)].setConstant(True)
 
       # Build DCB for individual mass
       self.Pdfs['dcb_reso_%s'%mass] = ROOT.RooDoubleCBFast("dcb_reso_%s"%mass,"dcb_reso_%s"%mass,self.reduced_mass,
@@ -393,7 +393,9 @@ class SimultaneousFit:
 
     g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * 0.01^2 * MH", ROOT.RooArgList(self.MH))
     self.Vars['g0'] = g0
-    self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","","(CMS_hgg_mass/MH)^2/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)", ROOT.RooArgList(self.MH,self.Vars['g0'],self.xvar))
+    # formula = "1/(2*pi)*g0/((CMS_hgg_mass-MH)^2+g0^2/4)"
+    formula = "2/pi*CMS_hgg_mass^2*g0/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)"
+    self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, ROOT.RooArgList(self.MH,self.Vars['g0'],self.xvar))
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildAnalytical(self):

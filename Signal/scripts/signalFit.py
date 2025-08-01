@@ -100,6 +100,7 @@ nominalWSFileName = glob.glob("%s/output*M%s_kMpl001*%s.root"%(opt.inputWSDir,MH
 f0 = ROOT.TFile(nominalWSFileName,"read")
 inputWS0 = f0.Get(inputWSName__)
 xvar = inputWS0.var(opt.xvar)
+xvar.setRange(int(MHLow), int(MHHigh))
 xvarFit = xvar.Clone()
 print(xvar)
 dZ = inputWS0.var("dZ")
