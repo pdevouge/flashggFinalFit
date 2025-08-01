@@ -32,9 +32,10 @@ def get_options():
   parser.add_option("--cat", dest='cat', default='', help="RECO category")
   parser.add_option("--year", dest='year', default='2016', help="Year")
   parser.add_option("--analysis", dest='analysis', default='STXS', help="Analysis handle: used to specify replacement map and XS*BR normalisations")
+  parser.add_option('--width', dest='width', default='001', help="Signal width")
   parser.add_option('--massPoints', dest='massPoints', default='250,300,350,400,450,500', help="Mass points to fit")
-  parser.add_option('--minMass', dest='minMass', default='200', help="Lowest mass point considered")
-  parser.add_option('--maxMass', dest='maxMass', default='600', help="Highest mass point considered")
+  parser.add_option('--minMass', dest='minMass', default='200', help="Mass range lower boundary")
+  parser.add_option('--maxMass', dest='maxMass', default='600', help="Mass range upper boundary")
   parser.add_option('--doEffAccFromJson', dest='doEffAccFromJson', default=False, action="store_true", help="Extract eff x acc from json (produced by getEffAcc). Else, extract from nominal weights in flashgg workspaces")
   parser.add_option('--skipBeamspotReweigh', dest='skipBeamspotReweigh', default=True, action="store_true", help="Skip beamspot reweigh to match beamspot distribution in data")
   parser.add_option('--doPlots', dest='doPlots', default=False, action="store_true", help="Produce Signal Fitting plots")
@@ -66,8 +67,10 @@ def get_options():
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(True)
 
+lowW = '001' if opt.proc=='rsg' else '0p014'
 MHLow = opt.minMass
 MHHigh = opt.maxMass
+print("Width", opt.width)
 print("MHLow", opt.minMass)
 print("MHHigh", opt.maxMass)
 
@@ -96,7 +99,7 @@ if opt.analysis not in globalXSBRMap:
 else: xsbrMap = globalXSBRMap[opt.analysis]
 
 # Load RooRealVars
-nominalWSFileName = glob.glob("%s/output*M%s_kMpl001*%s.root"%(opt.inputWSDir,MHNominal,opt.proc))[0]
+nominalWSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,MHNominal,opt.width,opt.proc))[0]
 f0 = ROOT.TFile(nominalWSFileName,"read")
 inputWS0 = f0.Get(inputWSName__)
 xvar = inputWS0.var(opt.xvar)
@@ -116,10 +119,10 @@ MH.setConstant(True)
 
 if opt.skipZeroes:
   # Extract nominal mass dataset and see if entries == 0
-  WSFileName = glob.glob("%s/output*M%s_kMpl001*%s.root"%(opt.inputWSDir,MHNominal,opt.proc))[0]
+  WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,MHNominal,opt.width,opt.proc))[0]
   f = ROOT.TFile(WSFileName,"read")
   inputWS = f.Get(inputWSName__)
-  d = reduceDataset(inputWS.data("%s_%s_001_%s_%s"%(procToData(opt.proc.split("_")[0]),MHNominal,sqrts__,opt.cat)),aset)
+  d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(opt.proc.split("_")[0]),MHNominal,opt.width,sqrts__,opt.cat)),aset)
   if( d.numEntries() == 0. )|( d.sumEntries <= 0. ):
     print(" --> (%s,%s) has zero events. Will not construct signal model"%(opt.proc,opt.cat))
     exit()
@@ -161,33 +164,45 @@ procNorm, catNorm = opt.proc, opt.cat
 nominalDatasets = od()
 # For RV (or if skipping vertex scenario split)
 datasetRVForFit = od()
+datasetRVForFit['low_w'] = od()
+datasetRVForFit['nom_w'] = od()
 for mp in opt.massPoints.split(","):
-  WSFileName = glob.glob("%s/output*M%s_kMpl001*%s.root"%(opt.inputWSDir,mp,procRVFit))[0]
+  # Load low width samples for true lineshape description
+  WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,lowW,procRVFit))[0]
   f = ROOT.TFile(WSFileName,"read")
   inputWS = f.Get(inputWSName__)
-  d = reduceDataset(inputWS.data("%s_%s_001_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,sqrts__,catRVFit)),aset)
+  d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit)),aset)
+  if opt.skipVertexScenarioSplit: datasetRVForFit['low_w'][mp] = d
+  else: datasetRVForFit['low_w'][mp] = splitRVWV(d,aset,mode="RV")
+  inputWS.Delete()
+  f.Close()
+
+  WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procRVFit))[0]
+  f = ROOT.TFile(WSFileName,"read")
+  inputWS = f.Get(inputWSName__)
+  d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit)),aset)
   nominalDatasets[mp] = d.Clone()
-  if opt.skipVertexScenarioSplit: datasetRVForFit[mp] = d
-  else: datasetRVForFit[mp] = splitRVWV(d,aset,mode="RV")
+  if opt.skipVertexScenarioSplit: datasetRVForFit['nom_w'][mp] = d
+  else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")
   inputWS.Delete()
   f.Close()
 
 # Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
-if( datasetRVForFit[MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit[MHNominal].sumEntries() < 0. ):
-  nominal_numEntries = datasetRVForFit[MHNominal].numEntries()
+if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
+  nominal_numEntries = datasetRVForFit['nom_w'][MHNominal].numEntries()
   procReplacementFit, catReplacementFit = rMap['procRVMap'][opt.cat], rMap['catRVMap'][opt.cat]
   for mp in opt.massPoints.split(","):
-    WSFileName = glob.glob("%s/output*M%s_kMpl001*%s.root"%(opt.inputWSDir,mp,procReplacementFit))[0]
+    WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procReplacementFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_001_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,sqrts__,catReplacementFit)),aset)
-    if opt.skipVertexScenarioSplit: datasetRVForFit[mp] = d
-    else: datasetRVForFit[mp] = splitRVWV(d,aset,mode="RV")
+    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,opt.width,sqrts__,catReplacementFit)),aset)
+    if opt.skipVertexScenarioSplit: datasetRVForFit['nom_w'][mp] = d
+    else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")
     inputWS.Delete()
     f.Close()
 
   # Check if replacement dataset has too few entries: if so throw error
-  if( datasetRVForFit[MHNominal].numEntries() < opt.replacementThreshold )|( datasetRVForFit[MHNominal].sumEntries() < 0. ):
+  if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
     print(" --> [ERROR] replacement dataset (%s,%s) has too few entries (%g < %g)"%(procReplacementFit,catReplacementFit,datasetRVForFit[MHNominal].numEntries(),opt.replacementThreshold))
     sys.exit(1)
 
@@ -196,74 +211,85 @@ if( datasetRVForFit[MHNominal].numEntries() < opt.replacementThreshold  )|( data
     if opt.skipVertexScenarioSplit:
       print(" --> Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procRVFit,catRVFit))
       for mp in opt.massPoints.split(","):
-        print("     * MH = %s GeV: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit[mp].numEntries(),datasetRVForFit[mp].sumEntries()))
+        print("     * MH = %s GeV: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
     else:
       print(" --> RV: Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procRVFit,catRVFit))
       for mp in opt.massPoints.split(","):
-        print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit[mp].numEntries(),datasetRVForFit[mp].sumEntries()))
+        print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
 
 else:
   if opt.skipVertexScenarioSplit:
     print(" --> Using (proc,cat) = (%s,%s) for extracting shape"%(procRVFit,catRVFit))
     for mp in opt.massPoints.split(","):
-      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit[mp].numEntries(),datasetRVForFit[mp].sumEntries()))
+      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
   else:
     print(" --> RV: Using (proc,cat) = (%s,%s) for extracting shape"%(procRVFit,catRVFit))
     for mp in opt.massPoints.split(","):
-      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit[mp].numEntries(),datasetRVForFit[mp].sumEntries()))
+      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
 
 # Repeat for WV scenario
 if not opt.skipVertexScenarioSplit:
   datasetWVForFit = od()
+  datasetWVForFit['low_w'] = od()
+  datasetWVForFit['nom_w'] = od()
   for mp in opt.massPoints.split(","):
-    WSFileName = glob.glob("%s/output*M%s_kMpl001*%s.root"%(opt.inputWSDir,mp,procWVFit))[0]
+    # Load low width samples for true lineshape description
+    WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,lowW,procWVFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_001_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,sqrts__,catWVFit)),aset)
-    datasetWVForFit[mp] = splitRVWV(d,aset,mode="WV")
+    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,lowW,sqrts__,catWVFit)),aset)
+    datasetWVForFit['low_w'][mp] = splitRVWV(d,aset,mode="WV")
+    inputWS.Delete()
+    f.Close()
+
+    WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procWVFit))[0]
+    f = ROOT.TFile(WSFileName,"read")
+    inputWS = f.Get(inputWSName__)
+    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,opt.width,sqrts__,catWVFit)),aset)
+    datasetWVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="WV")
     inputWS.Delete()
     f.Close()
 
   # Check nominal mass dataset
-  if( datasetWVForFit[MHNominal].numEntries() < opt.replacementThreshold  )|( datasetWVForFit[MHNominal].sumEntries() < 0. ):
-    nominal_numEntries = datasetWVForFit[MHNominal].numEntries()
+  if( datasetWVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetWVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
+    nominal_numEntries = datasetWVForFit['nom_w'][MHNominal].numEntries()
     procReplacementFit, catReplacementFit = rMap['procWV'], rMap['catWV']
     for mp in opt.massPoints.split(","):
-      WSFileName = glob.glob("%s/output*M%s_kMpl001*%s.root"%(opt.inputWSDir,mp,procReplacementFit))[0]
+      WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procReplacementFit))[0]
       f = ROOT.TFile(WSFileName,"read")
       inputWS = f.Get(inputWSName__)
-      d = reduceDataset(inputWS.data("%s_%s_001_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,sqrts__,catReplacementFit)),aset)
-      datasetWVForFit[mp] = splitRVWV(d,aset,mode="WV")
+      d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,opt.width,sqrts__,catReplacementFit)),aset)
+      datasetWVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="WV")
       inputWS.Delete()
       f.Close()
     # Check if replacement dataset has too few entries: if so throw error
-    if( datasetWVForFit[MHNominal].numEntries() < opt.replacementThreshold )|( datasetWVForFit[MHNominal].sumEntries() < 0. ):
-      print(" --> [ERROR] replacement dataset (%s,%s) has too few entries (%g < %g)"%(procReplacementFit,catReplacementFit,datasetWVForFit[MHNominal].numEntries,opt.replacementThreshold))
+    if( datasetWVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold )|( datasetWVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
+      print(" --> [ERROR] replacement dataset (%s,%s) has too few entries (%g < %g)"%(procReplacementFit,catReplacementFit,datasetWVForFit['nom_w'][MHNominal].numEntries,opt.replacementThreshold))
       sys.exit(1)
     else:
       procWVFit, catWVFit = procReplacementFit, catReplacementFit
       print(" --> WV: Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procWVFit,catWVFit))
       for mp in opt.massPoints.split(","):
-        print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetWVForFit[mp].numEntries(),datasetWVForFit[mp].sumEntries()))
+        print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetWVForFit['nom_w'][mp].numEntries(),datasetWVForFit['nom_w'][mp].sumEntries()))
   else:
     print(" --> WV: Using (proc,cat) = (%s,%s) for extracting shape"%(procWVFit,catRVFit))
     for mp in opt.massPoints.split(","):
-      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetWVForFit[mp].numEntries(),datasetWVForFit[mp].sumEntries()))
+      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetWVForFit['nom_w'][mp].numEntries(),datasetWVForFit['nom_w'][mp].sumEntries()))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BEAMSPOT REWEIGHT
 if not opt.skipBeamspotReweigh:
   # Datasets for fit
-  for mp,d in datasetRVForFit.items():
-    drw = beamspotReweigh(datasetRVForFit[mp],opt.beamspotWidthData,opt.beamspotWidthMC,xvar,dZ,_x=opt.xvar)
-    datasetRVForFit[mp] = drw
+  for mp,d in datasetRVForFit['nom_w'].items():
+    drw = beamspotReweigh(datasetRVForFit['nom_w'][mp],opt.beamspotWidthData,opt.beamspotWidthMC,xvar,dZ,_x=opt.xvar)
+    datasetRVForFit['nom_w'][mp] = drw
   if not opt.skipVertexScenarioSplit:
-    for mp,d in datasetWVForFit.items():
-      drw = beamspotReweigh(datasetWVForFit[mp],opt.beamspotWidthData,opt.beamspotWidthMC,xvar,dZ,_x=opt.xvar)
-      datasetWVForFit[mp] = drw
-    print(" --> Beamspot reweigh: RV(sumEntries) = %.6f, WV(sumEntries) = %.6f"%(datasetRVForFit[mp].sumEntries(),datasetWVForFit[mp].sumEntries()))
+    for mp,d in datasetWVForFit['nom_w'].items():
+      drw = beamspotReweigh(datasetWVForFit['nom_w'][mp],opt.beamspotWidthData,opt.beamspotWidthMC,xvar,dZ,_x=opt.xvar)
+      datasetWVForFit['nom_w'][mp] = drw
+    print(" --> Beamspot reweigh: RV(sumEntries) = %.6f, WV(sumEntries) = %.6f"%(datasetRVForFit['nom_w'][mp].sumEntries(),datasetWVForFit['nom_w'][mp].sumEntries()))
   else:
-    print(" --> Beamspot reweigh: sumEntries = %.6f"%datasetRVForFit[mp].sumEntries())
+    print(" --> Beamspot reweigh: sumEntries = %.6f"%datasetRVForFit['nom_w'][mp].sumEntries())
 
   # Nominal datasets for saving to output Workspace: preserve norm for eff * acc calculation
   for mp,d in nominalDatasets.items():

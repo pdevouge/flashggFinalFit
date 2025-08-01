@@ -237,24 +237,30 @@ class SimultaneousFit:
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function to normalise datasets and convert to RooDataHists for calc chi2
   def prepareDataHists(self):
+    # Construct low width data
+    for k,d in self.datasetForFit['low_w'].items():
+      sumw = d.sumEntries()
+      drw_scaled   = d.emptyClone()
+      self.Vars['scaled_weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
+      for i in range(0,d.numEntries()):
+        self.reduced_mass.setVal(d.get(i).getRealValue(self.reduced_mass.GetName()))
+        self.Vars['scaled_weight'].setVal((1/sumw)*d.weight()*8.1*1000) #TODO: change to correct lumi
+        drw_scaled.add(ROOT.RooArgSet(self.xvar,self.true_mass,self.reduced_mass,self.Vars['scaled_weight']),self.Vars['scaled_weight'].getVal())
+      # Convert to RooDataHist
+      self.DataHists['reduced_mass'][k] = ROOT.RooDataHist("%s_hist_reduced"%d.GetName(),"%s_hist_reduced"%d.GetName(),ROOT.RooArgSet(self.reduced_mass),drw_scaled)
+
     # Loop over datasets and normalise to 1
-    for k,d in self.datasetForFit.items():
+    for k,d in self.datasetForFit['nom_w'].items():
       sumw = d.sumEntries()
       drw = d.emptyClone()
-      drw_scaled   = d.emptyClone()
       self.Vars['weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
-      self.Vars['scaled_weight'] = ROOT.RooRealVar("weight","weight",-10000,10000)
       for i in range(0,d.numEntries()):
         self.xvar.setVal(d.get(i).getRealValue(self.xvar.GetName()))
         self.true_mass.setVal(d.get(i).getRealValue(self.true_mass.GetName()))
-        self.reduced_mass.setVal(d.get(i).getRealValue(self.reduced_mass.GetName()))
         self.Vars['weight'].setVal((1/sumw)*d.weight())
         drw.add(ROOT.RooArgSet(self.xvar,self.true_mass,self.reduced_mass,self.Vars['weight']),self.Vars['weight'].getVal())
-        self.Vars['scaled_weight'].setVal((1/sumw)*d.weight()*8.1*1000)
-        drw_scaled.add(ROOT.RooArgSet(self.xvar,self.true_mass,self.reduced_mass,self.Vars['weight']),self.Vars['scaled_weight'].getVal())
       # Convert to RooDataHist
       self.DataHists['reco_mass'][k] = ROOT.RooDataHist("%s_hist_reco"%d.GetName(),"%s_hist_reco"%d.GetName(),ROOT.RooArgSet(self.xvar),drw)
-      self.DataHists['reduced_mass'][k] = ROOT.RooDataHist("%s_hist_reduced"%d.GetName(),"%s_hist_reduced"%d.GetName(),ROOT.RooArgSet(self.reduced_mass),drw_scaled)
       self.DataHists['gen_mass'][k] = ROOT.RooDataHist("%s_hist_true"%d.GetName(),"%s_hist_true"%d.GetName(),ROOT.RooArgSet(self.true_mass),drw)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
