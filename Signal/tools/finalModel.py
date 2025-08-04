@@ -19,15 +19,16 @@ from HiggsAnalysis.CombinedLimit.PhysicsModel import *
 from HiggsAnalysis.CombinedLimit.SMHiggsBuilder import *
 import HiggsAnalysis.CombinedLimit.PhysicsModel as models
 class dummy_options:
-  def __init__(self):
+  def __init__(self, opt):
     self.physModel = "HiggsAnalysis.CombinedLimit.PhysicsModel:floatingHiggsMass"
-    self.physOpt = ["higgsMassRange=250,500"]
+    higgsMassRange = getattr(opt, "higgsMassRange", "500,1000")
+    self.physOpt = [f"higgsMassRange={higgsMassRange}"]
     self.bin = True
     self.fileName = "dummy.root"
     self.cexpr = False
     self.out = "wsdefault"
     self.verbose = 0
-    self.mass = 400
+    self.mass = getattr(opt, "mass", 750)
     self.funcXSext = "dummy"
 
 # Functions to get XS/BR
@@ -39,8 +40,8 @@ def getBR(_SM,_MHVar,_mh,_dm):
   return _SM.modelBuilder.out.function("SM_BR_%s"%_dm).getVal()
 
 # Function to initialise XS values from combine
-def initialiseXSBR():
-  options=dummy_options()
+def initialiseXSBR(opt):
+  options=dummy_options(opt)
   DC = Datacard()
   MB = ModelBuilder(DC, options)
   physics = models.floatingHiggsMass
@@ -59,8 +60,11 @@ def initialiseXSBR():
   for pm in productionModes: xsbr[pm] = []
   xsbr[decayMode] = []
   xsbr['constant'] = []
-  mh = 250.
-  while( mh < 500.05 ):
+  # mh = 120.
+  mh = float(getattr(opt, "minMass", 120.))
+  # while( mh < 130.05 ):
+  limit = float(getattr(opt, "maxMass", 130.)) + .5
+  while( mh < limit ):
     for pm in productionModes: xsbr[pm].append(getXS(SM,MHVar,mh,pm))
     xsbr[decayMode].append(getBR(SM,MHVar,mh,decayMode))
     xsbr['constant'].append(1.)
@@ -75,7 +79,7 @@ def initialiseXSBR():
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class FinalModel:
   # Constructor
-  def __init__(self,_ssfMap,_proc,_cat,_ext,_year,_sqrts,_datasets,_xvar,_MH,_MHLow,_MHHigh,_massPoints,_xsbrMap,_procSyst,_scales,_scalesCorr,_scalesGlobal,_smears,_doVoigtian,_useDCB,_skipVertexScenarioSplit,_skipSystematics):
+  def __init__(self,_ssfMap,_proc,_cat,_ext,_year,_sqrts,_datasets,_xvar,_MH,_MHNominal,_MHLow,_MHHigh,_massPoints,_xsbrMap,_procSyst,_scales,_scalesCorr,_scalesGlobal,_smears,_doVoigtian,_useDCB,_skipVertexScenarioSplit,_skipSystematics):
     self.doAnalyticalForm = True
     self.ssfMap = _ssfMap
     self.proc = _proc
@@ -89,6 +93,7 @@ class FinalModel:
     self.xvar = _xvar
     self.aset = ROOT.RooArgSet(self.xvar)
     self.MH = _MH
+    self.MHNominal = _MHNominal
     self.MHLow = _MHLow
     self.MHHigh = _MHHigh
     self.massPoints = _massPoints
@@ -113,7 +118,12 @@ class FinalModel:
     self.Pdfs = od()
     self.Datasets = od()
     # Build XS/BR/EA splines
-    self.XSBR = initialiseXSBR()
+    options = od()
+    options["higgsMassRange"] = "%s,%s"%(self.MHLow, self.MHHigh)
+    options["mass"] = int(self.MHNominal)
+    options["minMass"] = int(self.MHLow)
+    options["maxMass"] = int(self.MHHigh)
+    self.XSBR = initialiseXSBR(options)
     self.buildXSBRSplines()
     self.buildEffAccSpline()
     # If not skip systematics: add nuisance params to dict
@@ -139,7 +149,9 @@ class FinalModel:
   # Functions to get XS, BR and EA splines for given proc/decay from map
   def buildXSBRSplines(self):
     # mh = np.linspace(120.,130.,101)
-    mh = np.linspace(250.,500.,25)
+    minMass, maxMass = float(self.MHLow), float(self.MHHigh)
+    rangeMass = int(maxMass - minMass) + 1
+    mh = np.linspace(minMass,maxMass,rangeMass)
     # XS
     fp = self.xsbrMap[self.proc]['factor'] if 'factor' in self.xsbrMap[self.proc] else 1.
     mp = self.xsbrMap[self.proc]['mode']
