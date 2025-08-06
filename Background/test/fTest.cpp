@@ -58,12 +58,12 @@ using namespace RooFit;
 using namespace boost;
 
 namespace po = program_options;
-int data_by_fit = 1;
-bool BLIND = true;
+int data_by_fit = 0;
+bool BLIND = false;
 bool runFtestCheckWithToys=false;
-int mgg_low = 100;
-int mgg_high = 250;
-int nBinsForPlot = (mgg_high - mgg_low)/5 ; //4*(mgg_high-mgg_low);
+int mgg_low = 500;
+int mgg_high = 1000;
+int nBinsForPlot = (mgg_high - mgg_low)/20 ; //4*(mgg_high-mgg_low);
 int nBinsForMass =  mgg_high - mgg_low;
 double binWidth = 1; //(mgg_high - mgg_low)/nBinsForMass;
 
@@ -383,8 +383,8 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   mass->setRange("unblindReg_1",mgg_low,115);
   mass->setRange("unblindReg_2",135,mgg_high);
   if (BLIND) {
-    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_1"), RooFit::MarkerSize(2));
-    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_2"), RooFit::MarkerSize(2));
+    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_1"));
+    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_2"));
     data->plotOn(plot,Binning(nBinsForPlot),Invisible());
     // data->plotOn(plot,Binning(mgg_high-mgg_low),CutRange("unblindReg_1"));
     // data->plotOn(plot,Binning(mgg_high-mgg_low),CutRange("unblindReg_2"));
@@ -393,7 +393,7 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
     //ta->plotOn(plot,Binning(nBinsForMass),CutRange("unblindReg_2"));
     //ta->plotOn(plot,Binning(nBinsForMass),Invisible());
   }
-  else data->plotOn(plot,Binning(nBinsForPlot), RooFit::MarkerSize(2));
+  else data->plotOn(plot,Binning(nBinsForPlot));
  // data->plotOn(plot,Binning(mgg_high-mgg_low));
 
   TCanvas *canv = new TCanvas();
@@ -526,7 +526,7 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   line3->Draw();
   }
  
-  hdatasub->SetMarkerSize(1.5);
+  hdatasub->SetMarkerSize(1);
   hdatasub->Draw("PESAME");
 
   canv->SaveAs(Form("%s.pdf", name.c_str()));
@@ -547,8 +547,8 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   mass->setRange("unblindReg_1",mgg_low,115);
   mass->setRange("unblindReg_2",135,mgg_high);
   if (BLIND) {
-    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_1"), RooFit::MarkerSize(2));
-    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_2"), RooFit::MarkerSize(2));
+    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_1"), RooFit::MarkerSize(1.5));
+    data->plotOn(plot,Binning(nBinsForPlot),CutRange("unblindReg_2"), RooFit::MarkerSize(1.5));
     data->plotOn(plot,Binning(nBinsForPlot),Invisible());
     //ta->plotOn(plot,Binning(mgg_high-mgg_low),CutRange("unblindReg_1"));
     //ta->plotOn(plot,Binning(mgg_high-mgg_low),CutRange("unblindReg_2"));
@@ -557,7 +557,7 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
     // data->plotOn(plot,Binning(nBinsForMass),CutRange("unblindReg_2"));
     // data->pln(plot,Binning(nBinsForMass),Invisible());
   }
-  else data->plotOn(plot,Binning(nBinsForPlot), RooFit::MarkerSize(2)); 
+  else data->plotOn(plot,Binning(nBinsForPlot), RooFit::MarkerSize(1.5)); 
   TCanvas *canv = new TCanvas();
   ///start extra bit for ratio plot///
   RooHist *plotdata = (RooHist*)plot->getObject(plot->numItems()-1);
