@@ -59,7 +59,7 @@ using namespace boost;
 
 namespace po = program_options;
 bool data_by_fit = false;
-bool BLIND = true;
+bool BLIND = false;
 bool runFtestCheckWithToys=false;
 int mgg_low = 500;
 int mgg_high = 1000;
@@ -926,7 +926,7 @@ desc.add_options()
   ("runFtestCheckWithToys", 									"When running the F-test, use toys to calculate pvals (and make plots) ")
   ("is2011",                                                                                  "Run 2011 config")
   ("is2012",                                                                                  "Run 2012 config")
-  ("unblind",  									        "Dont blind plots")
+  ("runBlind",  									        "Blind plots around the Higgs boson mass")
   ("plotRatio", po::bool_switch(&data_by_fit)->default_value(false), "Plot data / fit instead of data - fit")
   ("isFlashgg",  po::value<int>(&isFlashgg_)->default_value(1),  								    	        "Use Flashgg output ")
   ("isData",  po::value<bool>(&isData_)->default_value(0),  								    	        "Use Data not MC ")
@@ -940,7 +940,7 @@ po::store(po::parse_command_line(argc,argv,desc),vm);
 po::notify(vm); 
 if (vm.count("help")) { cout << desc << endl; exit(1); }
 if (vm.count("is2011")) is2011=true;
-if (vm.count("unblind")) BLIND=false;
+if (vm.count("runBlind")) BLIND=true;
 saveMultiPdf = vm.count("saveMultiPdf");
 
 if (vm.count("verbose")) verbose=true;
