@@ -15,8 +15,8 @@ BKGPLOTSONLY=0
 SEED=0
 INTLUMI=1
 ISDATA=0
-UNBLIND=0
-PLOTDIFF=0
+RUNBLIND=0
+PLOTRATIO=0
 BATCH=""
 QUEUE=""
 YEAR="2016"
@@ -41,8 +41,8 @@ echo "--seed) for pseudodata random number gen seed (default $SEED)"
 echo "--intLumi) specified in fb^-{1} (default $INTLUMI)) "
 echo "--year) dataset year (default $YEAR)) "
 echo "--isData) specified in fb^-{1} (default $DATA)) "
-echo "--unblind) specified in fb^-{1} (default $UNBLIND)) "
-echo "--plotDiff) to plot mc-data instead of ratio (default $PLOTDIFF)) "
+echo "--runBlind) specified in fb^-{1} (default $RUNBLIND)) "
+echo "--plotRatio) to plot mc-data instead of ratio (default $PLOTRATIO)) "
 echo "--batch) which batch system to use (None (''),HTCONDOR,IC) (default '$BATCH')) "
 echo "--queue) queue to submit jobs to (specific to batch))"
 }
@@ -52,7 +52,7 @@ echo "--queue) queue to submit jobs to (specific to batch))"
 
 
 # options may be followed by one colon to indicate they have a required argument
-if ! options=$(getopt -u -o hi:p:f: -l help,inputFile:,procs:,flashggCats:,ext:,catOffset:,fTestOnly,pseudoDataOnly,bkgPlotsOnly,pseudoDataDat:,sigFile:,seed:,intLumi:,year:,unblind,isData,plotDiff,batch:,queue: -- "$@")
+if ! options=$(getopt -u -o hi:p:f: -l help,inputFile:,procs:,flashggCats:,ext:,catOffset:,fTestOnly,pseudoDataOnly,bkgPlotsOnly,pseudoDataDat:,sigFile:,seed:,intLumi:,year:,runBlind,isData,plotRatio,batch:,queue: -- "$@")
 then
 # something went wrong, getopt will put out an error message for us
 exit 1
@@ -77,8 +77,8 @@ case $1 in
 --intLumi) INTLUMI=$2; shift;;
 --year) YEAR=$2; shift;;
 --isData) ISDATA=1;;
---unblind) UNBLIND=1;;
---plotDiff) PLOTDIFF=1;;
+--runBlind) RUNBLIND=1;;
+--plotRatio) PLOTRATIO=1;;
 --batch) BATCH=$2; shift;;
 --queue) QUEUE=$2; shift;;
 
@@ -153,11 +153,11 @@ echo "Running Background F-Test"
 echo "-->Create background model"
 echo "--------------------------------------"
 OPT=""
-if [ $UNBLIND == 1 ]; then
-  OPT+=" --unblind"
+if [ $RUNBLIND == 1 ]; then
+  OPT+=" --runBlind"
 fi
-if [ $PLOTDIFF == 1 ]; then
-  OPT+=" --plotDiff"
+if [ $PLOTRATIO == 1 ]; then
+  OPT+=" --plotRatio"
 fi
 if [ $ISDATA == 0 ]; then
   FILE=$OUTDIR/pseudoData/pseudoWS.root
@@ -184,8 +184,8 @@ echo "--------------------------------------"
 if [ "$SIGFILE" != "" ]; then
 SIG="-s $SIGFILE"
 fi
-if [ $UNBLIND == 1 ]; then
-OPT=" --unblind"
+if [ $RUNBLIND == 1 ]; then
+OPT=" --runBlind"
 fi
 echo "./scripts/subBkgPlots.py -b CMS-HGG_multipdf_$EXT.root -d $OUTDIR/bkgPlots$DATAEXT -S 13 --isMultiPdf --useBinnedData  --doBands --massStep 1 $SIG -L 100 -H 180 -f $CATS -l $CATS --intLumi $INTLUMI $OPT --batch $BATCH -q $QUEUE --year $YEAR"
 ./scripts/subBkgPlots.py -b CMS-HGG_multipdf_$EXT.root -d $OUTDIR/bkgPlots$DATAEXT -S 13 --isMultiPdf --useBinnedData  --doBands  --massStep 1 $SIG -L 100 -H 180 -f $CATS -l $CATS --intLumi $INTLUMI $OPT --batch $BATCH -q $QUEUE --year $YEAR
