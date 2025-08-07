@@ -48,7 +48,7 @@ for ext, fNames_by_ext in fNames.items():
         p = d.get(i)
         w = d.weight()
         data_merged["m%s"%mp].add(p,w)
-  
+
 for _data in data_merged.values(): packagedWS.imp(_data)
         
 # Loop over input signal fit workspaces

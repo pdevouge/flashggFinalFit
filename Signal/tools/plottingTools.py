@@ -88,7 +88,7 @@ def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150):
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
     frame = ssf.true_mass.frame(range_m, range_p, _nbins)
-    ssf.datasetForFit['low_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+    ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
     rel_bw.plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
     frame.Draw()
 

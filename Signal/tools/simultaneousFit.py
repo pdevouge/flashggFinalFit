@@ -170,7 +170,7 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_true_mass,_reduced_mass,_MH,_MHLow,_MHHigh,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_true_mass,_reduced_mass,_MH,_MHLow,_MHHigh,_width,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
@@ -181,6 +181,7 @@ class SimultaneousFit:
     self.MH = _MH
     self.MHLow = _MHLow
     self.MHHigh = _MHHigh
+    self.width = _width
     self.massPoints = _massPoints
     self.nBins = _nBins
     self.MHPolyOrder = _MHPolyOrder
@@ -194,7 +195,7 @@ class SimultaneousFit:
     self.dMH = ROOT.RooFormulaVar("dMH","dMH","@0-400.0",ROOT.RooArgList(self.MH))
     # self.xvar.setVal(125)
     self.xvar.setBins(self.nBins)
-    self.reduced_mass.setBins(self.nBins)
+    self.reduced_mass.setBins(100)
     # Dicts to store all fit vars, polynomials, pdfs and splines
     self.nGaussians = 1
     self.Vars = od()
@@ -397,7 +398,7 @@ class SimultaneousFit:
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildTrueLineshape(self):
 
-    g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * 0.01^2 * MH", ROOT.RooArgList(self.MH))
+    g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * %s^2 * MH / 0.95"%self.width, ROOT.RooArgList(self.MH))
     self.Vars['g0'] = g0
     # formula = "1/(2*pi)*g0/((CMS_hgg_mass-MH)^2+g0^2/4)"
     formula = "2/pi*CMS_hgg_mass^2*g0/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)"
@@ -406,7 +407,7 @@ class SimultaneousFit:
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildAnalytical(self):
 
-    self.xvar.setBins(10000, "cache");
+    self.xvar.setBins(10000, "cache")
     self.Pdfs['final'] = ROOT.RooFFTConvPdf("final_model", "rel_bw * dcb", self.xvar, self.Pdfs['rel_bw'], self.Pdfs['final_reso_model'])
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
