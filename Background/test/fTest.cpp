@@ -58,8 +58,8 @@ using namespace RooFit;
 using namespace boost;
 
 namespace po = program_options;
-int data_by_fit = 0;
-bool BLIND = false;
+bool data_by_fit = false;
+bool BLIND = true;
 bool runFtestCheckWithToys=false;
 int mgg_low = 500;
 int mgg_high = 1000;
@@ -190,6 +190,7 @@ double getProbabilityFtest(double chi2, int ndof, RooAbsPdf *pdfNull, RooAbsPdf 
 
   int npass =0; int nsuccesst =0;
   mass->setBins(nBinsForMass);
+  mass->setBins(10000,"cache");
 
   for (int itoy = 0 ; itoy < ntoys ; itoy++){
     params_null->assignValueOnly(preParams_null);
@@ -459,7 +460,7 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
     double bkgval = nomBkgCurve->interpolate(meanMass);
     if (bkgval <= 0) continue;
 
-    if (data_by_fit==1){
+    if (data_by_fit==true){
     double rel_err_low = errlow / bkgval;
     double rel_err_high = errhi / bkgval;
 
@@ -494,7 +495,7 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
 
   pad2->cd();
   TH1 *hdummy = new TH1D("hdummyweight", "", nBinsForPlot, mgg_low, mgg_high);
-  if (data_by_fit == 1) {
+  if (data_by_fit == true) {
       hdummy->GetYaxis()->SetTitle("data/(best fit)");
       hdummy->SetMaximum(1.05);
       hdummy->SetMinimum(0.95);                     
@@ -513,7 +514,7 @@ void plot(RooRealVar *mass, RooAbsPdf *pdf, RooDataSet *data, string name,vector
   hdummy->Draw("HIST");
   hdummy->GetYaxis()->SetNdivisions(808);
 
-  if (data_by_fit == 1) {
+  if (data_by_fit == true) {
       TLine *line3 = new TLine(mgg_low, 1., mgg_high, 1.);
    line3->SetLineColor(kBlue);
   line3->SetLineWidth(5);
@@ -644,7 +645,7 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   }
   double errhi = plotdata->GetErrorYhigh(ipoint);
   double errlow = plotdata->GetErrorYlow(ipoint);
-  if (data_by_fit == 1) {
+  if (data_by_fit == true) {
     double rel_err_low = errlow/bkgval; 
     double rel_err_high = errhi/bkgval;
     hdatasub->SetPoint(point,xtmp,ytmp/bkgval);
@@ -664,7 +665,7 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   //TH1 *hdummy = new TH1D("hdummyweight","",mgg_high-mgg_low,mgg_low,mgg_high);
   TH1 *hdummy = new TH1D("hdummyweight","",nBinsForPlot,mgg_low,mgg_high);
   
-  if (data_by_fit == 1) {
+  if (data_by_fit == true) {
       hdummy->GetYaxis()->SetTitle("data/(best fit)");
       hdummy->SetMaximum(1.05);
       hdummy->SetMinimum(0.95);
@@ -684,7 +685,7 @@ void plot(RooRealVar *mass, RooMultiPdf *pdfs, RooCategory *catIndex, RooDataSet
   hdummy->Draw("HIST");
   hdummy->GetYaxis()->SetNdivisions(808);
 
-    if (data_by_fit == 1) {
+    if (data_by_fit == true) {
       TLine *line3 = new TLine(mgg_low, 1., mgg_high, 1.);
    line3->SetLineColor(bestcol);
   line3->SetLineWidth(5);
@@ -926,6 +927,7 @@ desc.add_options()
   ("is2011",                                                                                  "Run 2011 config")
   ("is2012",                                                                                  "Run 2012 config")
   ("unblind",  									        "Dont blind plots")
+  ("plotRatio", po::bool_switch(&data_by_fit)->default_value(false), "Plot data / fit instead of data - fit")
   ("isFlashgg",  po::value<int>(&isFlashgg_)->default_value(1),  								    	        "Use Flashgg output ")
   ("isData",  po::value<bool>(&isData_)->default_value(0),  								    	        "Use Data not MC ")
   ("flashggCats,f", po::value<string>(&flashggCatsStr_)->default_value("UntaggedTag_0,UntaggedTag_1,UntaggedTag_2,UntaggedTag_3,UntaggedTag_4,VBFTag_0,VBFTag_1,VBFTag_2,TTHHadronicTag,TTHLeptonicTag,VHHadronicTag,VHTightTag,VHLooseTag,VHEtTag"),       "Flashgg category names to consider")
@@ -1103,7 +1105,8 @@ for (int cat=startingCategory; cat<ncats; cat++){
         exit(1);
   }
   if(mass) {
-        mass->setBins(nBinsForMass); 
+        mass->setBins(nBinsForMass);
+        mass->setBins(10000,"cache");
         std::cout << "[DEBUG] Using " << nBinsForMass << " bins for [" 
                 << mass->getMin() << ", " << mass->getMax() << "]" << std::endl;
   } else {
@@ -1410,6 +1413,8 @@ for (int cat=startingCategory; cat<ncats; cat++){
     std::cout << "[INFO] Simple check of index "<< simplebestFitPdfIndex <<std::endl;
  
         mass->setBins(nBinsForMass);
+        mass->setBins(10000,"cache");
+        outputws->import(*mass, RooFit::RecycleConflictNodes());
         RooDataHist dataBinned(Form("roohist_data_mass_%s",catname.c_str()),"data",*mass,*dataFull);
 
         // Save it (also a binned version of the dataset

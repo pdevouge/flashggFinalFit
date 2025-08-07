@@ -16,7 +16,7 @@ SEED=0
 INTLUMI=1
 ISDATA=0
 UNBLIND=0
-PLOTDIFF=0
+PLOTRATIO=0
 BATCH=""
 QUEUE=""
 YEAR="2016"
@@ -42,7 +42,7 @@ echo "--intLumi) specified in fb^-{1} (default $INTLUMI)) "
 echo "--year) dataset year (default $YEAR)) "
 echo "--isData) specified in fb^-{1} (default $DATA)) "
 echo "--unblind) specified in fb^-{1} (default $UNBLIND)) "
-echo "--plotDiff) to plot mc-data instead of ratio (default $PLOTDIFF)) "
+echo "--plotRatio) to plot mc-data instead of ratio (default $PLOTRATIO)) "
 echo "--batch) which batch system to use (None (''),HTCONDOR,IC) (default '$BATCH')) "
 echo "--queue) queue to submit jobs to (specific to batch))"
 }
@@ -52,7 +52,7 @@ echo "--queue) queue to submit jobs to (specific to batch))"
 
 
 # options may be followed by one colon to indicate they have a required argument
-if ! options=$(getopt -u -o hi:p:f: -l help,inputFile:,procs:,flashggCats:,ext:,catOffset:,fTestOnly,pseudoDataOnly,bkgPlotsOnly,pseudoDataDat:,sigFile:,seed:,intLumi:,year:,unblind,isData,plotDiff,batch:,queue: -- "$@")
+if ! options=$(getopt -u -o hi:p:f: -l help,inputFile:,procs:,flashggCats:,ext:,catOffset:,fTestOnly,pseudoDataOnly,bkgPlotsOnly,pseudoDataDat:,sigFile:,seed:,intLumi:,year:,unblind,isData,plotRatio,batch:,queue: -- "$@")
 then
 # something went wrong, getopt will put out an error message for us
 exit 1
@@ -78,7 +78,7 @@ case $1 in
 --year) YEAR=$2; shift;;
 --isData) ISDATA=1;;
 --unblind) UNBLIND=1;;
---plotDiff) PLOTDIFF=1;;
+--plotRatio) PLOTRATIO=1;;
 --batch) BATCH=$2; shift;;
 --queue) QUEUE=$2; shift;;
 
@@ -156,8 +156,8 @@ OPT=""
 if [ $UNBLIND == 1 ]; then
   OPT+=" --unblind"
 fi
-if [ $PLOTDIFF == 1 ]; then
-  OPT+=" --plotDiff"
+if [ $PLOTRATIO == 1 ]; then
+  OPT+=" --plotRatio"
 fi
 if [ $ISDATA == 0 ]; then
   FILE=$OUTDIR/pseudoData/pseudoWS.root

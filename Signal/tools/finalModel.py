@@ -68,7 +68,7 @@ def initialiseXSBR(opt):
     for pm in productionModes: xsbr[pm].append(getXS(SM,MHVar,mh,pm))
     xsbr[decayMode].append(getBR(SM,MHVar,mh,decayMode))
     xsbr['constant'].append(1.)
-    mh += 25
+    mh += 1
   for pm in productionModes: xsbr[pm] = np.asarray(xsbr[pm])
   xsbr[decayMode] = np.asarray(xsbr[decayMode])
   xsbr['constant'] = np.asarray(xsbr['constant'])
@@ -429,6 +429,8 @@ class FinalModel:
   # Function for saving to output workspace
   def save(self,wsout):
     wsout.imp = getattr(wsout,"import")
+    self.xvar.setBins(10000, "cache")  # Optional, for safety
+    wsout.imp(self.xvar, ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_norm'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_normThisLumi'],ROOT.RooFit.RecycleConflictNodes())
