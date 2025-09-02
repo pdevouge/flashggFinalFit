@@ -61,7 +61,7 @@ python3 makeDatacard.py --years 2016,2017,2018 --prune (--doSystematics)
 ```
 The datacard will be produced using the concatenation of all `pkl` files in the `yields` directory. The `--prune` option will prune all signal processes which contribute less than 0.1% to the total signal yield in a given category. This threshold has been shown to have negligible effect on the final results but can be toggled using the `--pruneThreshold 0.001` option.
 
-The pruning by default uses the sum of weights in the input flashgg workspace. If the `NOTAG` dataset is present then you can also calculate the true yields using XS, BR and `eff x acc`. For this add the option `--doTrueYields`, ensuring that the full signal process XSBR map is defined in `tools.XSBR.py` (same as the mapping in the signal modelling).
+The pruning uses the true yield, calculated as `XS * BR * (eff*acc) * rate`, ensuring that the full signal process XSBR map is defined in `tools/XSBR.py` (same as the mapping in the signal modelling).
 
 The output is a `.txt` datacard that can be used for the final fits!
 
