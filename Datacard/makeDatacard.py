@@ -108,7 +108,7 @@ if opt.prune:
   XSBR = extractXSBR(data,mass=opt.mass,analysis=opt.analysis)
   data.loc[mask,'xsbr'] = data[mask].apply(lambda x: XSBR["XS_%s"%x['procOriginal']]*XSBR['BR'], axis=1)
 
-  # Extract eff*acc using total proc yield: strictly should include NOTAG
+  # Extract eff*acc using total proc yield
   data['ea'] = '-'
   # In HiggsDNA the sumw = eff*acc
   data.loc[mask,'ea'] = data.loc[mask,'nominal_yield']
@@ -124,8 +124,7 @@ if opt.prune:
   mask = (data['true_yield']<opt.pruneThreshold*data.apply(lambda x: catTrueYields[x['cat']], axis=1))&(data['type']=='sig')&(~data['cat'].str.contains('NOTAG'))
   data.loc[mask,'prune'] = 1
 
-
-  # Finally set all NOTAG events to be pruned
+  # Prune NOTAG events if they exist
   mask = data['cat'].str.contains("NOTAG")
   data.loc[mask,'prune'] = 1
     
