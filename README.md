@@ -61,22 +61,22 @@ First we need to convert the HiggsDNA output into RooWorkspace files ready for F
 #### Signal
 To convert the root files from HiggsDNA into RooWorkspace, we need to run the following command. 
 
-`python3 RunWSScripts.py --inputDir signal/2022preEE/root/ --inputConfig config_high_mass.py --year 2022preEE --mode trees2ws --batch local --modeOpts "--minMass 100 --maxMass 5500"`
+`python3 RunWSScripts.py --inputDir signal/2022preEE/root/ --inputConfig config_high_mass.py --year 2022preEE --mode trees2ws --batch local --modeOpts "--minMass 450 --maxMass 1000"`
 
-All the RooWorkspace have the same binning for the mass (minMass-maxMass), so we need to select a range big enough to encapsulate all of our masses.
+We work on mass subranges. Here we specify a range of 450-1050 to accomodate all the low width signal points from 500 to 1000GeV. 
 
 #### Data
 For the data we run the following command.
 
-`python3 RunWSScripts.py --inputDir Data/Pre/root/ --inputConfig config_high_mass.py --year 2022preEE --mode trees2ws_data --batch local --modeOpts "--applyMassCut --massCutRange 500,1000"`
+`python3 RunWSScripts.py --inputDir Data/Pre/root/ --inputConfig config_high_mass.py --year 2022preEE --mode trees2ws_data --batch local --modeOpts "--applyMassCut --massCutRange 450,1050"`
 
-Notice here that we select only a subset of the mass. This is because contrary to the signal samples, we only have one set of MC samples, which contains the entire mass range.
+We select the same mass subrange for our data.
 
 ### Signal
 
 The next step is to run the signal description. We need to pass a config file like [this one](https://github.com/pdevouge/flashggFinalFit/blob/high_mass_finalfit/Signal/config_high_mass_2022preEE.py). The config file contains the location of the signal RooWorskpaces, the process, category, along with the width and mass points for which we want to construct the final model.
 
-`python3 RunSignalScripts.py --inputConfig config_high_mass_2022preEE.py --mode signalFit --modeOpts " --doPlots --skipSystematics --skipVertexScenarioSplit --skipBeamspotReweigh --nBins 500  --minMass 100 --maxMass 1100"`
+`python3 RunSignalScripts.py --inputConfig config_high_mass_2022preEE.py --mode signalFit --modeOpts " --doPlots --skipSystematics --skipVertexScenarioSplit --skipBeamspotReweigh --nBins 500  --minMass 450 --maxMass 1050"`
 
 The `--nBins` argument is used for the fit and for the plot of the final analytical model. <br>
 For the results extraction with Combine, we package the individual ROOT files from the signalFit step into a single file per category. This is not really needed for now since we only have one category and one year, and this is just used (for now) to format our ROOT file for Combine.
@@ -113,19 +113,20 @@ cp ../Datacard/Datacard_highmass_500-1000.txt .
 The text datacard created in the previous (Datacard) section contains (or points to) all of the inputs that Combine requires to do statistical inference. By running the text2workspace command, we convert the text datacard into a workspace that contains the inputs. In the conversion, we also specify a model that describes the parameters of interest (POIs) and how they are related to the rates of processes in the workspace.
 In flashggFinalFit, we have a job submission script to run text2workspace. We simply run the following command:
 
-`python3 RunText2Workspace.py --mode mu_inclusive --batch local --ext _highmass_500-1000 --common_opts "-m 750 higgsMassRange=500,1000"`
+`python3 RunText2Workspace.py --mode mu_inclusive --batch local --ext _highmass_500-1000 --common_opts "-m 750 higgsMassRange=450,1050"`
 
 Next, we create a new directory which will host all of our results:
 ```
 mkdir limits_500-1000
+cd limits_500-1000
 ```
 
 From there, we can extract the limits for a given mass point by running the next command:
 
-`combineTool.py -M AsymptoticLimits -d Datacard_highmass_500-1000_mu_inclusive.root --there -n .limit --parallel 4 -m 750 --run blind`
+`combineTool.py -M AsymptoticLimits -d Datacard_highmass_500-1000_mu_inclusive.root -n .limit --parallel 4 -m 750 --run blind`
 
-The previous command can be ran over any mass point within the (minMass-maxMass) limits of the signal model. Note that by default, combineTool.py saves the output files into the same location as Datacard_highmass_500-1000_mu_inclusive.root. One should move all of these into the previously created directory.
+The previous command can be ran over any mass point within the (minMass-maxMass) limits of the signal model.
 
-We can finally cd into `limits_500-1000` and merge the different root files into a json file containing the limits for each mass point:
+We can finally merge the different root files into a json file containing the limits for each mass point:
 
 `combineTool.py -M CollectLimits *.limit.* --use-dirs -o limits.json`
