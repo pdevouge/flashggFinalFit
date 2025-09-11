@@ -1,7 +1,18 @@
+from optparse import OptionParser
 import ROOT
 from CombineHarvester.CombineTools.plotting import *
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
+
+
+def get_options():
+  parser = OptionParser()
+  # Take inputs from config file
+  parser.add_option('--input', dest='inputJson', default='limits_default.json', help="Limits.json")
+  parser.add_option('--unblinded', dest='unblinded', action='store_true', help="Unblind limit plot")
+  return parser.parse_args()
+(opt,args) = get_options()
+
 
 # Style and pads
 ModTDRStyle()
@@ -9,12 +20,13 @@ canv = ROOT.TCanvas('limit', 'limit')
 pads = OnePad()
 
 # Get limit TGraphs as a dictionary
-graphs = StandardLimitsFromJSONFile('limits_default.json')
+draw = ['obs', 'exp0', 'exp1', 'exp2'] if opt.unblinded else ['exp0', 'exp1', 'exp2']
+graphs = StandardLimitsFromJSONFile(opt.inputJson, draw=draw)
 
 # Create an empty TH1 from the first TGraph to serve as the pad axis and frame
 axis = CreateAxisHist(list(graphs.values())[0])
-axis.GetXaxis().SetTitle('m_{H} (GeV)')
-axis.GetYaxis().SetTitle('95% CL limit on #mu')
+axis.GetXaxis().SetTitle('m_{X} (GeV)')
+axis.GetYaxis().SetTitle('95% CL limit on #it{#sigma#times#bf{B}}')
 pads[0].cd()
 axis.Draw('axis')
 
@@ -35,7 +47,7 @@ pads[0].GetFrame().Draw()
 FixBothRanges(pads[0], 0, 0, GetPadYMax(pads[0]), 0.25)
 
 # Standard CMS logo
-DrawCMSLogo(pads[0], 'CMS', 'Internal', 11, 0.045, 0.035, 1.2, '', 0.8)
+DrawCMSLogo(pads[0], 'CMS', 'Internal', 11, 0.1, 0.035, 1.2, '', 0.8)
 
 canv.Print('.pdf')
 canv.Print('.png')

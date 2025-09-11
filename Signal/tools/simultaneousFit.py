@@ -398,7 +398,7 @@ class SimultaneousFit:
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildTrueLineshape(self):
 
-    g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * %s^2 * MH / 0.95"%self.width, ROOT.RooArgList(self.MH))
+    g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * %s^2 * MH / 1."%self.width, ROOT.RooArgList(self.MH))
     self.Vars['g0'] = g0
     # formula = "1/(2*pi)*g0/((CMS_hgg_mass-MH)^2+g0^2/4)"
     formula = "2/pi*CMS_hgg_mass^2*g0/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)"

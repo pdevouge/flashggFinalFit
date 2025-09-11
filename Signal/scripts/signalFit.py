@@ -374,7 +374,7 @@ if opt.doPlots:
     plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext), _from_formulas=True)
     plotDCBParameters(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
     if not os.path.isdir("%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext))
-    truemass_range = 0.001 if opt.width == "001" else 0.1
+    truemass_range = 0.001 if opt.width == "001" else 0.2
     truemass_nbins = 150 if opt.width == "001" else 100
     plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins)
     if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))

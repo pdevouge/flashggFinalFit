@@ -1,0 +1,52 @@
+# Script for running the AsymptoticLimits of Combine with multiple points
+import os, sys, subprocess
+import numpy as np
+from optparse import OptionParser
+from collections import OrderedDict as od
+
+print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RUNNING COMBINE LIMITS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
+parser = OptionParser(usage="usage: %prog datacard.txt [options] \nrun with --help to get list of options")
+parser.add_option('--outdir',dest='outdir', default="", help='Where to save the limits (default: cwd)')
+parser.add_option('--mass_points',dest='mass_points', default="125", help='Mass points for which to calculate the limits')
+(opt,args) = parser.parse_args()
+
+def leave():
+  print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RUNNING COMBINE LIMITS (END) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+  exit(0)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Extract options from cmd line
+if len(args) == 0:
+    parser.print_usage()
+    exit(1)
+
+datacard = os.path.join(os.getcwd(),args[0])
+
+if ":" in opt.mass_points:
+  MLow, MHigh, MBins = opt.mass_points.split(":")
+  mass_points = np.linspace(float(MLow), float(MHigh), int(MBins)+1)
+else:
+  list_of_points = opt.mass_points.split(",")
+  mass_points = [float(m) for m in list_of_points]
+
+if opt.outdir:
+  print(" --> Limits will be save into %s" %opt.outdir)
+  if not os.path.isdir( opt.outdir ): os.system("mkdir %s" %opt.outdir)
+  os.chdir(opt.outdir)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Extract limits for every mass points
+
+for m in mass_points:
+
+  cmd = f"""combineTool.py -M AsymptoticLimits -d {datacard} \
+    -n .limit --parallel 4 -m {m} --run blind --rAbsAcc 0.00005 --rRelAcc 0.00005"""
+
+  subprocess.call(cmd, shell=True)
+
+cmd = "combineTool.py -M CollectLimits *.limit.* --use-dirs -o limits.json"
+subprocess.call(cmd, shell=True)
+
+cmd = f"python3 {os.path.dirname(__file__)}/plot_limits.py --input limits_default.json"
+subprocess.call(cmd, shell=True)

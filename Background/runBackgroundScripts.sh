@@ -42,7 +42,7 @@ echo "--intLumi) specified in fb^-{1} (default $INTLUMI)) "
 echo "--year) dataset year (default $YEAR)) "
 echo "--isData) specified in fb^-{1} (default $DATA)) "
 echo "--runBlind) specified in fb^-{1} (default $RUNBLIND)) "
-echo "--plotRatio) to plot mc-data instead of ratio (default $PLOTRATIO)) "
+echo "--plotRatio) to plot ratio instead of mc-data (default $PLOTRATIO)) "
 echo "--batch) which batch system to use (None (''),HTCONDOR,IC) (default '$BATCH')) "
 echo "--queue) queue to submit jobs to (specific to batch))"
 }

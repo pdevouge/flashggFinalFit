@@ -116,7 +116,7 @@ def plotAnalyticalModel(ssf,_outdir='./'):
   for mass in ssf.massPoints.split(','):
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
-    ssf.xvar.setRange(int(mass)-0.1*int(mass), int(mass)+0.1*int(mass))
+    ssf.xvar.setRange(int(mass)-0.2*int(mass), int(mass)+0.2*int(mass))
     ssf.MH.setVal(int(mass))
     ssf.MH.setConstant(True)
     frame = ssf.xvar.frame()
