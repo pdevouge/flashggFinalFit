@@ -67,7 +67,10 @@ def get_options():
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(True)
 
+w_indicator = 'W' if 'p' in opt.width else 'kMpl'
 lowW = '001' if opt.proc=='rsg' else '0p014'
+lowW_str = w_indicator + lowW
+nomW_str = w_indicator + opt.width
 MHLow = opt.minMass
 MHHigh = opt.maxMass
 print("Width", opt.width)
@@ -99,7 +102,7 @@ if opt.analysis not in globalXSBRMap:
 else: xsbrMap = globalXSBRMap[opt.analysis]
 
 # Load RooRealVars
-nominalWSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,MHNominal,opt.width,opt.proc))[0]
+nominalWSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,MHNominal,nomW_str,opt.proc))[0]
 f0 = ROOT.TFile(nominalWSFileName,"read")
 inputWS0 = f0.Get(inputWSName__)
 xvar = inputWS0.var(opt.xvar)
@@ -119,7 +122,7 @@ MH.setConstant(True)
 
 if opt.skipZeroes:
   # Extract nominal mass dataset and see if entries == 0
-  WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,MHNominal,opt.width,opt.proc))[0]
+  WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,MHNominal,nomW_str,opt.proc))[0]
   f = ROOT.TFile(WSFileName,"read")
   inputWS = f.Get(inputWSName__)
   d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(opt.proc.split("_")[0]),MHNominal,opt.width,sqrts__,opt.cat)),aset)
@@ -168,7 +171,7 @@ datasetRVForFit['low_w'] = od()
 datasetRVForFit['nom_w'] = od()
 for mp in opt.massPoints.split(","):
   # Load low width samples for true lineshape description
-  WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,lowW,procRVFit))[0]
+  WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,lowW_str,procRVFit))[0]
   f = ROOT.TFile(WSFileName,"read")
   inputWS = f.Get(inputWSName__)
   d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,lowW,sqrts__,catRVFit)),aset)
@@ -177,7 +180,7 @@ for mp in opt.massPoints.split(","):
   inputWS.Delete()
   f.Close()
 
-  WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procRVFit))[0]
+  WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procRVFit))[0]
   f = ROOT.TFile(WSFileName,"read")
   inputWS = f.Get(inputWSName__)
   d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit)),aset)
@@ -192,7 +195,7 @@ if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold 
   nominal_numEntries = datasetRVForFit['nom_w'][MHNominal].numEntries()
   procReplacementFit, catReplacementFit = rMap['procRVMap'][opt.cat], rMap['catRVMap'][opt.cat]
   for mp in opt.massPoints.split(","):
-    WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procReplacementFit))[0]
+    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procReplacementFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
     d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,opt.width,sqrts__,catReplacementFit)),aset)
@@ -234,7 +237,7 @@ if not opt.skipVertexScenarioSplit:
   datasetWVForFit['nom_w'] = od()
   for mp in opt.massPoints.split(","):
     # Load low width samples for true lineshape description
-    WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,lowW,procWVFit))[0]
+    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,lowW_str,procWVFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
     d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,lowW,sqrts__,catWVFit)),aset)
@@ -242,7 +245,7 @@ if not opt.skipVertexScenarioSplit:
     inputWS.Delete()
     f.Close()
 
-    WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procWVFit))[0]
+    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procWVFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
     d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,opt.width,sqrts__,catWVFit)),aset)
@@ -255,7 +258,7 @@ if not opt.skipVertexScenarioSplit:
     nominal_numEntries = datasetWVForFit['nom_w'][MHNominal].numEntries()
     procReplacementFit, catReplacementFit = rMap['procWV'], rMap['catWV']
     for mp in opt.massPoints.split(","):
-      WSFileName = glob.glob("%s/output*M%s_kMpl%s*%s.root"%(opt.inputWSDir,mp,opt.width,procReplacementFit))[0]
+      WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procReplacementFit))[0]
       f = ROOT.TFile(WSFileName,"read")
       inputWS = f.Get(inputWSName__)
       d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,opt.width,sqrts__,catReplacementFit)),aset)
@@ -319,7 +322,7 @@ else:
 # FIT: simultaneous signal fit (ssf)
 ssfMap = od()
 name = "Total" if opt.skipVertexScenarioSplit else "RV"
-width = "%s.%s"%(opt.width[0],opt.width[1:])
+width = "%s.%s"%(opt.width[0],opt.width[1:]) if not 'p' in opt.width else opt.width.replace('p','.')
 ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,width,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
 if opt.useInterpolation:
   if opt.useDCB: ssfRV.buildDCBplusGaussian()
@@ -374,11 +377,12 @@ if opt.doPlots:
     plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext), _from_formulas=True)
     plotDCBParameters(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
     if not os.path.isdir("%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext))
-    truemass_range = 0.001 if opt.width == "001" else 0.2
-    truemass_nbins = 150 if opt.width == "001" else 100
+    truemass_range = 0.001 if (opt.width == "001" or opt.width == "0p014") else 0.2
+    truemass_nbins = 150 if (opt.width == "001" or opt.width == "0p014") else 100
     plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins)
     if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
     plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
+    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_nominalMass=MHNominal,splinesToPlot=['ea'])
   else:
     if opt.skipVertexScenarioSplit:
       plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))

@@ -102,13 +102,14 @@ if opt.prune:
   print(" --> Using the true yield of process for pruning: N = Product(XS,BR,eff*acc,lumi)")
   mask = (data['type']=='sig')
 
-    # Extract XS*BR using tools.XSBR
-    data['xsbr'] = '-'
-    from tools.XSBR import *
-    XSBR = {} #TODO extractXSBR(data,mass=opt.mass,analysis=opt.analysis)
-    XSBR["XS_rsg"] = 1.0
-    XSBR['BR'] = 1.0
-    data.loc[mask,'xsbr'] = data[mask].apply(lambda x: XSBR["XS_%s"%x['procOriginal']]*XSBR['BR'], axis=1)
+  # Extract XS*BR using tools.XSBR
+  data['xsbr'] = '-'
+  from tools.XSBR import *
+  XSBR = {} #TODO extractXSBR(data,mass=opt.mass,analysis=opt.analysis)
+  XSBR["XS_rsg"] = 1.0
+  XSBR["XS_spin0"] = 1.0
+  XSBR['BR'] = 1.0
+  data.loc[mask,'xsbr'] = data[mask].apply(lambda x: XSBR["XS_%s"%x['procOriginal']]*XSBR['BR'], axis=1)
 
   # Extract eff*acc using total proc yield
   data['ea'] = '-'
