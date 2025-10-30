@@ -6,14 +6,14 @@ trees2wsCfg = {
   'inputTreeDir':'DiphotonTree',
 
   # Variables to be added to dataframe: use wildcard * for common strings
-  'mainVars':["CMS_hgg_mass","gen_dipho_mass","category","dZ","weight","weight_*"], # Var for the nominal RooDataSets
+  'mainVars':["CMS_hgg_mass","gen_dipho_mass","dZ","weight","weight_*"], # Var for the nominal RooDataSets
   'dataVars':["CMS_hgg_mass","weight"], # Vars to be added for data
   'stxsVar':'',
-  'systematicsVars':[], # Variables to add to sytematic RooDataHists
+  'systematicsVars':["CMS_hgg_mass","weight"], # Variables to add to sytematic RooDataHists
   'theoryWeightContainers':{},
 
   # List of systematics: use string YEAR for year-dependent systematics
-  'systematics':[],
+  'systematics':["Scale","Smearing"],
 
   # Analysis categories: python list of cats or use 'auto' to extract from input tree
   'cats':'auto'

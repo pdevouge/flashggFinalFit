@@ -116,7 +116,7 @@ def plotAnalyticalModel(ssf,_outdir='./'):
   for mass in ssf.massPoints.split(','):
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
-    ssf.xvar.setRange(int(mass)-0.2*int(mass), int(mass)+0.2*int(mass))
+    ssf.xvar.setRange(int(mass)-0.1*int(mass), int(mass)+0.1*int(mass))
     ssf.MH.setVal(int(mass))
     ssf.MH.setConstant(True)
     frame = ssf.xvar.frame()
@@ -526,25 +526,19 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='400',splinesToPlot=['xs',
       if r > xmax: xmax = r
       if r < xmin: xmin = r
     # Overall norm
-    x = _finalModel.Functions['final_normThisLumi'].getVal()
-    if xnom['norm'] == 0.: r = 1.
-    else: r = x/xnom['norm']
-    grs['norm'].SetPoint(p,int(mh),r)
-    if r > xmax: xmax = r
-    if r < xmin: xmin = r
     p += 1
   # Draw axes
   haxes = ROOT.TH1F("h_axes_spl","h_axes_spl",int(_finalModel.MHHigh)-int(_finalModel.MHLow),int(_finalModel.MHLow),int(_finalModel.MHHigh))
   haxes.SetTitle("")
-  haxes.GetXaxis().SetTitle("m_{H} [GeV]")
+  haxes.GetXaxis().SetTitle("m_{X} [GeV]")
   haxes.GetXaxis().SetTitleSize(0.05)
   haxes.GetXaxis().SetTitleOffset(0.85)
   haxes.GetXaxis().SetLabelSize(0.035)
-  haxes.GetYaxis().SetTitle("X/X(m_{H}= @%s)"%(_nominalMass))
+  haxes.GetYaxis().SetTitle("X/X(m_{X}= @%s)"%(_nominalMass))
   haxes.GetYaxis().SetTitleOffset(0.85)
   haxes.GetYaxis().SetTitleSize(0.05)
   haxes.SetMaximum(1.2*xmax)
-  haxes.SetMinimum(xmin)
+  haxes.SetMinimum(0)
   haxes.Draw()
   # Define legend
   leg = ROOT.TLegend(0.15,0.15,0.4,0.4)

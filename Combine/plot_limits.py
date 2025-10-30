@@ -26,7 +26,7 @@ graphs = StandardLimitsFromJSONFile(opt.inputJson, draw=draw)
 # Create an empty TH1 from the first TGraph to serve as the pad axis and frame
 axis = CreateAxisHist(list(graphs.values())[0])
 axis.GetXaxis().SetTitle('m_{X} (GeV)')
-axis.GetYaxis().SetTitle('95% CL limit on #it{#sigma#times#bf{B}}')
+axis.GetYaxis().SetTitle('95% CL limit on #it{#sigma#times#bf{B}} [pb]')
 pads[0].cd()
 axis.Draw('axis')
 
@@ -47,7 +47,16 @@ pads[0].GetFrame().Draw()
 FixBothRanges(pads[0], 0, 0, GetPadYMax(pads[0]), 0.25)
 
 # Standard CMS logo
-DrawCMSLogo(pads[0], 'CMS', 'Internal', 11, 0.1, 0.035, 1.2, '', 0.8)
+DrawCMSLogo(pads[0], 'CMS', 'Internal', 0, 0.13, 0.035, 1.2, '', 0.8)
+DrawCMSLogo(pads[0], 'Spin-0', '2022PostEE', 11, 0.2, 0.035, 1.2, '', 0.8)
+
+# Add luminosity text at the top right
+lumi = ROOT.TLatex()
+lumi.SetNDC()
+lumi.SetTextFont(42)
+lumi.SetTextSize(0.04)
+lumi.SetTextAlign(31)
+lumi.DrawLatex(0.95, 0.96, "138 fb^{-1} (13.6 TeV)")
 
 canv.Print('.pdf')
 canv.Print('.png')

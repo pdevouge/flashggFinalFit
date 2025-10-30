@@ -153,8 +153,8 @@ class FinalModel:
     rangeMass = int(maxMass - minMass) + 1
     mh = np.linspace(minMass,maxMass,rangeMass)
     # XS
-    fp = self.xsbrMap[self.proc]['factor'] if 'factor' in self.xsbrMap[self.proc] else 1.
-    mp = self.xsbrMap[self.proc]['mode']
+    # fp = self.xsbrMap[self.proc]['factor'] if 'factor' in self.xsbrMap[self.proc] else 1.
+    # mp = self.xsbrMap[self.proc]['mode']
     xs = np.ones_like(mh)
     # xs = fp*self.XSBR[mp] #TODO
     self.Splines['xs'] = ROOT.RooSpline1D("fxs_%s_%s"%(self.proc,self.sqrts),"fxs_%s_%s"%(self.proc,self.sqrts),self.MH,len(mh),mh,xs)

@@ -67,7 +67,7 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_minMass='200',_maxM
       _vars[var] = ROOT.RooRealVar(var,var,400.,float(_minMass),float(_maxMass))
       _vars[var].setBins((int(_maxMass)-int(_minMass)))
     elif var == "reduced_mass":
-      _vars[var] = ROOT.RooRealVar(var,var,0., -0.2, 0.2)
+      _vars[var] = ROOT.RooRealVar(var,var,0., -0.1, 0.1)
       _vars[var].setBins(100)
     elif var == "dZ":
       _vars[var] = ROOT.RooRealVar(var,var,0.,-20.,20.)
