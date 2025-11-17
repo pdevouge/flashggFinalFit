@@ -8,6 +8,7 @@ print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RUNNING FINALFIT ~~~~~~~~~~~~~~~~~~~~~~~
 def get_options():
   parser = OptionParser()
   parser.add_option('--runOnly', dest='run_only', default='', help="Run only given steps (trees, signal, background, datacard, combine)")
+  parser.add_option('--doSystematics', dest='do_syst', action='store_true', help="Run with systematics")
   return parser.parse_args()
 (opt,args) = get_options()
 
@@ -18,6 +19,8 @@ def leave():
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Extract options from config file
 print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ EXTRACTING CONFIG FROM YAML ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+if opt.do_syst: print("-----> 'doSystematics': FinalFit will run with systematics included.")
+else: print("You have chosen to run FinalFit without systematics. If this was an error please use '--doSystematics'")
 if (args_count := len(sys.argv)) > 1:
     config_file = sys.argv[1]
     if os.path.exists( config_file ):
@@ -94,21 +97,29 @@ with open("Background/config_high_mass.py", "w") as f:
 os.chdir("Trees2WS")
 if len(opt.run_only) == 0 or "trees" in opt.run_only:
     # Run Tree2Workspace
+    syst_opt = '--doSystematics' if opt.do_syst else ''
 
     cmd = f"python3 RunWSScripts.py --inputDir {input_dir}/signal/ --inputConfig config_high_mass.py \
-        --year {year} --mode trees2ws --batch local --modeOpts \"--minMass {MLow} --maxMass {MHigh} \"" #--doSystematics\""
+        --year {year} --mode trees2ws --batch local --modeOpts \"--minMass {MLow} --maxMass {MHigh} {syst_opt} \""
     subprocess.call(cmd, shell=True)
 
     cmd = f"python3 RunWSScripts.py --inputDir {input_dir}/data/ --inputConfig config_high_mass.py \
-        --year {year} --mode trees2ws_data --batch local --modeOpts \"--applyMassCut --massCutRange {MLow},{MHigh} \"" #--doSystematics\""
+        --year {year} --mode trees2ws_data --batch local --modeOpts \"--applyMassCut --massCutRange {MLow},{MHigh} {syst_opt} \""
     subprocess.call(cmd, shell=True)
 
 if len(opt.run_only) == 0 or "signal" in opt.run_only:
     # Run Signal fit
     os.chdir("../Signal")
 
+    if opt.do_syst:
+        cmd = f"""python3 RunSignalScripts.py --inputConfig config_high_mass.py --mode calcPhotonSyst \
+            --modeOpts \" --nBins {MBins}  --minMass {MLow} --maxMass {MHigh}\""""
+        subprocess.call(cmd, shell=True)
+
+    syst_opt = '' if opt.do_syst else '--skipSystematics'
+
     cmd = f"""python3 RunSignalScripts.py --inputConfig config_high_mass.py --mode signalFit \
-        --modeOpts \" --doPlots --skipSystematics --skipVertexScenarioSplit --skipBeamspotReweigh --nBins {MBins}  --minMass {MLow} --maxMass {MHigh}\""""
+        --modeOpts \" --doPlots {syst_opt} --skipVertexScenarioSplit --skipBeamspotReweigh --nBins {MBins}  --minMass {MLow} --maxMass {MHigh}\""""
     subprocess.call(cmd, shell=True)
 
     cmd = f"""python3 RunPackager.py --cats {cat} --exts {ext} --year {year} \
@@ -125,13 +136,14 @@ if len(opt.run_only) == 0 or "background" in opt.run_only:
 if len(opt.run_only) == 0 or "datacard" in opt.run_only:
     # Run Datacard maker
     os.chdir("../Datacard")
+    syst_opt = '--doSystematics' if opt.do_syst else ''
 
-    cmd = f"""python3 RunYields.py --inputWSDirMap {year}={input_dir}/signal/ws_{cfg["signal"]["procs"]} --doSystematics\
+    cmd = f"""python3 RunYields.py --inputWSDirMap {year}={input_dir}/signal/ws_{cfg["signal"]["procs"]} {syst_opt}\
         --cats {cat} --procs {cfg["signal"]["procs"]} --ext {ext} --skipCOWCorr --batch local --mass 700 --width {cfg["signal"]["width"]}"""
     print("------>", cmd)
     subprocess.call(cmd, shell=True)
 
-    cmd = f"""python3 makeDatacard.py --ext {ext} --years {year} --prune --doSystematics \
+    cmd = f"""python3 makeDatacard.py --ext {ext} --years {year} --prune {syst_opt} \
         --skipCOWCorr --doMCStatUncertainty --saveDataFrame --output Datacard_{ext} --mass 700"""
     print("------>", cmd)
     subprocess.call(cmd, shell=True)
@@ -144,7 +156,7 @@ if len(opt.run_only) == 0 or "combine" in opt.run_only:
         os.system("mkdir -p Models/signal")
         os.system("mkdir -p Models/background")
     else:
-        print("Models directory already exists. Leaving...")
+        print("Models directory already exists: models will not be copied into Combine dir. Leaving...")
         leave()
 
     os.system(f"cp ../Signal/outdir_packaged/CMS-HGG_sigfit_packaged*.root Models/signal/")

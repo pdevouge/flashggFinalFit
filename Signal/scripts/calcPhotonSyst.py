@@ -1,6 +1,6 @@
 # Script to calculate photon systematics
 # * Run script once per category, loops over signal processes
-# * Output is pandas dataframe 
+# * Output is pandas dataframe
 
 print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ HGG PHOTON SYST CALCULATOR ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
 import ROOT
@@ -26,6 +26,10 @@ def get_options():
   parser.add_option("--cat", dest='cat', default='', help="RECO category")
   parser.add_option("--procs", dest='procs', default='', help="Signal processes")
   parser.add_option("--ext", dest='ext', default='', help="Extension")
+  parser.add_option('--width', dest='width', default='001', help="Signal width")
+  parser.add_option('--massPoints', dest='massPoints', default='250,300,350,400,450,500', help="Mass points to fit")
+  parser.add_option('--minMass', dest='minMass', default='200', help="Mass range lower boundary")
+  parser.add_option('--maxMass', dest='maxMass', default='600', help="Mass range upper boundary")
   parser.add_option("--inputWSDir", dest='inputWSDir', default='', help="Input flashgg WS directory")
   parser.add_option("--scales", dest='scales', default='', help="Photon shape systematics: scales")
   parser.add_option("--scalesCorr", dest='scalesCorr', default='', help='Photon shape systematics: scalesCorr')
@@ -39,7 +43,14 @@ def get_options():
 (opt,args) = get_options()
 
 # RooRealVar to fill histograms
-mgg = ROOT.RooRealVar(opt.xvar,opt.xvar,125)
+w_indicator = 'W' if 'p' in opt.width else 'kMpl'
+nomW_str = w_indicator + opt.width
+nBins = int(opt.nBins)
+MHLow = int(opt.minMass)
+MHHigh = int(opt.maxMass)
+masses = opt.massPoints.split(",")
+MHNominal = masses[len(masses)//2]
+mgg = ROOT.RooRealVar(opt.xvar,opt.xvar,int(MHNominal))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function to extact histograms from WS
@@ -47,8 +58,8 @@ def getHistograms( _ws, _nominalDataName, _sname ):
   _hists = {}
   # Define histograms
   for htype in ['nominal','up','down']:
-    if htype == 'nominal': _hists[htype] = ROOT.TH1F(htype,htype,opt.nBins,100,180)
-    else: _hists[htype] = ROOT.TH1F("%s_%s"%(_sname,htype),"%s_%s"%(_sname,htype),opt.nBins,100,180)
+    if htype == 'nominal': _hists[htype] = ROOT.TH1F(htype,htype,nBins,MHLow,MHHigh)
+    else: _hists[htype] = ROOT.TH1F("%s_%s"%(_sname,htype),"%s_%s"%(_sname,htype),nBins,MHLow,MHHigh)
   # Extract nominal RooDataSet and syst RooDataHists
   rds_nominal = _ws.data(_nominalDataName)
   rdh_up = _ws.data("%s_%sUp01sigma"%(_nominalDataName,_sname))
@@ -65,7 +76,7 @@ def getHistograms( _ws, _nominalDataName, _sname ):
   if rdh_down: rdh_down.fillHistogram(_hists['down'],ROOT.RooArgList(mgg))
   else:
     print(" --> [ERROR] Could not extract RooDataHist (%s,down) for %s. Leaving"%(_sname,_nominalDataName))
-    sys.exit(1) 
+    sys.exit(1)
   return _hists
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -102,22 +113,24 @@ def getRateVar(_hists):
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Define dataFrame
-columns_data = ['proc','cat','inputWSFile','nominalDataName']
+columns_data = ['proc','cat','inputWSFile','nominalDataName','sigMass']
 for stype in ['scales','scalesCorr','smears']:
   systs = getattr( opt, stype )
   for s in systs.split(","):
     if s == '': continue
-    for x in ['mean','sigma','rate']: 
+    for x in ['mean','sigma','rate']:
       outputNuisanceExt = "_%s"%outputNuisanceExtMap[stype] if outputNuisanceExtMap[stype] != "" else ""
       columns_data.append("%s%s_%s"%(s,outputNuisanceExt,x))
-data = pd.DataFrame( columns=columns_data ) 
+data = pd.DataFrame( columns=columns_data )
 
 # Loop over processes and add row to dataframe
-for _proc in opt.procs.split(","):
-  # Glob M125 filename
-  _WSFileName = glob.glob("%s/output*M125*%s.root"%(opt.inputWSDir,_proc))[0]
-  _nominalDataName = "%s_125_%s_%s"%(procToData(_proc.split("_")[0]),sqrts__,opt.cat)
-  data = pd.concat([data,pd.DataFrame([{'proc':_proc,'cat':opt.cat,'inputWSFile':_WSFileName,'nominalDataName':_nominalDataName}])], ignore_index=True, sort=False)
+for _mass in masses:
+  mgg.setVal(int(_mass))
+  for _proc in opt.procs.split(","):
+    # Glob MX filename
+    _WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,_mass,nomW_str,_proc))[0]
+    _nominalDataName = "%s_%s_%s_%s_%s"%(procToData(_proc.split("_")[0]),_mass,opt.width,sqrts__,opt.cat)
+    data = pd.concat([data,pd.DataFrame([{'proc':_proc,'cat':opt.cat,'inputWSFile':_WSFileName,'nominalDataName':_nominalDataName,'sigMass':_mass}])], ignore_index=True, sort=False)
 
 # Loop over rows in dataFrame and open ws
 for ir,r in data.iterrows():
@@ -127,7 +140,7 @@ for ir,r in data.iterrows():
   # Open ROOT file and extract workspace
   f = ROOT.TFile(r['inputWSFile'])
   inputWS = f.Get(inputWSName__)
- 
+
   # Loop over scale and smear systematics
   for stype in ['scales','scalesCorr','smears']:
     for s in getattr(opt,stype).split(","):
@@ -159,5 +172,5 @@ for ir,r in data.iterrows():
 if not os.path.isdir("%s/outdir_%s"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s"%(swd__,opt.ext))
 if not os.path.isdir("%s/outdir_%s/calcPhotonSyst"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/calcPhotonSyst"%(swd__,opt.ext))
 if not os.path.isdir("%s/outdir_%s/calcPhotonSyst/pkl"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/calcPhotonSyst/pkl"%(swd__,opt.ext))
-with open("%s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,opt.ext,opt.cat),"wb") as f: pickle.dump(data,f) 
+with open("%s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,opt.ext,opt.cat),"wb") as f: pickle.dump(data,f)
 print(" --> Successfully saved photon systematics as pkl file: %s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,opt.ext,opt.cat))

@@ -15,6 +15,7 @@ from signalTools import *
 from replacementMap import globalReplacementMap
 from XSBRMap import *
 from simultaneousFit import *
+from interferenceModel import *
 from finalModel import *
 from plottingTools import *
 
@@ -119,6 +120,9 @@ f0.Close()
 MH = ROOT.RooRealVar("MH","m_{H}", int(MHLow), int(MHHigh))
 MH.setUnit("GeV")
 MH.setConstant(True)
+
+G0 = ROOT.RooRealVar("G0","Gamma_{0}", 0, 10000)
+G0.setConstant(True)
 
 if opt.skipZeroes:
   # Extract nominal mass dataset and see if entries == 0
@@ -350,10 +354,15 @@ if not opt.skipVertexScenarioSplit:
     ssfWV.buildAnalytical()
 
   ssfMap[name] = ssfWV
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# INTERFERENCE MODEL: construction
+print("\n --> Constructing interference model")
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # FINAL MODEL: construction
 print("\n --> Constructing final model")
-fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.ext,opt.year,sqrts__,nominalDatasets,xvar,MH,MHNominal,MHLow,MHHigh,opt.massPoints,xsbrMap,procSyst,opt.scales,opt.scalesCorr,opt.scalesGlobal,opt.smears,opt.doVoigtian,opt.useDCB,opt.skipVertexScenarioSplit,opt.skipSystematics)
+fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.ext,opt.year,sqrts__,nominalDatasets,xvar,MH,MHNominal,MHLow,MHHigh,opt.massPoints,G0,nomW_str,xsbrMap,procSyst,opt.scales,opt.scalesCorr,opt.scalesGlobal,opt.smears,opt.doVoigtian,opt.useDCB,opt.skipVertexScenarioSplit,opt.skipSystematics)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SAVE: to output workspace
 foutDir = "%s/outdir_%s/signalFit/output"%(swd__,opt.ext)
@@ -382,7 +391,8 @@ if opt.doPlots:
     plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins)
     if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
     plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
-    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_nominalMass=MHNominal,splinesToPlot=['ea'])
+    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_ea',_nominalMass=MHNominal,splinesToPlot=['ea'])
+    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_xs',_nominalMass=MHNominal,splinesToPlot=['xs_interference'])
   else:
     if opt.skipVertexScenarioSplit:
       plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))

@@ -9,6 +9,7 @@ print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RUNNING COMBINE LIMITS ~~~~~~~~~~~~~~~~~
 parser = OptionParser(usage="usage: %prog datacard.txt [options] \nrun with --help to get list of options")
 parser.add_option('--outdir',dest='outdir', default="", help='Where to save the limits (default: cwd)')
 parser.add_option('--mass_points',dest='mass_points', default="125", help='Mass points for which to calculate the limits')
+parser.add_option('--width_parameter',dest='width_p', default="0.0001414", help='Value of Gamma(m)=Gx/Mx (eg. sqrt(2)*kMpl^2 for spin-2 gravitons)')
 (opt,args) = parser.parse_args()
 
 def leave():
@@ -31,7 +32,7 @@ else:
   mass_points = [float(m) for m in list_of_points]
 
 if opt.outdir:
-  print(" --> Limits will be save into %s" %opt.outdir)
+  print(" --> Limits will be saved into %s" %opt.outdir)
   if not os.path.isdir( opt.outdir ): os.system("mkdir %s" %opt.outdir)
   os.chdir(opt.outdir)
 
@@ -40,8 +41,10 @@ if opt.outdir:
 
 for m in mass_points:
 
+  width = float(opt.width_p) * m
+
   cmd = f"""combineTool.py -M AsymptoticLimits -d {datacard} \
-    -n .limit --parallel 4 -m {m} --run blind --rAbsAcc 0.00005 --rRelAcc 0.00005"""
+    -n .limit --parallel 4 -m {m} --run blind --rAbsAcc 0.00005 --rRelAcc 0.00005 --freezeParameters G0 --setParameters G0={width}"""
 
   subprocess.call(cmd, shell=True)
 

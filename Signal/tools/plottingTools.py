@@ -499,9 +499,9 @@ def plotInterpolation(_finalModel,_outdir='./',_massPoints='250,300,350,400,450,
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Plot splines
-def plotSplines(_finalModel,_outdir="./",_nominalMass='400',splinesToPlot=['xs','br','ea','fracRV']):
+def plotSplines(_finalModel,_outdir="./",_ext='',_nominalMass='400',splinesToPlot=['xs','br','ea','fracRV']):
   canv = ROOT.TCanvas()
-  colorMap = {'xs':ROOT.kRed-4,'br':ROOT.kAzure+1,'ea':ROOT.kGreen+1,'fracRV':ROOT.kMagenta-7,'norm':ROOT.kBlack}
+  colorMap = {'xs':ROOT.kRed-4,'xs_interference':ROOT.kRed-4,'br':ROOT.kAzure+1,'ea':ROOT.kGreen+1,'fracRV':ROOT.kMagenta-7,'norm':ROOT.kBlack}
   grs = od()
   grs['norm'] = ROOT.TGraph()
   for sp in splinesToPlot: grs[sp] = ROOT.TGraph()
@@ -521,7 +521,7 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='400',splinesToPlot=['xs',
     for sp in splinesToPlot:
       x = _finalModel.Splines[sp].getVal()
       if xnom[sp] == 0.: r = 1.
-      else: r = x/xnom[sp]
+      else: r = x#/xnom[sp]
       grs[sp].SetPoint(p,int(mh),r)
       if r > xmax: xmax = r
       if r < xmin: xmin = r
@@ -553,6 +553,7 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='400',splinesToPlot=['xs',
     gr.Draw("Same PL")
     if x == "norm": leg.AddEntry(gr,"N_{exp}: @%s = %.2f"%(_nominalMass,xnom['norm']))
     if x == "xs": leg.AddEntry(gr,"#sigma: @%s = %.2f pb"%(_nominalMass,xnom['xs']))
+    if x == "xs_interference": leg.AddEntry(gr,"#sigma: @%s = %.2f pb"%(_nominalMass,xnom['xs_interference']))
     if x == "br": leg.AddEntry(gr,"#bf{#it{#Beta}}: @%s = %.2f%%"%(_nominalMass,100*xnom['br']))
     if x == "ea": leg.AddEntry(gr,"#epsilon x #it{#Alpha}: @%s = %.2f%%"%(_nominalMass,100*xnom['ea']))
     if x == "fracRV": leg.AddEntry(gr,"RV fraction: @%s = %.2f%%"%(_nominalMass,100*xnom['fracRV']))
@@ -566,8 +567,8 @@ def plotSplines(_finalModel,_outdir="./",_nominalMass='400',splinesToPlot=['xs',
   lat.SetTextSize(0.03)
   lat.DrawLatex(0.9,0.92,"%s"%(_finalModel.name))
   canv.Update()
-  canv.SaveAs("%s/%s_splines.png"%(_outdir,_finalModel.name))
-  canv.SaveAs("%s/%s_splines.pdf"%(_outdir,_finalModel.name))
+  canv.SaveAs("%s/%s_splines%s.png"%(_outdir,_finalModel.name,_ext))
+  canv.SaveAs("%s/%s_splines%s.pdf"%(_outdir,_finalModel.name,_ext))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for plotting final signal model: neat

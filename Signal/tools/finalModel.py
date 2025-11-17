@@ -79,7 +79,7 @@ def initialiseXSBR(opt):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class FinalModel:
   # Constructor
-  def __init__(self,_ssfMap,_proc,_cat,_ext,_year,_sqrts,_datasets,_xvar,_MH,_MHNominal,_MHLow,_MHHigh,_massPoints,_xsbrMap,_procSyst,_scales,_scalesCorr,_scalesGlobal,_smears,_doVoigtian,_useDCB,_skipVertexScenarioSplit,_skipSystematics):
+  def __init__(self,_ssfMap,_proc,_cat,_ext,_year,_sqrts,_datasets,_xvar,_MH,_MHNominal,_MHLow,_MHHigh,_massPoints,_gamma0,_width,_xsbrMap,_procSyst,_scales,_scalesCorr,_scalesGlobal,_smears,_doVoigtian,_useDCB,_skipVertexScenarioSplit,_skipSystematics):
     self.doAnalyticalForm = True
     self.ssfMap = _ssfMap
     self.proc = _proc
@@ -97,6 +97,8 @@ class FinalModel:
     self.MHLow = _MHLow
     self.MHHigh = _MHHigh
     self.massPoints = _massPoints
+    self.G0 = _gamma0
+    self.width = _width
     self.intLumi = ROOT.RooRealVar("IntLumi","IntLumi",1.,0.,999999999.) # in pb^-1
     self.xsbrMap = _xsbrMap
     # Systematics
@@ -114,7 +116,6 @@ class FinalModel:
     # Dict to store objects
     self.Splines = od()
     self.Functions = od()
-    self.NuisanceMap = od()
     self.Pdfs = od()
     self.Datasets = od()
     # Build XS/BR/EA splines
@@ -126,10 +127,11 @@ class FinalModel:
     self.XSBR = initialiseXSBR(options)
     self.buildXSBRSplines()
     self.buildEffAccSpline()
-    # If not skip systematics: add nuisance params to dict
-    if not self.skipSystematics: self.buildNuisanceMap()
     # Build final pdfs
     if not self.doAnalyticalForm:
+      self.NuisanceMap = od()
+      # If not skip systematics: add nuisance params to dict
+      if not self.skipSystematics: self.buildNuisanceMap()
       if not self.skipVertexScenarioSplit:
         self.buildRVFracFunction()
         self.buildPdf(self.ssfMap['RV'],ext="rv",useDCB=self.useDCB)
@@ -139,7 +141,11 @@ class FinalModel:
         self.buildPdf(self.ssfMap['Total'],ext='total',useDCB=self.useDCB)
         self.Pdfs['final'] = self.Pdfs['total']
     else:
-      self.Pdfs['final'] = self.ssfMap['Total'].Pdfs['final'].clone("%s_%s"%(outputWSObjectTitle__,self.name))
+      self.NuisanceSplines = od()
+      # If not skip systematics: add nuisance params to splines
+      if not self.skipSystematics: self.buildNuisanceSplines()
+      self.buildAnalyticalPdf(self.ssfMap['Total'],ext='total')
+      self.Pdfs['final'] = self.Pdfs['total']
     # Build final normalisation, datasets and extended Pdfs
     self.buildNorm()
     self.buildDatasets()
@@ -165,6 +171,17 @@ class FinalModel:
     br = np.ones_like(mh)
     self.Splines['br'] = ROOT.RooSpline1D("fbr_%s"%self.sqrts,"fbr_%s"%self.sqrts,self.MH,len(mh),mh,br)
 
+    mh, xs = [], []
+    for m in self.massPoints.split(","):
+        if m in self.xsbrMap[self.proc][self.width].keys():
+            entry = self.xsbrMap[self.proc][self.width][m]
+            mh.append(float(entry['mass']))
+            xs.append(float(entry['factor']))
+        else:
+            print(f"[WARNING] No XS data for mass {m_str} in {self.proc}/{self.width}")
+    # Build the xs RooSpline1D for later use with interference
+    self.Splines['xs_interference'] = ROOT.RooSpline1D("fxs_%s_%s"%(self.proc,self.sqrts),"fxs_%s_%s"%(self.proc,self.sqrts),self.MH,len(mh),np.array(mh),np.array(xs))
+
   def buildEffAccSpline(self):
     # In HiggsDNA, eff x acc = sum of weights
     # Loop over mass points
@@ -183,9 +200,246 @@ class FinalModel:
   # Function to build final normalisation: XS * BR * eff * acc * rate
   def buildNorm(self):
     # Build rate function: encode affect of nuisances on signal rate
-    self.buildRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
+    if self.doAnalyticalForm:
+      self.buildAnalyticalRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
+    else:
+      self.buildRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
     finalPdfName = self.Pdfs['final'].GetName()
     self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1*@2*@3",ROOT.RooArgList(self.Splines['xs'],self.Splines['br'],self.Splines['ea'],self.Functions['rate_%s'%self.name]))
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Function for making nuisance splines w/ info to add to Nuisance dict
+  def makeNuisanceSplines(self,nuisanceName,nuisanceMass,nuisanceMeanConst,nuisanceSigmaConst,nuisanceRateConst,nuisanceType,nuisanceOpts=[]):
+    nuisanceMass = np.array(nuisanceMass, dtype=float)
+    nuisanceMeanConst = np.array(nuisanceMeanConst, dtype=float)
+    nuisanceSigmaConst = np.array(nuisanceSigmaConst, dtype=float)
+    nuisanceRateConst = np.array(nuisanceRateConst, dtype=float)
+    self.NuisanceSplines[nuisanceType] = od()
+    self.NuisanceSplines[nuisanceType][nuisanceName] = {
+      'name':nuisanceName,
+      'param':ROOT.RooRealVar("%s_%s"%(outputWSNuisanceTitle__,nuisanceName),"%s_%s"%(outputWSNuisanceTitle__,nuisanceName),0.,-5.,5.),
+      'meanConst':ROOT.RooSpline1D("spline_%s_mean_%s"%(self.name,nuisanceName),"spline_%s_mean_%s"%(self.name,nuisanceName),self.MH,len(nuisanceMass),nuisanceMass,nuisanceMeanConst),
+      'sigmaConst':ROOT.RooSpline1D("spline_%s_sigma_%s"%(self.name,nuisanceName),"spline_%s_sigma_%s"%(self.name,nuisanceName),self.MH,len(nuisanceMass),nuisanceMass,nuisanceSigmaConst),
+      'rateConst':ROOT.RooSpline1D("spline_%s_rate_%s"%(self.name,nuisanceName),"spline_%s_rate_%s"%(self.name,nuisanceName),self.MH,len(nuisanceMass),nuisanceMass,nuisanceRateConst),
+      'opts':nuisanceOpts
+    }
+    self.NuisanceSplines[nuisanceType][nuisanceName]['param'].setConstant(True)
+
+  def plotNuisanceSplines(self, nuisanceType, nuisanceName):
+    colors = [
+        ROOT.kRed, ROOT.kBlue, ROOT.kGreen + 2, ROOT.kMagenta,
+        ROOT.kOrange, ROOT.kCyan + 1, ROOT.kViolet, ROOT.kAzure + 2,
+        ROOT.kTeal + 3, ROOT.kPink + 6
+    ]
+
+    gr = od()
+    for sParam in ['meanConst', 'sigmaConst', 'rateConst']:
+        gr[sParam] = od()
+        color_index = 0
+        ymax, ymin = 0, 0.5
+
+        mass_points = [float(mh) for mh in self.massPoints.split(',')]
+        xmin = min(mass_points)
+        xmax = max(mass_points)
+
+        for sType in ['scales', 'scalesCorr', 'scalesGlobal', 'smears']:
+            if sType not in self.NuisanceSplines: continue
+            for sName in self.NuisanceSplines[sType].keys():
+                spline = self.NuisanceSplines[sType][sName][sParam]
+
+                g_points = ROOT.TGraph()
+                g_points.SetMarkerColor(colors[color_index % len(colors)])
+                g_points.SetMarkerStyle(20)
+
+                g_spline = ROOT.TGraph()
+                g_spline.SetLineColor(colors[color_index % len(colors)])
+
+                gr[sParam][sName] = (g_points, g_spline)
+
+                # Fill mass points graph
+                p = 0
+                for mh in mass_points:
+                    self.MH.setVal(float(mh))
+                    y = spline.getVal()
+                    g_points.SetPoint(p, mh, y)
+                    ymax = max(ymax, y)
+                    ymin = min(ymin, y)
+                    p += 1
+
+                # Fill spline graph
+                p = 0
+                for mh in np.linspace(xmin, xmax, 300):
+                    self.MH.setVal(float(mh))
+                    y = spline.getVal()
+                    g_spline.SetPoint(p, mh, y)
+                    p += 1
+
+                color_index += 1
+
+        # Create canva with axes
+        canv = ROOT.TCanvas()
+        haxes = ROOT.TH1F("h_axes_spl", "h_axes_spl",
+                          int(self.MHHigh) - int(self.MHLow),
+                          int(self.MHLow), int(self.MHHigh))
+
+        haxes.SetTitle("Syst_%s"%(sParam))
+        haxes.GetXaxis().SetTitle("m_{X} [GeV]")
+        haxes.GetXaxis().SetTitleSize(0.05)
+        haxes.GetXaxis().SetTitleOffset(0.85)
+        haxes.GetXaxis().SetLabelSize(0.035)
+        haxes.GetYaxis().SetTitleOffset(0.85)
+        haxes.GetYaxis().SetTitleSize(0.05)
+        haxes.SetMaximum(1.2 * ymax)
+        haxes.SetMinimum(0)
+        haxes.Draw()
+
+        # Draw all graphs and add legend
+        leg = ROOT.TLegend(0.2, 0.7, 0.48, 0.88)
+        for sName, (g_points, g_spline) in gr[sParam].items():
+            g_spline.Draw("L SAME")
+            g_points.Draw("P SAME")
+            leg.AddEntry(g_points, sName, "lp")
+
+        leg.Draw()
+        canv.Update()
+        canv.SaveAs(f"./CUBIC_spline_{sParam}.png")
+
+  # Function for building Nuisance param splines:
+  def buildNuisanceSplines(self):
+    # Dict to store nuisances of different type in map
+    for sType in ['scales','scalesCorr','scalesGlobal','smears']:
+      if getattr(self,sType) != '': self.NuisanceSplines[sType] = od()
+
+    # Extract calcPhotonSyst output
+    psname = "%s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,self.ext,self.cat)
+    if not os.path.exists(psname):
+      print(" --> [ERROR] Photon systematics do not exist (%s). Please run calcPhotonSyst mode first or skip systematics (--skipSystematics)"%psname)
+      sys.exit(1)
+    with open(psname,"rb") as fpkl: psdata = pickle.load(fpkl)
+
+    # Get row for proc: option to use diagonal process
+    r = psdata[psdata['proc']==self.procSyst]
+    if len(r) == 0:
+      print(" --> [WARNING] Process %s is not in systematics pkl (%s). Skipping systematics."%(self.proc,psname))
+      self.skipSystematics = True
+
+    else:
+      # Add scales, scalesCorr, scalesGlobal, smears
+      for sType in ['scales','scalesCorr','scalesGlobal','smears']:
+        for syst in getattr(self,sType).split(","):
+          if syst == '': continue
+
+          # If corr/global nor in sType then build separate nuisance per year i.e. de-correlate
+          if('Corr' in sType)|('Global' in sType): sExt = ""
+          else: sExt = "_%s"%self.year
+
+          # Extract info
+          systOpts = syst.split(":")
+          if outputNuisanceExtMap[sType] != "":
+            sName = "%s_%s"%(systOpts[0],outputNuisanceExtMap[sType])
+          else:
+            sName = systOpts[0]
+
+          # Extract constant values and make nuisance
+          if sType == 'scalesGlobal':
+            mp = self.massPoints.split(',')
+            cMass, cMean, cSigma, cRate = mp,[0.]*len(mp),[0.]*len(mp),[0.]*len(mp)
+          else:
+            cMass, cMean, cSigma, cRate = r["sigMass"].values, r["%s_mean"%sName].values, r["%s_sigma"%sName].values, r["%s_rate"%sName].values
+          sOpts = systOpts[1:] if len(systOpts) > 1 else []
+          self.makeNuisanceSplines("%s%s"%(sName,sExt),cMass,cMean,cSigma,cRate,sType,sOpts)
+
+      self.plotNuisanceSplines(sType,"%s%s"%(sName,sExt))
+
+  def buildAnalyticalPdf(self,ssf,ext=''):
+    extStr = "%s_%s"%(self.name,ext) if ext!='total' else '%s'%self.name
+    # Extract resolution parameters
+    for f in ['dm_scaled','sigma_scaled','n1_formula','n2_formula','a1_formula','a2_formula']:
+      k = "%s_dcb"%(f.split('_')[0])
+      self.Functions["%s_%s"%(k,extStr)] = ssf.ResoFuncs[f].Clone()
+    # Build mean and sigma functions: including systematics
+    self.buildAnalyticalMean('dm_dcb_%s'%(extStr),skipSystematics=self.skipSystematics)
+    self.buildAnalyticalSigma('sigma_dcb_%s'%extStr,skipSystematics=self.skipSystematics)
+    # Build DCB resolution pdf
+    self.Pdfs['reso_dcb_%s'%extStr] = ROOT.RooDoubleCBFast("reso_dcb_%s"%extStr,"reso_dcb_%s"%extStr,self.xvar,
+                                                          self.Functions["dm_dcb_%s_syst"%extStr],
+                                                          self.Functions["sigma_dcb_%s_syst"%extStr],
+                                                          self.Functions['a1_dcb_%s'%extStr],
+                                                          self.Functions['n1_dcb_%s'%extStr],
+                                                          self.Functions['a2_dcb_%s'%extStr],
+                                                          self.Functions['n2_dcb_%s'%extStr])
+
+    # * true lineshape: relativistic BW
+    formula = "2/pi*CMS_hgg_mass^2*G0/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*G0^2)"
+    self.Pdfs['rel_bw_%s'%extStr] = ROOT.RooGenericPdf("rel_bw_%s"%extStr,"rel_bw_%s"%extStr,formula,
+                                                      ROOT.RooArgList(self.MH,self.G0,self.xvar))
+
+    self.xvar.setBins(10000, "cache")
+    self.Pdfs[ext] = ROOT.RooFFTConvPdf("%s_%s"%(outputWSObjectTitle__,extStr),"%s_%s"%(outputWSObjectTitle__,extStr), self.xvar, self.Pdfs['rel_bw_%s'%extStr], self.Pdfs['reso_dcb_%s'%extStr])
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Functions to build mean, sigma and rate functions from splines with systematics
+  def buildAnalyticalMean(self,dmName='',skipSystematics=False):
+    sys_meanName = "%s_syst"%(dmName)
+    # Build formula string and dependents list
+    dependents = ROOT.RooArgList()
+    formula = "(@0)"
+    dependents.add(self.Functions[dmName])
+    if not skipSystematics:
+      # Add systematics
+      formula += "*(1."
+      # Global
+      if 'scalesGlobal' in self.NuisanceSplines:
+        for sName, sInfo in self.NuisanceSplines['scalesGlobal'].items():
+          formula += "+@%g"%dependents.getSize()
+          # For adding additional factor
+          for so in sInfo['opts']:
+            if "factor_%s"%self.cat in so:
+              additionalFactor = float(so.split("=")[-1])
+              formula += "*%3.1f"%additionalFactor
+          dependents.add(sInfo['param'])
+      # Other systs: scales, scalesCorr, smears
+      for sType in ['scales','scalesCorr','smears']:
+        if sType in self.NuisanceSplines:
+          for sName, sInfo in self.NuisanceSplines[sType].items():
+            formula += "+@%g*@%g"%(dependents.getSize(),dependents.getSize()+1)
+            dependents.add(sInfo['meanConst'])
+            dependents.add(sInfo['param'])
+      formula += ")"
+    self.Functions[sys_meanName] = ROOT.RooFormulaVar(sys_meanName,sys_meanName,formula,dependents)
+
+  def buildAnalyticalSigma(self,sigmaName="",skipSystematics=False):
+    sys_sigmaName = "%s_syst"%(sigmaName)
+    # Build formula string and dependents list
+    dependents = ROOT.RooArgList()
+    formula = "@0"
+    dependents.add(self.Functions[sigmaName])
+    if not skipSystematics:
+      # Add systematics
+      formula += "*TMath::Max(1.e-2,(1."
+      for sType in ['scales','scalesCorr','smears']:
+        if sType in self.NuisanceSplines:
+          for sName, sInfo in self.NuisanceSplines[sType].items():
+            formula += "+@%g*@%g"%(dependents.getSize(),dependents.getSize()+1)
+            dependents.add(sInfo['sigmaConst'])
+            dependents.add(sInfo['param'])
+      formula += "))"
+    self.Functions[sys_sigmaName] = ROOT.RooFormulaVar(sys_sigmaName,sys_sigmaName,formula,dependents)
+
+  def buildAnalyticalRate(self,rateName,skipSystematics=False):
+    # Build formula string and dependents list
+    dependents = ROOT.RooArgList()
+    formula = "(1."
+    if not skipSystematics:
+      # Add systematics
+      for sType in ['scales','scalesCorr','smears']:
+        if sType in self.NuisanceSplines:
+          for sName, sInfo in self.NuisanceSplines[sType].items():
+            formula += "+@%g*@%g"%(dependents.getSize(),dependents.getSize()+1)
+            dependents.add(sInfo['rateConst'])
+            dependents.add(sInfo['param'])
+    formula += ")"
+    self.Functions[rateName] = ROOT.RooFormulaVar(rateName,rateName,formula,dependents)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function for making nuisance param w/ info to add to Nuisance dict
