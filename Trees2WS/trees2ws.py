@@ -59,6 +59,7 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_minMass='200',_maxM
       # _vars[var].setBins(160)
       _vars[var] = ROOT.RooRealVar(var,var,400.,float(_minMass),float(_maxMass))
       _vars[var].setBins((int(_maxMass)-int(_minMass))*2)
+      _vars[var].setBins(10000, "cache")
       # _vars[var] = ROOT.RooRealVar(var,var,float(_mass),float(_mass)-0.2*float(_mass),float(_mass)+0.2*float(_mass))
       # bin_w = 0.5 #GeV
       # mass_rg = 0.4*float(_mass)

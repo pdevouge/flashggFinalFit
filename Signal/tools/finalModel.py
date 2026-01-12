@@ -383,29 +383,34 @@ class FinalModel:
     sys_meanName = "%s_syst"%(dmName)
     # Build formula string and dependents list
     dependents = ROOT.RooArgList()
-    formula = "(@0)"
+    dependents.add(self.MH)
     dependents.add(self.Functions[dmName])
     if not skipSystematics:
       # Add systematics
-      formula += "*(1."
+      sigma = ""
       # Global
       if 'scalesGlobal' in self.NuisanceSplines:
         for sName, sInfo in self.NuisanceSplines['scalesGlobal'].items():
-          formula += "+@%g"%dependents.getSize()
+          sigma += "+@%g"%dependents.getSize()
           # For adding additional factor
           for so in sInfo['opts']:
             if "factor_%s"%self.cat in so:
               additionalFactor = float(so.split("=")[-1])
-              formula += "*%3.1f"%additionalFactor
+              sigma += "*%3.1f"%additionalFactor
           dependents.add(sInfo['param'])
       # Other systs: scales, scalesCorr, smears
       for sType in ['scales','scalesCorr','smears']:
         if sType in self.NuisanceSplines:
           for sName, sInfo in self.NuisanceSplines[sType].items():
-            formula += "+@%g*@%g"%(dependents.getSize(),dependents.getSize()+1)
+            sigma += "+@%g*@%g"%(dependents.getSize(),dependents.getSize()+1)
             dependents.add(sInfo['meanConst'])
             dependents.add(sInfo['param'])
-      formula += ")"
+      if len(sigma) > 0: sigma = sigma[1:] # remove leading '+'
+
+    formula = "(@0)*(" + sigma
+    formula += ")"
+    formula += "+(@1)*(1.+" + sigma
+    formula += ")"
     self.Functions[sys_meanName] = ROOT.RooFormulaVar(sys_meanName,sys_meanName,formula,dependents)
 
   def buildAnalyticalSigma(self,sigmaName="",skipSystematics=False):

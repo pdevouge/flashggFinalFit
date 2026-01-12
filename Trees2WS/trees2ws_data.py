@@ -52,6 +52,7 @@ def add_vars_to_workspace(_ws=None,_dataVars=None,_minMass='100',_maxMass='5000'
       # _vars[var].setBins(160)
       _vars[var] = ROOT.RooRealVar(var,var,_midMass,float(_minMass),float(_maxMass))
       _vars[var].setBins((int(_maxMass)-int(_minMass))*2)
+      _vars[var].setBins(10000, "cache")
     elif var == "dZ":
       _vars[var] = ROOT.RooRealVar(var,var,0.,-20.,20.)
       _vars[var].setBins(40)
