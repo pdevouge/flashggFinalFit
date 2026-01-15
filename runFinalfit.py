@@ -104,7 +104,7 @@ if len(opt.run_only) == 0 or "trees" in opt.run_only:
     subprocess.call(cmd, shell=True)
 
     cmd = f"python3 RunWSScripts.py --inputDir {input_dir}/data/ --inputConfig config_high_mass.py \
-        --year {year} --mode trees2ws_data --batch local --modeOpts \"--applyMassCut --massCutRange {MLow},{MHigh} {syst_opt} \""
+        --year {year} --mode trees2ws_data --batch local --modeOpts \"--applyMassCut --massCutRange {MLow},{MHigh} \""
     subprocess.call(cmd, shell=True)
 
 if len(opt.run_only) == 0 or "signal" in opt.run_only:

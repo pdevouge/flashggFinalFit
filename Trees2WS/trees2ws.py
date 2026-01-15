@@ -306,22 +306,26 @@ for stxsId in data[stxsVar].unique():
           mask = (sdf['type']=='%s%s'%(s,direction))&(sdf['cat']==cat)
 
           # Define RooDataHist
-          hName = "%s_%s_%s_%s_%s_%s%s01sigma"%(opt.productionMode,opt.inputMass,opt.inputWidth,sqrts__,cat,s,direction)
+          dName = "%s_%s_%s_%s_%s_%s%s01sigma"%(opt.productionMode,opt.inputMass,opt.inputWidth,sqrts__,cat,s,direction)
 
           # Make argset: drop weight column for histogrammed observables
-          systematicsVarsDropWeight = []
-          for var in systematicsVars:
-            if var != "weight": systematicsVarsDropWeight.append(var)
-          aset = make_argset(ws,systematicsVarsDropWeight)
+          # systematicsVarsDropWeight = []
+          # for var in systematicsVars:
+          #   if var != "weight": systematicsVarsDropWeight.append(var)
+          # aset = make_argset(ws,systematicsVarsDropWeight)
 
-          h = ROOT.RooDataHist(hName,hName,aset)
-          for row, weight in zip(sdf[mask][systematicsVarsDropWeight].to_numpy(),sdf[mask]["weight"].to_numpy()):
-            for i, val in enumerate(row):
-              aset[i].setVal(val)
-            h.add(aset,weight)
+          # h = ROOT.RooDataHist(hName,hName,aset)
+          # for row, weight in zip(sdf[mask][systematicsVarsDropWeight].to_numpy(),sdf[mask]["weight"].to_numpy()):
+          #   for i, val in enumerate(row):
+          #     aset[i].setVal(val)
+          #   h.add(aset,weight)
+
+          systematicsVars = add_vars_to_workspace(ws,sdf,stxsVar,opt.minMass,opt.maxMass,opt.inputMass)
+          aset = make_argset(ws,systematicsVars)
+          d = ROOT.RooDataSet.from_pandas(sdf[mask][systematicsVars], aset, dName,dName, weight_name="weight")
 
           # Add to workspace
-          getattr(ws,'import')(h)
+          getattr(ws,'import')(d)
 
   # Write WS to file
   ws.Write()
