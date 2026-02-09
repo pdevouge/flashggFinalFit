@@ -18,10 +18,10 @@ pLUT['Reso_DCB']['sigma'] = [0.01, 0.001, 0.1]
 # pLUT['Reso_DCB']['n2'] = [10., 4., 20.] # nR
 # pLUT['Reso_DCB']['a1'] = [1.5, 0.5, 2.0] # alphaL
 # pLUT['Reso_DCB']['a2'] = [1.5, 0.5, 2.0] # alphaR
-pLUT['Reso_DCB']['n1'] = [5.5, 3., 6.] # nL
-pLUT['Reso_DCB']['n2'] = [10., 7., 13.] # nR
-pLUT['Reso_DCB']['a1'] = [1., 0.8, 1.5] # alphaL
-pLUT['Reso_DCB']['a2'] = [1.5, 1.2, 1.7] # alphaR
+pLUT['Reso_DCB']['n1'] = [4., 3., 10.] # nL
+pLUT['Reso_DCB']['n2'] = [10., 4., 20.] # nR
+pLUT['Reso_DCB']['a1'] = [1., 0.8, 2.0] # alphaL
+pLUT['Reso_DCB']['a2'] = [1.5, 1.2, 1.8] # alphaR
 pLUT['Reso_func'] = od()
 pLUT['Reso_func']['dm'] = ['[0]+[1]*x']
 pLUT['Reso_func']['sigma'] = ['[0]+[1]*x']
@@ -276,11 +276,11 @@ class SimultaneousFit:
         self.Varlists[k].add( self.Vars['%s_%s'%(k,f)] )
 
       # Fix 'a1' and 'a2'
-      # self.Vars['%s_a1'%(k)].setVal(1)
-      # self.Vars['%s_a1'%(k)].setConstant(True)
+      self.Vars['%s_n1'%(k)].setVal(3.5) #3.5 #5.3
+      self.Vars['%s_n1'%(k)].setConstant(True)
 
-      # self.Vars['%s_a2'%(k)].setVal(1.4)
-      # self.Vars['%s_a2'%(k)].setConstant(True)
+      self.Vars['%s_n2'%(k)].setVal(5) #5 #7
+      self.Vars['%s_n2'%(k)].setConstant(True)
 
       # Build DCB for individual mass
       self.Pdfs['dcb_reso_%s'%mass] = ROOT.RooDoubleCBFast("dcb_reso_%s"%mass,"dcb_reso_%s"%mass,self.reduced_mass,

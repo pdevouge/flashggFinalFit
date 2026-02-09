@@ -8,6 +8,7 @@ print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RUNNING COMBINE LIMITS ~~~~~~~~~~~~~~~~~
 
 parser = OptionParser(usage="usage: %prog datacard.txt [options] \nrun with --help to get list of options")
 parser.add_option('--outdir',dest='outdir', default="", help='Where to save the limits (default: cwd)')
+parser.add_option('--title',dest='title', default="RSGraviton, 2022", help='Type of signal to display in plot title')
 parser.add_option('--mass_points',dest='mass_points', default="125", help='Mass points for which to calculate the limits')
 parser.add_option('--width_parameter',dest='width_p', default="0.0001414", help='Value of Gamma(m)=Gx/Mx (eg. sqrt(2)*kMpl^2 for spin-2 gravitons)')
 (opt,args) = parser.parse_args()
@@ -51,5 +52,5 @@ for m in mass_points:
 cmd = "combineTool.py -M CollectLimits *.limit.* --use-dirs -o limits.json"
 subprocess.call(cmd, shell=True)
 
-cmd = f"python3 {os.path.dirname(__file__)}/plot_limits.py --input limits_default.json"
+cmd = f"python3 {os.path.dirname(__file__)}/plot_limits.py --input limits_default.json --title='{opt.title}'"
 subprocess.call(cmd, shell=True)

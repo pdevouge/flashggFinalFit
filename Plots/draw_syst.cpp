@@ -4,18 +4,19 @@
 #include <TCanvas.h>
 #include <TLegend.h>
 #include <TROOT.h>
+#include <iostream>
 
 void draw_syst() {
     gStyle->SetOptStat(0);
-    TFile *f = TFile::Open("RSG_W_SYST/signal/output_RSGravitonToGG_M700_kMpl001_13TeV_pythia8.root");
-    TTree *tree_nom = (TTree*)f->Get("DiphotonTree/rsg_700_001_13TeV_rsg_cut");
-    TTree *tree_up = (TTree*)f->Get("DiphotonTree/rsg_700_001_13TeV_rsg_cut_ScaleUp01sigma");
+    TFile *f = TFile::Open("../../RSG_NEW_PNN/signal/output_RSGravitonToGG_M700_kMpl001_13TeV_pythia8.root");
+    TTree *tree_nom = (TTree*)f->Get("DiphotonTree/rsg_700_001_13TeV_rsg_std_cat");
+    TTree *tree_up = (TTree*)f->Get("DiphotonTree/rsg_700_001_13TeV_rsg_std_cat_SmearingUp01sigma");
 
     // --- Create canvas ---
     TCanvas *c_all = new TCanvas("c_all", "CMS_hgg_mass PDFs", 800, 600);
 
     // --- Nominal histogram ---
-    TH1F *h_nom = new TH1F("h_nom", "Systematics - Scale up 1 sigma;CMS_hgg_mass [GeV]; Events (norm.)",
+    TH1F *h_nom = new TH1F("h_nom", "Systematics - Smearing up 1 sigma;CMS_hgg_mass [GeV]; Events (norm.)",
                            100, 650, 750);
     h_nom->Sumw2();
 
@@ -53,14 +54,14 @@ void draw_syst() {
     h_up->Draw("HIST SAME");
 
     // ---------- Load RooFit PDF ----------
-    TFile *f_sig = TFile::Open("flashggFinalFit/Signal/outdir_RSG_500-1000_postEE_syst/signalFit/output/CMS-HGG_sigfit_RSG_500-1000_postEE_syst_rsg_2022postEE_rsg_cut.root");
+    TFile *f_sig = TFile::Open("../Signal/outdir_RSG_500-1000_postEE_NewPNN/signalFit/output/CMS-HGG_sigfit_RSG_500-1000_postEE_NewPNN_rsg_2022postEE_rsg_std_cat.root");
     RooWorkspace *w_sig = (RooWorkspace*)f_sig->Get("wsig_13TeV");
-    RooAbsPdf *pdf = w_sig->pdf("hggpdfsmrel_rsg_2022postEE_rsg_cut_13TeV");
+    RooAbsPdf *pdf = w_sig->pdf("hggpdfsmrel_rsg_2022postEE_rsg_std_cat_13TeV");
 
     // ---------- Set variables ----------
     RooRealVar *MH = w_sig->var("MH");
     RooRealVar *G0 = w_sig->var("G0");
-    RooRealVar *nuis = w_sig->var("CMS_hgg_nuisance_Scale_2022postEE");
+    RooRealVar *nuis = w_sig->var("CMS_hgg_nuisance_Smearing_2022postEE");
 
     MH->setVal(700);
     G0->setVal(0.099);
@@ -75,6 +76,7 @@ void draw_syst() {
     pdf->plotOn(frame, RooFit::Normalization(1, RooAbsReal::Relative), RooFit::LineColor(kBlue), RooFit::LineWidth(2), RooFit::Name("pdf_nom"));
 
     nuis->setVal(1);
+    // w_sig->Print();
     pdf->plotOn(frame, RooFit::Normalization(1, RooAbsReal::Relative), RooFit::LineColor(kViolet), RooFit::LineWidth(2), RooFit::Name("pdf_up"));
 
     frame->Draw("SAME"); // draw PDF on same canvas
@@ -90,8 +92,8 @@ void draw_syst() {
 
     // --- Update canvas and save ---
     c_all->Update();
-    c_all->SaveAs("PDF_syst_check_Scale.png");  // save as PNG
-    c_all->SaveAs("PDF_syst_check_Scale.root"); // ROOT file
+    c_all->SaveAs("PDF_syst_check_Smearing.png");  // save as PNG
+    c_all->SaveAs("PDF_syst_check_Smearing.root"); // ROOT file
 }
 
 int main() {

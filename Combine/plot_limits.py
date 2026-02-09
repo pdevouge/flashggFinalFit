@@ -9,6 +9,7 @@ def get_options():
   parser = OptionParser()
   # Take inputs from config file
   parser.add_option('--input', dest='inputJson', default='limits_default.json', help="Limits.json")
+  parser.add_option('--title', dest='title', default='Limit', help="Plot title")
   parser.add_option('--unblinded', dest='unblinded', action='store_true', help="Unblind limit plot")
   return parser.parse_args()
 (opt,args) = get_options()
@@ -47,8 +48,12 @@ pads[0].GetFrame().Draw()
 FixBothRanges(pads[0], 0, 0, GetPadYMax(pads[0]), 0.25)
 
 # Standard CMS logo
+if opt.title:
+  main_title, sub_title = opt.title.split(',')
+else:
+  main_title, sub_title = '', ''
 DrawCMSLogo(pads[0], 'CMS', 'Internal', 0, 0.13, 0.035, 1.2, '', 0.8)
-DrawCMSLogo(pads[0], 'Spin-0', '2022PostEE', 11, 0.2, 0.035, 1.2, '', 0.8)
+DrawCMSLogo(pads[0], main_title, sub_title, 11, 0.2, 0.035, 1.2, '', 0.8)
 
 # Add luminosity text at the top right
 lumi = ROOT.TLatex()
