@@ -1,7 +1,9 @@
 # Class for performing simultaneous signal fit
+import os
 import ROOT
 import json
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
 import scipy.stats
 from collections import OrderedDict as od
@@ -396,10 +398,56 @@ class SimultaneousFit:
                                                           self.ResoFuncs['n2_formula'])
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  def buildSignalSplines(self, decay='hgg'):
+    script_dir = os.path.abspath( os.path.dirname( __file__ ) )
+    mcfm = pd.read_csv('%s/csv/mcfm_xsec.csv'%script_dir).set_index('m_x')
+    limit_pb = pd.read_csv('%s/csv/limitExp_spin0_138fb_Oct2025.csv'%script_dir).set_index('mh')['up_pb']
+    gx_lhc_gev = pd.read_csv('%s/csv/lhchwg_hsm_width.csv'%script_dir).set_index('mh')
+    xsec_lhc_pb = pd.read_csv('%s/csv/lhchwg_hsm_xsec.csv'%script_dir).set_index('mh')['xsec']
+    xsec_mcfm_lo = mcfm.query('xsec_lo > 1e-10')['xsec_lo']
+    xsec_mcfm_pl = mcfm['xsec']
+    kf_mcfm = xsec_lhc_pb[200] / xsec_mcfm_lo[200]
+
+    self.Splines['xsec_ul'] = ROOT.RooSpline1D("xsec_ul_%s"%(self.name),"xsec_ul_%s"%(self.name), self.MH, len(limit_pb), limit_pb.index.to_numpy(), limit_pb.to_numpy())
+    xsec_sm_ = lambda x : np.interp(x, xsec_mcfm_lo.index, xsec_mcfm_lo.values * kf_mcfm)
+    xsec_n3lo_ggF = 48.6
+    kf_n3lo =  xsec_n3lo_ggF / xsec_sm_(125)
+    self.Splines['xsec_sm'] = ROOT.RooSpline1D("xsec_sm_%s"%(self.name),"xsec_sm_%s"%(self.name), self.MH, len(xsec_mcfm_lo), xsec_mcfm_lo.index.to_numpy(), xsec_mcfm_lo.to_numpy() * kf_mcfm * kf_n3lo)
+    self.Splines['xsec_pl'] = ROOT.RooSpline1D("xsec_pl_%s"%(self.name),"xsec_pl_%s"%(self.name), self.MH, len(xsec_mcfm_pl), xsec_mcfm_pl.index.to_numpy(), xsec_mcfm_pl.to_numpy())
+
+    self.Splines['ghgg_sm_MH'] = ROOT.RooSpline1D("ghgg_sm_MH_%s"%(self.name),"ghgg_sm_MH_%s"%(self.name), self.MH, len(gx_lhc_gev), gx_lhc_gev.index.to_numpy(), gx_lhc_gev[decay].to_numpy())
+    self.Splines['ghgg_sm_m'] = ROOT.RooSpline1D("ghgg_sm_m_%s"%(self.name),"ghgg_sm_m_%s"%(self.name), self.xvar, len(gx_lhc_gev), gx_lhc_gev.index.to_numpy(), gx_lhc_gev[decay].to_numpy())
+    self.Splines['ghgg_sm_truem'] = ROOT.RooSpline1D("ghgg_sm_truem_%s"%(self.name),"ghgg_sm_truem_%s"%(self.name), self.true_mass, len(gx_lhc_gev), gx_lhc_gev.index.to_numpy(), gx_lhc_gev[decay].to_numpy())
+
+  def buildXgg(self, decay='hgg', xsec='sm'):
+    dependents = ROOT.RooArgList()
+    self.buildSignalSplines(decay)
+    br_x = "%s / %s"%(self.Splines['xsec_ul'].GetName(),self.Splines['xsec_sm'].GetName())
+    dependents.add(self.Splines['xsec_ul'])
+    dependents.add(self.Splines['xsec_sm'])
+
+    xsec_str = self.Splines['xsec_sm'].GetName() if xsec == 'sm' else self.Splines['xsec_pl'].GetName()
+    if xsec != 'sm': dependents.add(self.Splines['xsec_pl'])
+    kf = "%s / %s"%(self.Splines['xsec_sm'].GetName(), xsec_str)
+
+    partial_width = "ghgg_sm"
+    dependents.add(self.Splines['ghgg_sm_MH'])
+    dependents.add(self.Splines['ghgg_sm_m'])
+
+    m_mx = "%s / %s"%(self.xvar.GetName(),self.MH.GetName())
+    dependents.add(self.xvar)
+    dependents.add(self.MH)
+
+    formula = f"{br_x} * {xsec_str} * {kf} * {partial_width}_m_{self.name} / {partial_width}_MH_{self.name} \
+                * 2/pi * {self.width} * ({m_mx})^2 / ((({m_mx})^2 - 1)^2 + {self.width}^2) * 1 / MH"
+
+    self.Pdfs['sig_x'] = ROOT.RooGenericPdf("sig_x","",formula, dependents)
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildTrueLineshape(self):
 
     if self.proc == 'rsg': g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * %s^2 * MH / 1."%self.width, ROOT.RooArgList(self.MH))
-    else: g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * %s^2 * MH / 1."%self.width, ROOT.RooArgList(self.MH))
+    else: g0 = ROOT.RooFormulaVar("g0", "", "%s * MH"%self.width, ROOT.RooArgList(self.MH))
     self.Vars['g0'] = g0
     # formula = "1/(2*pi)*g0/((CMS_hgg_mass-MH)^2+g0^2/4)"
     formula = "2/pi*CMS_hgg_mass^2*g0/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)"

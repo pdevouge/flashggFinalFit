@@ -119,7 +119,7 @@ if len(opt.run_only) == 0 or "signal" in opt.run_only:
     syst_opt = '' if opt.do_syst else '--skipSystematics'
 
     cmd = f"""python3 RunSignalScripts.py --inputConfig config_high_mass.py --mode signalFit \
-        --modeOpts \" --doPlots {syst_opt} --skipVertexScenarioSplit --skipBeamspotReweigh --nBins {MBins}  --minMass {MLow} --maxMass {MHigh}\""""
+        --modeOpts \" --doPlots {syst_opt} --skipVertexScenarioSplit --skipBeamspotReweigh --nBins {MBins}  --minMass {MLow} --maxMass {MHigh} {cfg['signal']['options']} \""""
     subprocess.call(cmd, shell=True)
 
     cmd = f"""python3 RunPackager.py --cats {cat} --exts {ext} --year {year} \

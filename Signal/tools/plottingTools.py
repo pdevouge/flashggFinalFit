@@ -12,7 +12,7 @@ def Translate(name, ndict):
     return ndict[name] if name in ndict else name
 
 
-def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=False, _bins=100):
+def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=False, _bins=100, _skipMC=False):
   if _from_formulas: _extension += 'from_formula'
   else: _extension += 'from_singlefit'
 
@@ -22,7 +22,8 @@ def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=Fa
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
     frame = ssf.reduced_mass.frame()
-    ssf.DataHists['reduced_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"), ROOT.RooFit.Binning(_bins))
+    if not _skipMC:
+      ssf.DataHists['reduced_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"), ROOT.RooFit.Binning(_bins))
     if _from_formulas:
       ssf.MH.setVal(float(mass))
       ssf.MH.setConstant(True)
@@ -74,7 +75,7 @@ def plotDCBParameters(ssf,_outdir='./'):
     canv.SaveAs("%s/DCB_parameters_%s.png"%(_outdir,f))
     canv.SaveAs("%s/DCB_parameters_%s.pdf"%(_outdir,f))
 
-def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150):
+def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
   # Here it is easier to create a 'temporary' rel BW based on true mass, for plotting purposes
   formula = ssf.Pdfs['rel_bw'].expression()
   formula = formula.replace("x[0]",ssf.MH.GetName()).replace("x[1]",ssf.Vars['g0'].GetName()).replace("x[2]",ssf.true_mass.GetName())
@@ -88,7 +89,8 @@ def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150):
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
     frame = ssf.true_mass.frame(range_m, range_p, _nbins)
-    ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+    if not _skipMC:
+      ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
     rel_bw.plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
     frame.Draw()
 
@@ -112,7 +114,98 @@ def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150):
     canv.SaveAs("%s/true_lineshape_%s.png"%(_outdir,mass))
     canv.SaveAs("%s/true_lineshape_%s.pdf"%(_outdir,mass))
 
-def plotAnalyticalModel(ssf,_outdir='./'):
+def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
+
+  splinesToPlot = ['xsec_ul','xsec_sm','xsec_pl','ghgg_sm_MH','ghgg_sm_m']
+  mh_vals = [float(x) for x in ssf.massPoints.split(',')[1:-1]]
+  for sp in splinesToPlot:
+    canv = ROOT.TCanvas()
+    grs = ROOT.TGraph()
+    # Loop over mass points
+    p = 0
+    xmax, xmin = 0,0.5
+    for mh in mh_vals:
+      ssf.MH.setVal(float(mh))
+      x = ssf.Splines[sp].getVal()
+      grs.SetPoint(p,int(mh),x)
+      if x > xmax: xmax = x
+      if x < xmin: xmin = x
+      p += 1
+    # Draw axes
+    haxes = ROOT.TH1F("h_axes_spl","h_axes_spl",int(mh_vals[-1]-mh_vals[0]),mh_vals[0],mh_vals[-1])
+    haxes.SetTitle("")
+    haxes.GetXaxis().SetTitle("m_{X} [GeV]")
+    haxes.SetMaximum(1.2*xmax)
+    haxes.SetMinimum(0)
+    haxes.Draw()
+    grs.Draw("Same PL")
+    canv.Update()
+    canv.SaveAs("%s/%s_splines.png"%(_outdir,sp))
+    canv.SaveAs("%s/%s_splines.pdf"%(_outdir,sp))
+
+
+  # Here it is easier to create a 'temporary' pdf based on true mass, for plotting purposes
+  dependents = ROOT.RooArgList()
+  formula = ssf.Pdfs['sig_x'].expression()
+  for i in range(ssf.Pdfs['sig_x'].nParameters()):
+    if ssf.Pdfs['sig_x'].getParameter(i).GetName() == "ghgg_sm_m_%s"%(ssf.name):
+      formula = formula.replace(f"x[{i}]",ssf.Splines['ghgg_sm_truem'].GetName())
+      dependents.add(ssf.Splines['ghgg_sm_truem'])
+    elif ssf.Pdfs['sig_x'].getParameter(i).GetName() == ssf.xvar.GetName():
+      formula = formula.replace(f"x[{i}]",ssf.true_mass.GetName())
+      dependents.add(ssf.true_mass)
+    else:
+      formula = formula.replace(f"x[{i}]",ssf.Pdfs['sig_x'].getParameter(i).GetName())
+      dependents.add(ssf.Pdfs['sig_x'].getParameter(i))
+
+  sig_x = ROOT.RooGenericPdf("temp_sig_x","",formula, dependents)
+
+  for mass in ['500','600','700','750','800']:#ssf.massPoints.split(','):
+    ssf.MH.setVal(int(mass))
+    ssf.MH.setConstant(True)
+    reso = 1.7/125
+    range_m, range_p = int(mass)*(1-5*reso), int(mass)*(1+5*reso)
+    #int(mass)-_range*int(mass), int(mass)+_range*int(mass)
+    ssf.true_mass.setRange(range_m, range_p)
+
+    canv = ROOT.TCanvas()
+    canv.SetLeftMargin(0.15)
+    frame = ssf.true_mass.frame(range_m, range_p, _nbins)
+    # ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+
+    import pandas as pd
+    df = pd.read_parquet('../ggX0_1p4.parquet') #comparison to Pythia samples
+    mass_values = df["m_X0"].values
+    data = ROOT.RooDataSet("data", "data", ROOT.RooArgSet(ssf.true_mass))
+    for m in mass_values:
+        ssf.true_mass.setVal(float(m))
+        data.add(ROOT.RooArgSet(ssf.true_mass))
+    data.plotOn(frame)
+
+    sig_x.plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
+    frame.Draw()
+
+    # Create legend
+    legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
+    legend.SetBorderSize(0)
+    legend.SetFillStyle(0)
+    legend.SetTextSize(0.04)
+    legend.AddEntry("mc", "True mass MC", "lep")
+    legend.AddEntry("pdf", "True lineshape", "l")  # Use curve from frame
+    legend.Draw()
+    chi2 = frame.chiSquare()
+    pave_text = ROOT.TPaveText(0.6, 0.5, 0.88, 0.6, "NDC")
+    pave_text.SetBorderSize(0)
+    pave_text.SetFillStyle(0)
+    pave_text.SetTextSize(0.04)
+    pave_text.AddText("#chi^{2} / n(dof) = %.2f"%chi2)  # Add chi2/ndf text
+    pave_text.Draw()
+
+    frame.SetTitle(f"True Xgg model, M - {mass}")
+    canv.SaveAs("%s/true_xgg_%s.png"%(_outdir,mass))
+    canv.SaveAs("%s/true_xgg_%s.pdf"%(_outdir,mass))
+
+def plotAnalyticalModel(ssf,_outdir='./',_skipMC=False):
   for mass in ssf.massPoints.split(','):
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
@@ -120,7 +213,8 @@ def plotAnalyticalModel(ssf,_outdir='./'):
     ssf.MH.setVal(int(mass))
     ssf.MH.setConstant(True)
     frame = ssf.xvar.frame()
-    ssf.DataHists['reco_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+    if not _skipMC:
+      ssf.DataHists['reco_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
     ssf.Pdfs['final'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
     frame.Draw()
 

@@ -41,8 +41,10 @@ def get_options():
   parser.add_option('--skipBeamspotReweigh', dest='skipBeamspotReweigh', default=True, action="store_true", help="Skip beamspot reweigh to match beamspot distribution in data")
   parser.add_option('--doPlots', dest='doPlots', default=False, action="store_true", help="Produce Signal Fitting plots")
   parser.add_option("--doVoigtian", dest='doVoigtian', default=False, action="store_true", help="Use Voigtians instead of Gaussians for signal models with Higgs width as parameter")
+  parser.add_option('--skipResolutionModel', dest='skipResolutionModel', default=False, action="store_true", help="Skip detector resolution model using DCB")
+  parser.add_option('--skipMC', dest='skipMC', default=False, action="store_true", help="Skip MC reading (NB: The MC are needed for the resolution model!)")
   parser.add_option("--useInterpolation", dest='useInterpolation', default=False, action="store_true", help="Use signal interpolation instead of analytical form")
-  parser.add_option("--useDCB", dest='useDCB', default=False, action="store_true", help="Use DCB in signal fitting")
+  parser.add_option("--useDCB", dest='useDCB', default=False, action="store_true", help="Use DCB in signal interpolation approach")
   parser.add_option("--useDiagonalProcForShape", dest='useDiagonalProcForShape', default=False, action="store_true", help="Use shape of diagonal process, keeping normalisation (requires diagonal mapping produced by getDiagProc script)")
   parser.add_option('--skipVertexScenarioSplit', dest='skipVertexScenarioSplit', default=True, action="store_true", help="Skip vertex scenario split")
   parser.add_option('--skipZeroes', dest='skipZeroes', default=False, action="store_true", help="Skip proc x cat is numEntries = 0., or sumEntries < 0.")
@@ -64,6 +66,9 @@ def get_options():
   parser.add_option('--minimizerTolerance', dest='minimizerTolerance', default=1e-8, type='float', help="(Scipy) Minimizer toleranve")
   return parser.parse_args()
 (opt,args) = get_options()
+
+if opt.skipResolutionModel:
+  opt.skipMC = True
 
 ROOT.gStyle.SetOptStat(0)
 ROOT.gROOT.SetBatch(True)
@@ -102,19 +107,32 @@ if opt.analysis not in globalXSBRMap:
   leave()
 else: xsbrMap = globalXSBRMap[opt.analysis]
 
-# Load RooRealVars
-nominalWSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,MHNominal,nomW_str,opt.proc))[0]
-f0 = ROOT.TFile(nominalWSFileName,"read")
-inputWS0 = f0.Get(inputWSName__)
-xvar = inputWS0.var(opt.xvar)
-xvar.setRange(int(MHLow), int(MHHigh))
-xvarFit = xvar.Clone()
-print(xvar)
-dZ = inputWS0.var("dZ")
-true_mass = inputWS0.var("true_mass")
-reduced_mass = inputWS0.var("reduced_mass")
-aset = ROOT.RooArgSet(xvar,dZ,true_mass,reduced_mass)
-f0.Close()
+if not opt.skipMC:
+  # Load RooRealVars from workspace
+  nominalWSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,MHNominal,nomW_str,opt.proc))[0]
+  f0 = ROOT.TFile(nominalWSFileName,"read")
+  inputWS0 = f0.Get(inputWSName__)
+  xvar = inputWS0.var(opt.xvar)
+  xvar.setRange(int(MHLow), int(MHHigh))
+  xvarFit = xvar.Clone()
+  print(xvar)
+  dZ = inputWS0.var("dZ")
+  true_mass = inputWS0.var("true_mass")
+  reduced_mass = inputWS0.var("reduced_mass")
+  aset = ROOT.RooArgSet(xvar,dZ,true_mass,reduced_mass)
+  f0.Close()
+else:
+  xvar = ROOT.RooRealVar("CMS_hgg_mass","CMS_hgg_mass",float(MHNominal),float(MHLow),float(MHHigh))
+  xvar.setBins((int(MHHigh)-int(MHLow))*2)
+  xvar.setBins(10000, "cache")
+  xvarFit = xvar.Clone()
+  true_mass = ROOT.RooRealVar("true_mass","true_mass",float(MHNominal),float(MHLow),float(MHHigh))
+  true_mass.setBins(int(MHHigh)-int(MHLow))
+  reduced_mass = ROOT.RooRealVar("reduced_mass","reduced_mass",0., -0.1, 0.1)
+  reduced_mass.setBins(100)
+  dZ = ROOT.RooRealVar("dZ","dZ",0.,-20.,20.)
+  dZ.setBins(40)
+  aset = ROOT.RooArgSet(xvar,dZ,true_mass,reduced_mass)
 
 # Create MH var
 MH = ROOT.RooRealVar("MH","m_{H}", int(MHLow), int(MHHigh))
@@ -173,115 +191,119 @@ nominalDatasets = od()
 datasetRVForFit = od()
 datasetRVForFit['low_w'] = od()
 datasetRVForFit['nom_w'] = od()
-for mp in opt.massPoints.split(","):
-  # Load low width samples for true lineshape description
-  WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,lowW_str,procRVFit))[0]
-  f = ROOT.TFile(WSFileName,"read")
-  inputWS = f.Get(inputWSName__)
-  d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,lowW,sqrts__,catRVFit)),aset)
-  if opt.skipVertexScenarioSplit: datasetRVForFit['low_w'][mp] = d
-  else: datasetRVForFit['low_w'][mp] = splitRVWV(d,aset,mode="RV")
-  inputWS.Delete()
-  f.Close()
 
-  WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procRVFit))[0]
-  f = ROOT.TFile(WSFileName,"read")
-  inputWS = f.Get(inputWSName__)
-  d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit)),aset)
-  nominalDatasets[mp] = d.Clone()
-  if opt.skipVertexScenarioSplit: datasetRVForFit['nom_w'][mp] = d
-  else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")
-  inputWS.Delete()
-  f.Close()
+if not opt.skipVertexScenarioSplit:
+  datasetWVForFit = od()
+  datasetWVForFit['low_w'] = od()
+  datasetWVForFit['nom_w'] = od()
 
-# Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
-if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
-  nominal_numEntries = datasetRVForFit['nom_w'][MHNominal].numEntries()
-  procReplacementFit, catReplacementFit = rMap['procRVMap'][opt.cat], rMap['catRVMap'][opt.cat]
+if not opt.skipMC:
   for mp in opt.massPoints.split(","):
-    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procReplacementFit))[0]
+    # Load low width samples for true lineshape description
+    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,lowW_str,procRVFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,opt.width,sqrts__,catReplacementFit)),aset)
+    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,lowW,sqrts__,catRVFit)),aset)
+    if opt.skipVertexScenarioSplit: datasetRVForFit['low_w'][mp] = d
+    else: datasetRVForFit['low_w'][mp] = splitRVWV(d,aset,mode="RV")
+    inputWS.Delete()
+    f.Close()
+
+    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procRVFit))[0]
+    f = ROOT.TFile(WSFileName,"read")
+    inputWS = f.Get(inputWSName__)
+    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit)),aset)
+    nominalDatasets[mp] = d.Clone()
     if opt.skipVertexScenarioSplit: datasetRVForFit['nom_w'][mp] = d
     else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")
     inputWS.Delete()
     f.Close()
 
-  # Check if replacement dataset has too few entries: if so throw error
-  if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
-    print(" --> [ERROR] replacement dataset (%s,%s) has too few entries (%g < %g)"%(procReplacementFit,catReplacementFit,datasetRVForFit[MHNominal].numEntries(),opt.replacementThreshold))
-    sys.exit(1)
-
-  else:
-    procRVFit, catRVFit = procReplacementFit, catReplacementFit
-    if opt.skipVertexScenarioSplit:
-      print(" --> Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procRVFit,catRVFit))
-      for mp in opt.massPoints.split(","):
-        print("     * MH = %s GeV: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
-    else:
-      print(" --> RV: Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procRVFit,catRVFit))
-      for mp in opt.massPoints.split(","):
-        print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
-
-else:
-  if opt.skipVertexScenarioSplit:
-    print(" --> Using (proc,cat) = (%s,%s) for extracting shape"%(procRVFit,catRVFit))
-    for mp in opt.massPoints.split(","):
-      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
-  else:
-    print(" --> RV: Using (proc,cat) = (%s,%s) for extracting shape"%(procRVFit,catRVFit))
-    for mp in opt.massPoints.split(","):
-      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
-
-# Repeat for WV scenario
-if not opt.skipVertexScenarioSplit:
-  datasetWVForFit = od()
-  datasetWVForFit['low_w'] = od()
-  datasetWVForFit['nom_w'] = od()
-  for mp in opt.massPoints.split(","):
-    # Load low width samples for true lineshape description
-    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,lowW_str,procWVFit))[0]
-    f = ROOT.TFile(WSFileName,"read")
-    inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,lowW,sqrts__,catWVFit)),aset)
-    datasetWVForFit['low_w'][mp] = splitRVWV(d,aset,mode="WV")
-    inputWS.Delete()
-    f.Close()
-
-    WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procWVFit))[0]
-    f = ROOT.TFile(WSFileName,"read")
-    inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,opt.width,sqrts__,catWVFit)),aset)
-    datasetWVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="WV")
-    inputWS.Delete()
-    f.Close()
-
-  # Check nominal mass dataset
-  if( datasetWVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetWVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
-    nominal_numEntries = datasetWVForFit['nom_w'][MHNominal].numEntries()
-    procReplacementFit, catReplacementFit = rMap['procWV'], rMap['catWV']
+  # Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
+  if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
+    nominal_numEntries = datasetRVForFit['nom_w'][MHNominal].numEntries()
+    procReplacementFit, catReplacementFit = rMap['procRVMap'][opt.cat], rMap['catRVMap'][opt.cat]
     for mp in opt.massPoints.split(","):
       WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procReplacementFit))[0]
       f = ROOT.TFile(WSFileName,"read")
       inputWS = f.Get(inputWSName__)
       d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,opt.width,sqrts__,catReplacementFit)),aset)
+      if opt.skipVertexScenarioSplit: datasetRVForFit['nom_w'][mp] = d
+      else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")
+      inputWS.Delete()
+      f.Close()
+
+    # Check if replacement dataset has too few entries: if so throw error
+    if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
+      print(" --> [ERROR] replacement dataset (%s,%s) has too few entries (%g < %g)"%(procReplacementFit,catReplacementFit,datasetRVForFit[MHNominal].numEntries(),opt.replacementThreshold))
+      sys.exit(1)
+
+    else:
+      procRVFit, catRVFit = procReplacementFit, catReplacementFit
+      if opt.skipVertexScenarioSplit:
+        print(" --> Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procRVFit,catRVFit))
+        for mp in opt.massPoints.split(","):
+          print("     * MH = %s GeV: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
+      else:
+        print(" --> RV: Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procRVFit,catRVFit))
+        for mp in opt.massPoints.split(","):
+          print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
+
+  else:
+    if opt.skipVertexScenarioSplit:
+      print(" --> Using (proc,cat) = (%s,%s) for extracting shape"%(procRVFit,catRVFit))
+      for mp in opt.massPoints.split(","):
+        print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
+    else:
+      print(" --> RV: Using (proc,cat) = (%s,%s) for extracting shape"%(procRVFit,catRVFit))
+      for mp in opt.massPoints.split(","):
+        print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetRVForFit['nom_w'][mp].numEntries(),datasetRVForFit['nom_w'][mp].sumEntries()))
+
+  # Repeat for WV scenario
+  if not opt.skipVertexScenarioSplit:
+    for mp in opt.massPoints.split(","):
+      # Load low width samples for true lineshape description
+      WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,lowW_str,procWVFit))[0]
+      f = ROOT.TFile(WSFileName,"read")
+      inputWS = f.Get(inputWSName__)
+      d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,lowW,sqrts__,catWVFit)),aset)
+      datasetWVForFit['low_w'][mp] = splitRVWV(d,aset,mode="WV")
+      inputWS.Delete()
+      f.Close()
+
+      WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procWVFit))[0]
+      f = ROOT.TFile(WSFileName,"read")
+      inputWS = f.Get(inputWSName__)
+      d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procWVFit.split("_")[0]),mp,opt.width,sqrts__,catWVFit)),aset)
       datasetWVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="WV")
       inputWS.Delete()
       f.Close()
-    # Check if replacement dataset has too few entries: if so throw error
-    if( datasetWVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold )|( datasetWVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
-      print(" --> [ERROR] replacement dataset (%s,%s) has too few entries (%g < %g)"%(procReplacementFit,catReplacementFit,datasetWVForFit['nom_w'][MHNominal].numEntries,opt.replacementThreshold))
-      sys.exit(1)
+
+    # Check nominal mass dataset
+    if( datasetWVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetWVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
+      nominal_numEntries = datasetWVForFit['nom_w'][MHNominal].numEntries()
+      procReplacementFit, catReplacementFit = rMap['procWV'], rMap['catWV']
+      for mp in opt.massPoints.split(","):
+        WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procReplacementFit))[0]
+        f = ROOT.TFile(WSFileName,"read")
+        inputWS = f.Get(inputWSName__)
+        d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procReplacementFit.split("_")[0]),mp,opt.width,sqrts__,catReplacementFit)),aset)
+        datasetWVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="WV")
+        inputWS.Delete()
+        f.Close()
+      # Check if replacement dataset has too few entries: if so throw error
+      if( datasetWVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold )|( datasetWVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
+        print(" --> [ERROR] replacement dataset (%s,%s) has too few entries (%g < %g)"%(procReplacementFit,catReplacementFit,datasetWVForFit['nom_w'][MHNominal].numEntries,opt.replacementThreshold))
+        sys.exit(1)
+      else:
+        procWVFit, catWVFit = procReplacementFit, catReplacementFit
+        print(" --> WV: Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procWVFit,catWVFit))
+        for mp in opt.massPoints.split(","):
+          print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetWVForFit['nom_w'][mp].numEntries(),datasetWVForFit['nom_w'][mp].sumEntries()))
     else:
-      procWVFit, catWVFit = procReplacementFit, catReplacementFit
-      print(" --> WV: Too few entries in nominal dataset (%g < %g). Using replacement (proc,cat) = (%s,%s) for extracting shape"%(nominal_numEntries,opt.replacementThreshold,procWVFit,catWVFit))
+      print(" --> WV: Using (proc,cat) = (%s,%s) for extracting shape"%(procWVFit,catRVFit))
       for mp in opt.massPoints.split(","):
         print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetWVForFit['nom_w'][mp].numEntries(),datasetWVForFit['nom_w'][mp].sumEntries()))
-  else:
-    print(" --> WV: Using (proc,cat) = (%s,%s) for extracting shape"%(procWVFit,catRVFit))
-    for mp in opt.massPoints.split(","):
-      print("     * MH = %s: numEntries = %g, sumEntries = %.6f"%(mp,datasetWVForFit['nom_w'][mp].numEntries(),datasetWVForFit['nom_w'][mp].sumEntries()))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BEAMSPOT REWEIGHT
@@ -326,17 +348,25 @@ else:
 # FIT: simultaneous signal fit (ssf)
 ssfMap = od()
 name = "Total" if opt.skipVertexScenarioSplit else "RV"
-width = "%s.%s"%(opt.width[0],opt.width[1:]) if not 'p' in opt.width else opt.width.replace('p','.')
-ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,width,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+if 'p' in opt.width:
+  width = opt.width.replace('p','.')
+  width = f"({float(width)/100})"
+else:
+  width = "%s.%s"%(opt.width[0],opt.width[1:])
+ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,
+                        width,
+                        opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
 if opt.useInterpolation:
   if opt.useDCB: ssfRV.buildDCBplusGaussian()
   else: ssfRV.buildNGaussians(nRV)
   ssfRV.runFit()
   ssfRV.buildSplines()
 else:
-  ssfRV.buildResoModel()
   ssfRV.buildTrueLineshape()
-  ssfRV.buildAnalytical()
+  ssfRV.buildXgg(decay='hgg', xsec='sm')
+  if not opt.skipResolutionModel:
+    ssfRV.buildResoModel()
+    ssfRV.buildAnalytical()
 
 ssfMap[name] = ssfRV
 
@@ -349,9 +379,11 @@ if not opt.skipVertexScenarioSplit:
     ssfWV.runFit()
     ssfWV.buildSplines()
   else:
-    ssfWV.buildResoModel()
     ssfWV.buildTrueLineshape()
-    ssfWV.buildAnalytical()
+    ssfWV.buildXgg(decay='hgg', xsec='sm')
+    if not opt.skipResolutionModel:
+      ssfRV.buildResoModel()
+      ssfRV.buildAnalytical()
 
   ssfMap[name] = ssfWV
 
@@ -361,19 +393,22 @@ print("\n --> Constructing interference model")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # FINAL MODEL: construction
-print("\n --> Constructing final model")
-fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.ext,opt.year,sqrts__,nominalDatasets,xvar,MH,MHNominal,MHLow,MHHigh,opt.massPoints,G0,nomW_str,xsbrMap,procSyst,opt.scales,opt.scalesCorr,opt.scalesGlobal,opt.smears,opt.doVoigtian,opt.useDCB,opt.skipVertexScenarioSplit,opt.skipSystematics)
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SAVE: to output workspace
-foutDir = "%s/outdir_%s/signalFit/output"%(swd__,opt.ext)
-foutName = "%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,opt.ext,opt.ext,opt.proc,opt.year,opt.cat)
-print("\n --> Saving output workspace to file: %s"%foutName)
-if not os.path.isdir(foutDir): os.system("mkdir %s"%foutDir)
-fout = ROOT.TFile(foutName,"RECREATE")
-outWS = ROOT.RooWorkspace("%s_%s"%(outputWSName__,sqrts__),"%s_%s"%(outputWSName__,sqrts__))
-fm.save(outWS)
-outWS.Write()
-fout.Close()
+if opt.skipResolutionModel:
+  print("\n --> We cannot construct the final model without the resolution model...")
+else:
+  print("\n --> Constructing final model")
+  fm = FinalModel(ssfMap,opt.proc,opt.cat,opt.ext,opt.year,sqrts__,nominalDatasets,xvar,MH,MHNominal,MHLow,MHHigh,opt.massPoints,G0,nomW_str,xsbrMap,procSyst,opt.scales,opt.scalesCorr,opt.scalesGlobal,opt.smears,opt.doVoigtian,opt.useDCB,opt.skipVertexScenarioSplit,opt.skipSystematics)
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # SAVE: to output workspace
+  foutDir = "%s/outdir_%s/signalFit/output"%(swd__,opt.ext)
+  foutName = "%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,opt.ext,opt.ext,opt.proc,opt.year,opt.cat)
+  print("\n --> Saving output workspace to file: %s"%foutName)
+  if not os.path.isdir(foutDir): os.system("mkdir %s"%foutDir)
+  fout = ROOT.TFile(foutName,"RECREATE")
+  outWS = ROOT.RooWorkspace("%s_%s"%(outputWSName__,sqrts__),"%s_%s"%(outputWSName__,sqrts__))
+  fm.save(outWS)
+  outWS.Write()
+  fout.Close()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # PLOTTING
@@ -381,18 +416,21 @@ if opt.doPlots:
   print("\n --> Making plots...")
   if not os.path.isdir("%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots"%(swd__,opt.ext))
   if not opt.useInterpolation:
-    if not os.path.isdir("%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
-    plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
-    plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext), _from_formulas=True)
-    plotDCBParameters(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
+    if not opt.skipResolutionModel:
+      if not os.path.isdir("%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
+      plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext), _skipMC=opt.skipMC)
+      plotIndividualDCB(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext), _from_formulas=True, _skipMC=opt.skipMC)
+      plotDCBParameters(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/resolutionDCB"%(swd__,opt.ext))
     if not os.path.isdir("%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext))
     truemass_range = 0.001 if (opt.width == "001" or opt.width == "0p014") else 0.2
     truemass_nbins = 150 if (opt.width == "001" or opt.width == "0p014") else 100
-    plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins)
-    if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
-    plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
-    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_ea',_nominalMass=MHNominal,splinesToPlot=['ea'])
-    plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_xs',_nominalMass=MHNominal,splinesToPlot=['xs_interference'])
+    plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins, _skipMC=opt.skipMC)
+    plotTrueXgg(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins, _skipMC=opt.skipMC)
+    if not opt.skipResolutionModel:
+      if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
+      plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext), _skipMC=opt.skipMC)
+      plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_ea',_nominalMass=MHNominal,splinesToPlot=['ea'])
+      plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_xs',_nominalMass=MHNominal,splinesToPlot=['xs_interference'])
   else:
     if opt.skipVertexScenarioSplit:
       plotPdfComponents(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_extension="total_",_proc=procRVFit,_cat=catRVFit, _mass=float(MHNominal))
