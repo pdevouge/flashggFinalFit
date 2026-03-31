@@ -77,9 +77,24 @@ def plotDCBParameters(ssf,_outdir='./'):
 
 def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
   # Here it is easier to create a 'temporary' rel BW based on true mass, for plotting purposes
-  formula = ssf.Pdfs['rel_bw'].expression()
-  formula = formula.replace("x[0]",ssf.MH.GetName()).replace("x[1]",ssf.Vars['g0'].GetName()).replace("x[2]",ssf.true_mass.GetName())
-  rel_bw = ROOT.RooGenericPdf("temp_rel_bw","",formula, ROOT.RooArgList(ssf.MH,ssf.Vars['g0'],ssf.true_mass))
+  dependents = ROOT.RooArgList()
+  formula = ssf.Pdfs['sig_x'].expression()
+  for i in range(ssf.Pdfs['sig_x'].nParameters()):
+    if '_m_' in ssf.Pdfs['sig_x'].getParameter(i).GetName():
+      param = ssf.Pdfs['sig_x'].getParameter(i).GetName().replace('_m_','_truem_')
+      formula = formula.replace(f"x[{i}]",param)
+      dependents.add(ssf.Splines[param.rsplit('_', 1)[0]])
+    elif ssf.Pdfs['sig_x'].getParameter(i).GetName() == ssf.xvar.GetName():
+      formula = formula.replace(f"x[{i}]",ssf.true_mass.GetName())
+      dependents.add(ssf.true_mass)
+    else:
+      formula = formula.replace(f"x[{i}]",ssf.Pdfs['sig_x'].getParameter(i).GetName())
+      dependents.add(ssf.Pdfs['sig_x'].getParameter(i))
+
+  rel_bw = ROOT.RooGenericPdf("temp_sig_x","",formula, dependents)
+  # formula = ssf.Pdfs['rel_bw'].expression()
+  # formula = formula.replace("x[0]",ssf.MH.GetName()).replace("x[1]",ssf.Vars['g0'].GetName()).replace("x[2]",ssf.true_mass.GetName())
+  # rel_bw = ROOT.RooGenericPdf("temp_rel_bw","",formula, ROOT.RooArgList(ssf.MH,ssf.Vars['g0'],ssf.true_mass))
 
   for mass in ssf.massPoints.split(','):
     ssf.MH.setVal(int(mass))
@@ -116,41 +131,42 @@ def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=Fals
 
 def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
 
-  splinesToPlot = ['xsec_ul','xsec_sm','xsec_pl','ghgg_sm_MH','ghgg_sm_m']
-  mh_vals = [float(x) for x in ssf.massPoints.split(',')[1:-1]]
-  for sp in splinesToPlot:
-    canv = ROOT.TCanvas()
-    grs = ROOT.TGraph()
-    # Loop over mass points
-    p = 0
-    xmax, xmin = 0,0.5
-    for mh in mh_vals:
-      ssf.MH.setVal(float(mh))
-      x = ssf.Splines[sp].getVal()
-      grs.SetPoint(p,int(mh),x)
-      if x > xmax: xmax = x
-      if x < xmin: xmin = x
-      p += 1
-    # Draw axes
-    haxes = ROOT.TH1F("h_axes_spl","h_axes_spl",int(mh_vals[-1]-mh_vals[0]),mh_vals[0],mh_vals[-1])
-    haxes.SetTitle("")
-    haxes.GetXaxis().SetTitle("m_{X} [GeV]")
-    haxes.SetMaximum(1.2*xmax)
-    haxes.SetMinimum(0)
-    haxes.Draw()
-    grs.Draw("Same PL")
-    canv.Update()
-    canv.SaveAs("%s/%s_splines.png"%(_outdir,sp))
-    canv.SaveAs("%s/%s_splines.pdf"%(_outdir,sp))
+  # splinesToPlot = ['xsec_ul','xsec_sm','xsec_pl','ghgg_sm_MH','ghgg_sm_m','xsec_py']
+  # mh_vals = [float(x) for x in ssf.massPoints.split(',')[1:-1]]
+  # for sp in splinesToPlot:
+  #   canv = ROOT.TCanvas()
+  #   grs = ROOT.TGraph()
+  #   # Loop over mass points
+  #   p = 0
+  #   xmax, xmin = 0,0
+  #   for mh in mh_vals:
+  #     ssf.MH.setVal(float(mh))
+  #     x = ssf.Splines[sp].getVal()
+  #     grs.SetPoint(p,int(mh),x)
+  #     if x > xmax: xmax = x
+  #     if x < xmin: xmin = x
+  #     p += 1
+  #   # Draw axes
+  #   haxes = ROOT.TH1F("h_axes_spl","h_axes_spl",int(mh_vals[-1]-mh_vals[0]),mh_vals[0],mh_vals[-1])
+  #   haxes.SetTitle("")
+  #   haxes.GetXaxis().SetTitle("m_{X} [GeV]")
+  #   haxes.SetMaximum(1.2*xmax)
+  #   haxes.SetMinimum(0)
+  #   haxes.Draw()
+  #   grs.Draw("Same PL")
+  #   canv.Update()
+  #   canv.SaveAs("%s/%s_splines.png"%(_outdir,sp))
+  #   canv.SaveAs("%s/%s_splines.pdf"%(_outdir,sp))
 
 
   # Here it is easier to create a 'temporary' pdf based on true mass, for plotting purposes
   dependents = ROOT.RooArgList()
   formula = ssf.Pdfs['sig_x'].expression()
   for i in range(ssf.Pdfs['sig_x'].nParameters()):
-    if ssf.Pdfs['sig_x'].getParameter(i).GetName() == "ghgg_sm_m_%s"%(ssf.name):
-      formula = formula.replace(f"x[{i}]",ssf.Splines['ghgg_sm_truem'].GetName())
-      dependents.add(ssf.Splines['ghgg_sm_truem'])
+    if '_m_' in ssf.Pdfs['sig_x'].getParameter(i).GetName():
+      param = ssf.Pdfs['sig_x'].getParameter(i).GetName().replace('_m_','_truem_')
+      formula = formula.replace(f"x[{i}]",param)
+      dependents.add(ssf.Splines[param.rsplit('_', 1)[0]])
     elif ssf.Pdfs['sig_x'].getParameter(i).GetName() == ssf.xvar.GetName():
       formula = formula.replace(f"x[{i}]",ssf.true_mass.GetName())
       dependents.add(ssf.true_mass)
@@ -160,7 +176,7 @@ def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
 
   sig_x = ROOT.RooGenericPdf("temp_sig_x","",formula, dependents)
 
-  for mass in ['500','600','700','750','800']:#ssf.massPoints.split(','):
+  for mass in ['500','750','1000']:#ssf.massPoints.split(','):
     ssf.MH.setVal(int(mass))
     ssf.MH.setConstant(True)
     reso = 1.7/125
@@ -174,7 +190,8 @@ def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
     # ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
 
     import pandas as pd
-    df = pd.read_parquet('../ggX0_1p4.parquet') #comparison to Pythia samples
+    df = pd.read_parquet(f'../ggX0_M{mass}_w5p6.parquet') #comparison to Pythia samples
+    df = df.query('@range_m <= m_X0 <= @range_p')
     mass_values = df["m_X0"].values
     data = ROOT.RooDataSet("data", "data", ROOT.RooArgSet(ssf.true_mass))
     for m in mass_values:
@@ -184,6 +201,16 @@ def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
 
     sig_x.plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
     frame.Draw()
+
+    ssf.true_mass.setVal(450)
+    print(sig_x.getVal())
+    for i in range(dependents.getSize()):
+      arg = dependents.at(i)
+      print("Name:", arg.GetName())
+
+      # If it's a RooAbsReal (has a value)
+      if isinstance(arg, ROOT.RooAbsReal):
+          print("  Value:", arg.getVal())
 
     # Create legend
     legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
