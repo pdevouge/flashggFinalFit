@@ -99,13 +99,12 @@ def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=Fals
   for mass in ssf.massPoints.split(','):
     ssf.MH.setVal(int(mass))
     range_m, range_p = int(mass)-_range*int(mass), int(mass)+_range*int(mass)
-    ssf.true_mass.setRange(range_m, range_p)
-
+    binning = ROOT.RooBinning(_nbins,range_m,range_p)
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
-    frame = ssf.true_mass.frame(range_m, range_p, _nbins)
+    frame = ssf.true_mass.frame(range_m, range_p)
     if not _skipMC:
-      ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+      ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"),ROOT.RooFit.Binning(binning))
     rel_bw.plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
     frame.Draw()
 
@@ -129,7 +128,9 @@ def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=Fals
     canv.SaveAs("%s/true_lineshape_%s.png"%(_outdir,mass))
     canv.SaveAs("%s/true_lineshape_%s.pdf"%(_outdir,mass))
 
-def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
+# A function to compare the true lineshape model with the internally produced Pythia samples
+# The comparison with the CMSSW samples is done in plotTrueLineshape()
+def plotPythiaComparison(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False, proc='rsg'):
 
   # splinesToPlot = ['xsec_ul','xsec_sm','xsec_pl','ghgg_sm_MH','ghgg_sm_m','xsec_py']
   # mh_vals = [float(x) for x in ssf.massPoints.split(',')[1:-1]]
@@ -176,21 +177,22 @@ def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
 
   sig_x = ROOT.RooGenericPdf("temp_sig_x","",formula, dependents)
 
-  for mass in ['500','750','1000']:#ssf.massPoints.split(','):
+  for mass in ['500','750','1000']:
     ssf.MH.setVal(int(mass))
     ssf.MH.setConstant(True)
-    reso = 1.7/125
+    reso = 5/125
     range_m, range_p = int(mass)*(1-5*reso), int(mass)*(1+5*reso)
-    #int(mass)-_range*int(mass), int(mass)+_range*int(mass)
     ssf.true_mass.setRange(range_m, range_p)
 
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
     frame = ssf.true_mass.frame(range_m, range_p, _nbins)
-    # ssf.datasetForFit['nom_w'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
 
     import pandas as pd
-    df = pd.read_parquet(f'../ggX0_M{mass}_w5p6.parquet') #comparison to Pythia samples
+    if proc == 'rsg':
+      df = pd.read_parquet(f'../ggX_M{mass}_kMpl02_modelRSGrav.parquet') #comparison to Pythia samples
+    else:
+      df = pd.read_parquet(f'../ggX_M{mass}_w5p6_modelHSM0.parquet')
     df = df.query('@range_m <= m_X0 <= @range_p')
     mass_values = df["m_X0"].values
     data = ROOT.RooDataSet("data", "data", ROOT.RooArgSet(ssf.true_mass))
@@ -201,16 +203,6 @@ def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
 
     sig_x.plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
     frame.Draw()
-
-    ssf.true_mass.setVal(450)
-    print(sig_x.getVal())
-    for i in range(dependents.getSize()):
-      arg = dependents.at(i)
-      print("Name:", arg.GetName())
-
-      # If it's a RooAbsReal (has a value)
-      if isinstance(arg, ROOT.RooAbsReal):
-          print("  Value:", arg.getVal())
 
     # Create legend
     legend = ROOT.TLegend(0.6, 0.7, 0.88, 0.88)
@@ -228,20 +220,22 @@ def plotTrueXgg(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
     pave_text.AddText("#chi^{2} / n(dof) = %.2f"%chi2)  # Add chi2/ndf text
     pave_text.Draw()
 
-    frame.SetTitle(f"True Xgg model, M - {mass}")
-    canv.SaveAs("%s/true_xgg_%s.png"%(_outdir,mass))
-    canv.SaveAs("%s/true_xgg_%s.pdf"%(_outdir,mass))
+    frame.SetTitle(f"True Xgg model (Pythia), M - {mass}")
+    canv.SaveAs("%s/true_xgg_%s_pythia.png"%(_outdir,mass))
+    canv.SaveAs("%s/true_xgg_%s_pythia.pdf"%(_outdir,mass))
 
-def plotAnalyticalModel(ssf,_outdir='./',_skipMC=False):
+def plotAnalyticalModel(ssf,_outdir='./',_range= 0.1,_binwidth=1.0,_skipMC=False):
   for mass in ssf.massPoints.split(','):
     canv = ROOT.TCanvas()
     canv.SetLeftMargin(0.15)
-    ssf.xvar.setRange(int(mass)-0.1*int(mass), int(mass)+0.1*int(mass))
+    range_m, range_p = int(mass)-_range*int(mass), int(mass)+_range*int(mass)
+    nbins = int((range_p - range_m) / _binwidth)
+    binning = ROOT.RooBinning(nbins,range_m,range_p)
     ssf.MH.setVal(int(mass))
     ssf.MH.setConstant(True)
-    frame = ssf.xvar.frame()
+    frame = ssf.xvar.frame(range_m, range_p)
     if not _skipMC:
-      ssf.DataHists['reco_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"))
+      ssf.DataHists['reco_mass'][mass].plotOn(frame, ROOT.RooFit.Name("mc"),ROOT.RooFit.Binning(binning))
     ssf.Pdfs['final'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
     frame.Draw()
 

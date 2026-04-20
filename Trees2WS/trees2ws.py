@@ -68,7 +68,7 @@ def add_vars_to_workspace(_ws=None,_data=None,_stxsVar=None,_minMass='200',_maxM
       _vars[var] = ROOT.RooRealVar(var,var,400.,float(_minMass),float(_maxMass))
       _vars[var].setBins((int(_maxMass)-int(_minMass)))
     elif var == "reduced_mass":
-      _vars[var] = ROOT.RooRealVar(var,var,0., -0.1, 0.1)
+      _vars[var] = ROOT.RooRealVar(var,var,0., -0.5, 0.5)
       _vars[var].setBins(100)
     elif var == "dZ":
       _vars[var] = ROOT.RooRealVar(var,var,0.,-20.,20.)
@@ -192,7 +192,7 @@ for cat in cats:
     else: df['NNLOPSweight'] = 1.
 
   # Add column true mass
-  df['true_mass'] = df['gen_dipho_mass'].astype(float)
+  df['true_mass'] = df['gen_dipho_mass'].astype(float)#float(opt.inputMass)
   # Add column reduced mass
   df['reduced_mass'] = df['CMS_hgg_mass'].astype(float) / float(opt.inputMass) - 1
 

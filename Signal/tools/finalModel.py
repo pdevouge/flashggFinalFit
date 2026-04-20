@@ -145,6 +145,10 @@ class FinalModel:
       # If not skip systematics: add nuisance params to splines
       if not self.skipSystematics: self.buildNuisanceSplines()
       self.buildAnalyticalPdf(self.ssfMap['Total'],ext='total')
+      splines = ['xsec_ul','xsec_sm','xsec_pl','xsec_py','ghgg_sm_MH','ghgg_sm_m','ghgg_sm_truem']
+      for sp in splines:
+        self.Splines[sp] = self.ssfMap['Total'].Splines[sp].Clone()
+      self.Pdfs['sig_x'] = self.ssfMap['Total'].Pdfs['sig_x'].Clone()
       self.Pdfs['final'] = self.Pdfs['total']
     # Build final normalisation, datasets and extended Pdfs
     self.buildNorm()
@@ -691,7 +695,11 @@ class FinalModel:
     wsout.imp = getattr(wsout,"import")
     self.xvar.setBins(10000, "cache")  # Optional, for safety
     wsout.imp(self.xvar, ROOT.RooFit.RecycleConflictNodes())
+    splines = ['xsec_ul','xsec_sm','xsec_pl','xsec_py','ghgg_sm_MH','ghgg_sm_m','ghgg_sm_truem']
+    for sp in splines:
+      wsout.imp(self.Splines[sp],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final'],ROOT.RooFit.RecycleConflictNodes())
+    wsout.imp(self.Pdfs['sig_x'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_norm'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_normThisLumi'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final_extend'],ROOT.RooFit.RecycleConflictNodes())

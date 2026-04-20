@@ -37,7 +37,6 @@ def get_options():
   parser.add_option('--massPoints', dest='massPoints', default='250,300,350,400,450,500', help="Mass points to fit")
   parser.add_option('--minMass', dest='minMass', default='200', help="Mass range lower boundary")
   parser.add_option('--maxMass', dest='maxMass', default='600', help="Mass range upper boundary")
-  parser.add_option('--doEffAccFromJson', dest='doEffAccFromJson', default=False, action="store_true", help="Extract eff x acc from json (produced by getEffAcc). Else, extract from nominal weights in flashgg workspaces")
   parser.add_option('--skipBeamspotReweigh', dest='skipBeamspotReweigh', default=True, action="store_true", help="Skip beamspot reweigh to match beamspot distribution in data")
   parser.add_option('--doPlots', dest='doPlots', default=False, action="store_true", help="Produce Signal Fitting plots")
   parser.add_option("--doVoigtian", dest='doVoigtian', default=False, action="store_true", help="Use Voigtians instead of Gaussians for signal models with Higgs width as parameter")
@@ -119,6 +118,7 @@ if not opt.skipMC:
   dZ = inputWS0.var("dZ")
   true_mass = inputWS0.var("true_mass")
   reduced_mass = inputWS0.var("reduced_mass")
+  reduced_mass.setRange(-0.1, 0.1)
   aset = ROOT.RooArgSet(xvar,dZ,true_mass,reduced_mass)
   f0.Close()
 else:
@@ -197,13 +197,18 @@ if not opt.skipVertexScenarioSplit:
   datasetWVForFit['low_w'] = od()
   datasetWVForFit['nom_w'] = od()
 
+# Construct Efficiency*Acceptance LUT
+effAcc = od()
+
 if not opt.skipMC:
   for mp in opt.massPoints.split(","):
     # Load low width samples for true lineshape description
     WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,lowW_str,procRVFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,lowW,sqrts__,catRVFit)),aset)
+    Roodata = inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,lowW,sqrts__,catRVFit))
+    effAcc[mp] = Roodata.sumEntries() #EffxAcc dict
+    d = reduceDataset(Roodata,aset)
     if opt.skipVertexScenarioSplit: datasetRVForFit['low_w'][mp] = d
     else: datasetRVForFit['low_w'][mp] = splitRVWV(d,aset,mode="RV")
     inputWS.Delete()
@@ -218,6 +223,12 @@ if not opt.skipMC:
     else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")
     inputWS.Delete()
     f.Close()
+  # EffxAcc will be turned to splines.
+  # To allow extrapolation to mass points outside of range, repeat values.
+  # TODO: Construct Eff*Acc LUT before FinalFit
+  effAcc['3000'] = list(effAcc.values())[-1]
+  effAcc['100'] = list(effAcc.values())[0]
+  effAcc.move_to_end('100', last=False)
 
   # Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
   if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
@@ -353,7 +364,7 @@ if 'p' in opt.width:
   width = f"({float(width)/100})"
 else:
   width = "%s.%s"%(opt.width[0],opt.width[1:])
-ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,
+ssfRV = SimultaneousFit(name,opt.proc,opt.cat,effAcc,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,
                         width,
                         opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
 if opt.useInterpolation:
@@ -362,8 +373,8 @@ if opt.useInterpolation:
   ssfRV.runFit()
   ssfRV.buildSplines()
 else:
+  ssfRV.buildXgg(decay='htot_pythia', xsec='pythia')#decay='htot_pythia', xsec='pythia')
   ssfRV.buildTrueLineshape()
-  ssfRV.buildXgg(decay='hgg', xsec='sm')
   if not opt.skipResolutionModel:
     ssfRV.buildResoModel()
     ssfRV.buildAnalytical()
@@ -372,15 +383,15 @@ ssfMap[name] = ssfRV
 
 if not opt.skipVertexScenarioSplit:
   name = "WV"
-  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,datasetWVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,width,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,effAcc,datasetWVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,width,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
   if opt.useInterpolation:
     if opt.useDCB: ssfWV.buildDCBplusGaussian()
     else: ssfWV.buildNGaussians(nRV)
     ssfWV.runFit()
     ssfWV.buildSplines()
   else:
+    ssfWV.buildXgg(decay='htot_pythia', xsec='pythia')#decay='htot_pythia', xsec='pythia')
     ssfWV.buildTrueLineshape()
-    ssfWV.buildXgg(decay='hgg', xsec='sm')
     if not opt.skipResolutionModel:
       ssfRV.buildResoModel()
       ssfRV.buildAnalytical()
@@ -425,10 +436,13 @@ if opt.doPlots:
     truemass_range = 0.001 if (opt.width == "001" or opt.width == "0p014") else 0.2
     truemass_nbins = 150 if (opt.width == "001" or opt.width == "0p014") else 100
     plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins, _skipMC=opt.skipMC)
-    plotTrueXgg(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins, _skipMC=opt.skipMC)
+    # Uncomment the following to plot the comparison to internally produced Pythia samples
+    # plotPythiaComparison(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins, _skipMC=opt.skipMC, proc=opt.proc)
     if not opt.skipResolutionModel:
       if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
-      plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext), _skipMC=opt.skipMC)
+      recomass_range = 0.1 if (opt.width == "001" or opt.width == "0p014") else 0.2
+      recomass_bwidth = 1 if (opt.width == "001" or opt.width == "0p014") else 4
+      plotAnalyticalModel(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext),_range=recomass_range,_binwidth=recomass_bwidth,_skipMC=opt.skipMC)
       plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_ea',_nominalMass=MHNominal,splinesToPlot=['ea'])
       plotSplines(fm,_outdir="%s/outdir_%s/signalFit/Plots"%(swd__,opt.ext),_ext='_xs',_nominalMass=MHNominal,splinesToPlot=['xs_interference'])
   else:
