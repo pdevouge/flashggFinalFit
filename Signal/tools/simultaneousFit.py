@@ -403,7 +403,7 @@ class SimultaneousFit:
                                                           self.ResoFuncs['n2_formula'])
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  def buildSignalSplines(self, decay='hgg'):
+  def buildSignalSplines(self):
     script_dir = os.path.abspath( os.path.dirname( __file__ ) )
     gtot_o_m3 = pd.read_csv('%s/csv/gtot_o_m3_%s.csv'%(script_dir,self.proc)).set_index('m_x')
     xsec_m = pd.read_csv('%s/csv/xsec_%s.csv'%(script_dir,self.proc)).set_index('m_x')['xsec']
@@ -426,11 +426,11 @@ class SimultaneousFit:
       self.Splines[f'gtot_MH'] = ROOT.RooSpline1D("gtot_MH_%s"%(self.name),"gtot_MH_%s"%(self.name), var, len(gtot), gtot.index.to_numpy(), gtot.to_numpy())
 
   # Construct Pythia model: m^2*Gtot(m,mX)/()^2+m^2*Gtot(m,mX)
-  def buildXgg(self, decay='hgg', xsec='sm'):
+  def buildTrueLineshape(self):
     dependents = ROOT.RooArgList()
-    self.buildSignalSplines(decay)
+    self.buildSignalSplines()
 
-  # -- xsec --
+    # -- xsec --
     dependents.add(self.Splines[f'xsec_MH'])
     dependents.add(self.Splines[f'xsec_m'])
     kf = "(%s / %s)"%(self.Splines[f'xsec_m'].GetName(), self.Splines[f'xsec_MH'].GetName())
@@ -485,30 +485,20 @@ class SimultaneousFit:
       power = 2 + 3
     formula = f"(CMS_hgg_mass/MH)^{power} / ((CMS_hgg_mass^2 - MH^2)^2 + CMS_hgg_mass^2*({Gtot})^2) * {kf} * ({ratio}) * {eff}"
 
-    self.Pdfs['sig_x'] = ROOT.RooGenericPdf("sig_x","",formula, dependents)
+    self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
 
     # DEBUG
-    # self.xvar.setVal(600)
-    # self.MH.setVal(750)
+    # self.xvar.setVal(490)
+    # self.MH.setVal(500)
     # print(f'xvar: {self.xvar.getVal()}')
     # print(f'MH: {self.MH.getVal()}')
     # if self.proc == 'rsg': print(f'gxcorr: {self.Splines[f"gtot_MH"].getVal()}')
-    # print(f'xsec_test_MH: {self.Splines[f"xsec_test_MH"].getVal()}')
-    # print(f'xsec_test_m: {self.Splines[f"xsec_test_m"].getVal()}')
-    # print(f'gtot_o_m3_m: {self.Splines[f"gtot_o_m3_m"].getVal()}')
-    # print(f'gtot_o_m3_MH: {self.Splines[f"gtot_o_m3_MH"].getVal()}')
+    # print(f'xsec_test_MH: {self.Splines[f"xsec_MH"].getVal()}')
+    # print(f'xsec_test_m: {self.Splines[f"xsec_m"].getVal()}')
+    # print(f'gtot_o_m3_m: {self.Splines[f"gtot_o_m3_500_m"].getVal()}')
+    # print(f'gtot_o_m3_MH: {self.Splines[f"gtot_o_m3_500_MH"].getVal()}')
     # print(f'effs: {self.Splines["effs"].getVal()}')
-
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  def buildTrueLineshape(self):
-
-    if self.proc == 'rsg': g0 = ROOT.RooFormulaVar("g0", "", "sqrt(2) * %s^2 * MH / 1."%self.width, ROOT.RooArgList(self.MH))
-    else: g0 = ROOT.RooFormulaVar("g0", "", "%s * MH"%self.width, ROOT.RooArgList(self.MH))
-    self.Vars['g0'] = g0
-    # formula = "1/(2*pi)*g0/((CMS_hgg_mass-MH)^2+g0^2/4)"
-    formula = "2/pi*CMS_hgg_mass^2*g0/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*g0^2)"
-    # self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, ROOT.RooArgList(self.MH,self.Vars['g0'],self.xvar))
-    self.Pdfs['rel_bw'] = self.Pdfs['sig_x']
+    # print(f'rel_bw: {self.Pdfs["rel_bw"].getVal()}')
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildAnalytical(self):

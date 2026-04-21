@@ -145,10 +145,8 @@ class FinalModel:
       # If not skip systematics: add nuisance params to splines
       if not self.skipSystematics: self.buildNuisanceSplines()
       self.buildAnalyticalPdf(self.ssfMap['Total'],ext='total')
-      splines = ['xsec_ul','xsec_sm','xsec_pl','xsec_py','ghgg_sm_MH','ghgg_sm_m','ghgg_sm_truem']
-      for sp in splines:
+      for sp in self.ssfMap['Total'].Splines.keys():
         self.Splines[sp] = self.ssfMap['Total'].Splines[sp].Clone()
-      self.Pdfs['sig_x'] = self.ssfMap['Total'].Pdfs['sig_x'].Clone()
       self.Pdfs['final'] = self.Pdfs['total']
     # Build final normalisation, datasets and extended Pdfs
     self.buildNorm()
@@ -374,9 +372,7 @@ class FinalModel:
                                                           self.Functions['n2_dcb_%s'%extStr])
 
     # * true lineshape: relativistic BW
-    formula = "2/pi*CMS_hgg_mass^2*G0/((CMS_hgg_mass^2-MH^2)^2+CMS_hgg_mass^2*G0^2)"
-    self.Pdfs['rel_bw_%s'%extStr] = ROOT.RooGenericPdf("rel_bw_%s"%extStr,"rel_bw_%s"%extStr,formula,
-                                                      ROOT.RooArgList(self.MH,self.G0,self.xvar))
+    self.Pdfs['rel_bw_%s'%extStr] = self.ssfMap['Total'].Pdfs['rel_bw'].Clone()
 
     self.xvar.setBins(10000, "cache")
     self.Pdfs[ext] = ROOT.RooFFTConvPdf("%s_%s"%(outputWSObjectTitle__,extStr),"%s_%s"%(outputWSObjectTitle__,extStr), self.xvar, self.Pdfs['rel_bw_%s'%extStr], self.Pdfs['reso_dcb_%s'%extStr])
@@ -695,11 +691,9 @@ class FinalModel:
     wsout.imp = getattr(wsout,"import")
     self.xvar.setBins(10000, "cache")  # Optional, for safety
     wsout.imp(self.xvar, ROOT.RooFit.RecycleConflictNodes())
-    splines = ['xsec_ul','xsec_sm','xsec_pl','xsec_py','ghgg_sm_MH','ghgg_sm_m','ghgg_sm_truem']
-    for sp in splines:
+    for sp in self.Splines.keys():
       wsout.imp(self.Splines[sp],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final'],ROOT.RooFit.RecycleConflictNodes())
-    wsout.imp(self.Pdfs['sig_x'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_norm'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_normThisLumi'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final_extend'],ROOT.RooFit.RecycleConflictNodes())

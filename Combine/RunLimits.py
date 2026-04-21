@@ -42,10 +42,10 @@ if opt.outdir:
 
 for m in mass_points:
 
-  width = float(opt.width_p) * m
+  # width = float(opt.width_p) * m
 
   cmd = f"""combineTool.py -M AsymptoticLimits -d {datacard} \
-    -n .limit --parallel 4 -m {m} --run blind --rAbsAcc 0.00005 --rRelAcc 0.00005 --freezeParameters G0 --setParameters G0={width}"""
+    -n .limit --parallel 4 -m {m} --run blind --rAbsAcc 0.00005 --rRelAcc 0.00005""" # --freezeParameters G0 --setParameters G0={width}"""
 
   subprocess.call(cmd, shell=True)
 

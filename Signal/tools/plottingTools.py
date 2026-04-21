@@ -78,20 +78,20 @@ def plotDCBParameters(ssf,_outdir='./'):
 def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
   # Here it is easier to create a 'temporary' rel BW based on true mass, for plotting purposes
   dependents = ROOT.RooArgList()
-  formula = ssf.Pdfs['sig_x'].expression()
-  for i in range(ssf.Pdfs['sig_x'].nParameters()):
-    if '_m_' in ssf.Pdfs['sig_x'].getParameter(i).GetName():
-      param = ssf.Pdfs['sig_x'].getParameter(i).GetName().replace('_m_','_truem_')
+  formula = ssf.Pdfs['rel_bw'].expression()
+  for i in range(ssf.Pdfs['rel_bw'].nParameters()):
+    if '_m_' in ssf.Pdfs['rel_bw'].getParameter(i).GetName():
+      param = ssf.Pdfs['rel_bw'].getParameter(i).GetName().replace('_m_','_truem_')
       formula = formula.replace(f"x[{i}]",param)
       dependents.add(ssf.Splines[param.rsplit('_', 1)[0]])
-    elif ssf.Pdfs['sig_x'].getParameter(i).GetName() == ssf.xvar.GetName():
+    elif ssf.Pdfs['rel_bw'].getParameter(i).GetName() == ssf.xvar.GetName():
       formula = formula.replace(f"x[{i}]",ssf.true_mass.GetName())
       dependents.add(ssf.true_mass)
     else:
-      formula = formula.replace(f"x[{i}]",ssf.Pdfs['sig_x'].getParameter(i).GetName())
-      dependents.add(ssf.Pdfs['sig_x'].getParameter(i))
+      formula = formula.replace(f"x[{i}]",ssf.Pdfs['rel_bw'].getParameter(i).GetName())
+      dependents.add(ssf.Pdfs['rel_bw'].getParameter(i))
 
-  rel_bw = ROOT.RooGenericPdf("temp_sig_x","",formula, dependents)
+  rel_bw = ROOT.RooGenericPdf("temp_rel_bw","",formula, dependents)
   # formula = ssf.Pdfs['rel_bw'].expression()
   # formula = formula.replace("x[0]",ssf.MH.GetName()).replace("x[1]",ssf.Vars['g0'].GetName()).replace("x[2]",ssf.true_mass.GetName())
   # rel_bw = ROOT.RooGenericPdf("temp_rel_bw","",formula, ROOT.RooArgList(ssf.MH,ssf.Vars['g0'],ssf.true_mass))

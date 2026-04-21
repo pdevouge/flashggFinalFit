@@ -373,7 +373,6 @@ if opt.useInterpolation:
   ssfRV.runFit()
   ssfRV.buildSplines()
 else:
-  ssfRV.buildXgg(decay='htot_pythia', xsec='pythia')#decay='htot_pythia', xsec='pythia')
   ssfRV.buildTrueLineshape()
   if not opt.skipResolutionModel:
     ssfRV.buildResoModel()
@@ -390,7 +389,6 @@ if not opt.skipVertexScenarioSplit:
     ssfWV.runFit()
     ssfWV.buildSplines()
   else:
-    ssfWV.buildXgg(decay='htot_pythia', xsec='pythia')#decay='htot_pythia', xsec='pythia')
     ssfWV.buildTrueLineshape()
     if not opt.skipResolutionModel:
       ssfRV.buildResoModel()
