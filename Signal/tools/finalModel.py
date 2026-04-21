@@ -302,7 +302,7 @@ class FinalModel:
 
         leg.Draw()
         canv.Update()
-        canv.SaveAs(f"./CUBIC_spline_{sParam}.png")
+        canv.SaveAs("%s/outdir_%s/CUBIC_spline_%s.png"%(swd__,self.ext,sParam))
 
   # Function for building Nuisance param splines:
   def buildNuisanceSplines(self):
@@ -383,7 +383,6 @@ class FinalModel:
     sys_meanName = "%s_syst"%(dmName)
     # Build formula string and dependents list
     dependents = ROOT.RooArgList()
-    dependents.add(self.MH)
     dependents.add(self.Functions[dmName])
     if not skipSystematics:
       # Add systematics
@@ -407,10 +406,11 @@ class FinalModel:
             dependents.add(sInfo['param'])
       if len(sigma) > 0: sigma = sigma[1:] # remove leading '+'
 
-    formula = "(@0)*(" + sigma
-    formula += ")"
-    formula += "+(@1)*(1.+" + sigma
-    formula += ")"
+    formula = "(@0)"
+    if not skipSystematics:
+      formula += "+(%s)*(@0+@%g)"%(sigma,dependents.getSize())
+      dependents.add(self.MH)
+    print(formula)
     self.Functions[sys_meanName] = ROOT.RooFormulaVar(sys_meanName,sys_meanName,formula,dependents)
 
   def buildAnalyticalSigma(self,sigmaName="",skipSystematics=False):
