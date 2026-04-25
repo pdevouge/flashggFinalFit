@@ -172,11 +172,10 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_effAcc,_datasetForFit,_xvar,_true_mass,_reduced_mass,_MH,_MHLow,_MHHigh,_width,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_true_mass,_reduced_mass,_MH,_MHLow,_MHHigh,_width,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
-    self.effAcc = _effAcc
     self.datasetForFit = _datasetForFit
     self.xvar = _xvar
     self.true_mass = _true_mass
@@ -403,13 +402,22 @@ class SimultaneousFit:
                                                           self.ResoFuncs['n2_formula'])
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  def buildSignalSplines(self):
+  def buildSignalSplines(self, decay='hgg'):
     script_dir = os.path.abspath( os.path.dirname( __file__ ) )
-    gtot_o_m3 = pd.read_csv('%s/csv/gtot_o_m3_%s.csv'%(script_dir,self.proc)).set_index('m_x')
-    xsec_m = pd.read_csv('%s/csv/xsec_%s.csv'%(script_dir,self.proc)).set_index('m_x')['xsec']
-    effs_m = pd.Series(self.effAcc)
-    # effs_m = pd.read_csv('%s/csv/effs_%s.csv'%(script_dir,self.proc)).set_index('m')['effs']
-    self.Splines['effs'] = ROOT.RooSpline1D("effs_%s"%(self.name),"effs_%s"%(self.name), self.xvar, len(effs_m), effs_m.index.astype(float).to_numpy(), effs_m.to_numpy())
+    mcfm = pd.read_csv('%s/csv/mcfm_xsec_v2.csv'%script_dir).set_index('m_x')
+    limit_pb = pd.read_csv('%s/csv/limitExp_spin0_138fb_Oct2025.csv'%script_dir).set_index('mh')['up_pb']
+    gx_lhc_gev = pd.read_csv('%s/csv/lhchwg_hsm_width_v2.csv'%script_dir).set_index('mh')
+    xsec_lhc_pb = pd.read_csv('%s/csv/lhchwg_hsm_xsec.csv'%script_dir).set_index('mh')['xsec']
+    xsec_mcfm_lo = mcfm.query('xsec_lo > 1e-10')['xsec_lo']
+    xsec_mcfm_pl = mcfm['xsec']
+    xsec_mcfm_py = mcfm['xsec_pythia']
+    kf_mcfm = xsec_lhc_pb[200] / xsec_mcfm_lo[200]
+
+    self.Splines['xsec_ul'] = ROOT.RooSpline1D("xsec_ul_%s"%(self.name),"xsec_ul_%s"%(self.name), self.MH, len(limit_pb), limit_pb.index.to_numpy(), limit_pb.to_numpy())
+    xsec_sm_ = lambda x : np.interp(x, xsec_mcfm_lo.index, xsec_mcfm_lo.values * kf_mcfm)
+    xsec_n3lo_ggF = 48.6
+    kf_n3lo =  xsec_n3lo_ggF / xsec_sm_(125)
+    kf_pythia = xsec_n3lo_ggF / xsec_mcfm_py.loc[120]
 
     var_map = {
       'MH': self.MH,
@@ -417,88 +425,42 @@ class SimultaneousFit:
       'truem': self.true_mass
     }
     for vname, var in var_map.items():
-      for mp in self.massPoints.split(','):
-        self.Splines[f'gtot_o_m3_{mp}_{vname}'] = ROOT.RooSpline1D("gtot_o_m3_%s_%s_%s"%(mp,vname,self.name),"gtot_o_m3_%s_%s_%s"%(mp,vname,self.name), var, len(gtot_o_m3), gtot_o_m3.index.to_numpy(), gtot_o_m3[f'{mp}.0'].to_numpy())
-      self.Splines[f'xsec_{vname}'] = ROOT.RooSpline1D("xsec_%s_%s"%(vname,self.name),"xsec_%s_%s"%(vname,self.name), var, len(xsec_m), xsec_m.index.to_numpy(), xsec_m.to_numpy())
+      self.Splines[f'xsec_sm_{vname}'] = ROOT.RooSpline1D("xsec_sm_%s_%s"%(vname,self.name),"xsec_sm_%s_%s"%(vname,self.name), var, len(xsec_mcfm_lo), xsec_mcfm_lo.index.to_numpy(), xsec_mcfm_lo.to_numpy() * kf_mcfm * kf_n3lo)
+      self.Splines[f'xsec_pl_{vname}'] = ROOT.RooSpline1D("xsec_pl_%s_%s"%(vname,self.name),"xsec_pl_%s_%s"%(vname,self.name), var, len(xsec_mcfm_pl), xsec_mcfm_pl.index.to_numpy(), xsec_mcfm_pl.to_numpy())
+      self.Splines[f'xsec_py_{vname}'] = ROOT.RooSpline1D("xsec_py_%s_%s"%(vname,self.name),"xsec_py_%s_%s"%(vname,self.name), var, len(xsec_mcfm_py), xsec_mcfm_py.index.to_numpy(), xsec_mcfm_py.to_numpy() * kf_pythia)
+      self.Splines[f'ghgg_sm_{vname}'] = ROOT.RooSpline1D("ghgg_sm_%s_%s"%(vname,self.name),"ghgg_sm_%s_%s"%(vname,self.name), var, len(gx_lhc_gev), gx_lhc_gev.index.to_numpy(), gx_lhc_gev[decay].to_numpy())
 
-    if self.proc == 'rsg':
-      gtot = pd.read_csv('%s/csv/gtot_rsg.csv'%(script_dir)).set_index('m_x')
-      self.Splines[f'gtot_MH'] = ROOT.RooSpline1D("gtot_MH_%s"%(self.name),"gtot_MH_%s"%(self.name), var, len(gtot), gtot.index.to_numpy(), gtot.to_numpy())
-
-  # Construct Pythia model: m^2*Gtot(m,mX)/()^2+m^2*Gtot(m,mX)
-  def buildTrueLineshape(self):
+  def buildTrueLineshape(self, decay='hgg', xsec='sm'):
     dependents = ROOT.RooArgList()
-    self.buildSignalSplines()
+    self.buildSignalSplines(decay)
+    br_x = "(%s / %s)"%(self.Splines['xsec_ul'].GetName(),self.Splines['xsec_sm_MH'].GetName())
+    dependents.add(self.Splines['xsec_ul'])
+    dependents.add(self.Splines['xsec_sm_MH'])
 
-    # -- xsec --
-    dependents.add(self.Splines[f'xsec_MH'])
-    dependents.add(self.Splines[f'xsec_m'])
-    kf = "(%s / %s)"%(self.Splines[f'xsec_m'].GetName(), self.Splines[f'xsec_MH'].GetName())
-
-    # -- Gtot --
-    if self.proc == 'rsg':
-      gx_corr = self.Splines[f'gtot_MH'].GetName()
-      dependents.add(self.Splines[f'gtot_MH'])
-      power_bw = 1
+    if xsec == 'sm':
+      xsec_type = 'xsec_sm'
+    elif xsec == 'pythia':
+      xsec_type = 'xsec_py'
     else:
-      gx_corr = 1
-      power_bw = 3
-    Gx = f"sqrt(2) * {self.width}^2 * MH " if self.proc=='rsg' else f"{self.width}*MH"
+      xsec_type = 'xsec_pl'
 
-    # Here we construct Gtot(m,MX). The df gtot_o_m3 accounts for the mX dependence, by having multiple columns, one for each mX.
-    # To avoid the tedious task of constructing one signal model per mass point, we express Gtot as follow:
-    # ∑overX:(MH-mX)<eps*(Gtot(m,mX))  -> If MH~=mX, then Gtot si correctly computed
-    eps = 1e-6
-    terms = []
-    for mp in self.massPoints.split(','):
-        Gtot_expr = "%s * %s * %s/%s * (CMS_hgg_mass/MH)^%s"%(Gx,gx_corr,self.Splines[f'gtot_o_m3_{mp}_m'].GetName(),self.Splines[f'gtot_o_m3_{mp}_MH'].GetName(),power_bw)
-        term = f"(abs(MH-{mp})<{eps}) * ({Gtot_expr})"
-        terms.append(term)
-        dependents.add(self.Splines[f'gtot_o_m3_{mp}_m'])
-        dependents.add(self.Splines[f'gtot_o_m3_{mp}_MH'])
+    if xsec != 'sm': dependents.add(self.Splines[f'{xsec_type}_MH'])
+    dependents.add(self.Splines[f'{xsec_type}_m'])
 
-    Gtot = " + ".join(terms)
+    kf = "(%s / %s)"%(self.Splines['xsec_sm_MH'].GetName(), self.Splines[f'{xsec_type}_MH'].GetName())
+    xsec = self.Splines[f'{xsec_type}_m'].GetName()
 
+    dependents.add(self.Splines['ghgg_sm_MH'])
+    dependents.add(self.Splines['ghgg_sm_m'])
+
+    m_mx = "(%s / %s)"%(self.xvar.GetName(),self.MH.GetName())
     dependents.add(self.xvar)
     dependents.add(self.MH)
 
-    # -- Gf(m)/Gf(mx) --
-    # here Gf = Gtot (for the Pythia model, effective branching ratio set to 1)
-    terms = []
-    for mp in self.massPoints.split(','):
-      Gtot_ratio_expr = "%s/%s"%(self.Splines[f'gtot_o_m3_{mp}_m'].GetName(),self.Splines[f'gtot_o_m3_{mp}_MH'].GetName())
-      term = f"(abs(MH-{mp})<{eps}) * ({Gtot_ratio_expr})"
-      terms.append(term)
-
-    ratio = " + ".join(terms)
-
-    # -- EffxAcc --
-    eff = self.Splines['effs'].GetName()
-    dependents.add(self.Splines['effs'])
-
-    # -- BW --
-    #  - for RSGrav: sigma(m) \propto \kappa()m^2 = kappa0 x m^2 : power_xsec = 2
-    #  - power = 2 (from m^2) + 3 (from G_tot) + power_xsec
-    if self.proc == 'rsg':
-      power = 2 + 3 + 2
-    else:
-      power = 2 + 3
-    formula = f"(CMS_hgg_mass/MH)^{power} / ((CMS_hgg_mass^2 - MH^2)^2 + CMS_hgg_mass^2*({Gtot})^2) * {kf} * ({ratio}) * {eff}"
+    formula = f"{br_x} * {xsec} * {kf} * ghgg_sm_m_{self.name} / ghgg_sm_MH_{self.name} \
+                * 2/pi * {self.width} * ({m_mx})^2 / ((({m_mx})^2 - 1)^2 + {self.width}^2) * 1 / MH"
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
-
-    # DEBUG
-    # self.xvar.setVal(490)
-    # self.MH.setVal(500)
-    # print(f'xvar: {self.xvar.getVal()}')
-    # print(f'MH: {self.MH.getVal()}')
-    # if self.proc == 'rsg': print(f'gxcorr: {self.Splines[f"gtot_MH"].getVal()}')
-    # print(f'xsec_test_MH: {self.Splines[f"xsec_MH"].getVal()}')
-    # print(f'xsec_test_m: {self.Splines[f"xsec_m"].getVal()}')
-    # print(f'gtot_o_m3_m: {self.Splines[f"gtot_o_m3_500_m"].getVal()}')
-    # print(f'gtot_o_m3_MH: {self.Splines[f"gtot_o_m3_500_MH"].getVal()}')
-    # print(f'effs: {self.Splines["effs"].getVal()}')
-    # print(f'rel_bw: {self.Pdfs["rel_bw"].getVal()}')
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildAnalytical(self):
