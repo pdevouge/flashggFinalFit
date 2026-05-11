@@ -284,14 +284,14 @@ class FinalModel:
                           int(self.MHHigh) - int(self.MHLow),
                           int(self.MHLow), int(self.MHHigh))
 
-        haxes.SetTitle("Syst_%s"%(sParam))
+        haxes.SetTitle("")
         haxes.GetXaxis().SetTitle("m_{X} [GeV]")
         haxes.GetXaxis().SetTitleSize(0.05)
         haxes.GetXaxis().SetTitleOffset(0.85)
         haxes.GetXaxis().SetLabelSize(0.035)
         haxes.GetYaxis().SetTitleOffset(0.85)
         haxes.GetYaxis().SetTitleSize(0.05)
-        haxes.SetMaximum(1.2 * ymax)
+        haxes.SetMaximum(1.4 * ymax)
         haxes.SetMinimum(0)
         haxes.Draw()
 
@@ -304,6 +304,7 @@ class FinalModel:
 
         leg.Draw()
         canv.Update()
+        canv.SaveAs("%s/outdir_%s/CUBIC_spline_%s.pdf"%(swd__,self.ext,sParam))
         canv.SaveAs("%s/outdir_%s/CUBIC_spline_%s.png"%(swd__,self.ext,sParam))
 
   # Function for building Nuisance param splines:

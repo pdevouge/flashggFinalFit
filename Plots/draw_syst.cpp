@@ -8,15 +8,36 @@
 
 void draw_syst() {
     gStyle->SetOptStat(0);
+
+// Axis label and title sizes
+gStyle->SetLabelSize(0.05, "X");
+gStyle->SetLabelSize(0.05, "Y");
+gStyle->SetTitleSize(0.06, "X");
+gStyle->SetTitleSize(0.06, "Y");
+
+// Title offsets (important to avoid overlap)
+gStyle->SetTitleOffset(1.0, "X");
+gStyle->SetTitleOffset(1.2, "Y");
+
+// Tick length and appearance
+gStyle->SetTickLength(0.03, "X");
+gStyle->SetTickLength(0.03, "Y");
+
+// Optional: ticks on both sides (often preferred in papers)
+gStyle->SetPadTickX(1);
+gStyle->SetPadTickY(1);
     TFile *f = TFile::Open("../../RSG_NEW_PNN/signal/output_RSGravitonToGG_M700_kMpl001_13TeV_pythia8.root");
     TTree *tree_nom = (TTree*)f->Get("DiphotonTree/rsg_700_001_13TeV_rsg_std_cat");
     TTree *tree_up = (TTree*)f->Get("DiphotonTree/rsg_700_001_13TeV_rsg_std_cat_SmearingUp01sigma");
 
     // --- Create canvas ---
     TCanvas *c_all = new TCanvas("c_all", "CMS_hgg_mass PDFs", 800, 600);
-
+    c_all->SetTopMargin(0.02);
+    c_all->SetBottomMargin(0.14);
+    c_all->SetLeftMargin(0.14);
+    c_all->SetRightMargin(0.04);
     // --- Nominal histogram ---
-    TH1F *h_nom = new TH1F("h_nom", "Systematics - Smearing up 1 sigma;CMS_hgg_mass [GeV]; Events (norm.)",
+    TH1F *h_nom = new TH1F("h_nom", ";Reco mass [GeV]; Fraction of events",
                            100, 650, 750);
     h_nom->Sumw2();
 
@@ -82,16 +103,19 @@ void draw_syst() {
     frame->Draw("SAME"); // draw PDF on same canvas
 
     // --- Legend ---
-    TLegend *leg = new TLegend(0.65, 0.75, 0.88, 0.88);
-    leg->AddEntry(h_nom, "Histo nom", "l");
-    leg->AddEntry(h_up, "Histo up", "l");
+    TLegend *leg = new TLegend(0.60, 0.70, 0.88, 0.88);
+    leg->SetTextSize(0.04);
+    leg->SetBorderSize(0);
+    leg->AddEntry(h_nom, "Nominal hist.", "l");
+    leg->AddEntry(h_up, "1 #sigma up hist.", "l");
     leg->Draw();
-    leg->AddEntry("pdf_nom","PDF nom.","LP");
-    leg->AddEntry("pdf_up","PDF up","LP");
+    leg->AddEntry("pdf_nom","Nominal signal model","LP");
+    leg->AddEntry("pdf_up","1 #sigma up signal model","LP");
     leg->Draw();
 
     // --- Update canvas and save ---
     c_all->Update();
+    c_all->SaveAs("PDF_syst_check_Smearing.pdf");  // save as PNG
     c_all->SaveAs("PDF_syst_check_Smearing.png");  // save as PNG
     c_all->SaveAs("PDF_syst_check_Smearing.root"); // ROOT file
 }
