@@ -399,10 +399,6 @@ if not opt.skipVertexScenarioSplit:
   ssfMap[name] = ssfWV
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# INTERFERENCE MODEL: construction
-print("\n --> Constructing interference model")
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # FINAL MODEL: construction
 if opt.skipResolutionModel:
   print("\n --> We cannot construct the final model without the resolution model...")
