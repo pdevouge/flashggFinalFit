@@ -3,6 +3,7 @@ import os
 # Paths and directory
 cmsswbase__ = os.environ['CMSSW_BASE']
 cwd__ = os.environ['CMSSW_BASE']+"/src/flashggFinalFit"
+iwd__ = "%s/Interference"%cwd__
 swd__ = "%s/Signal"%cwd__
 bwd__ = "%s/Background"%cwd__
 dwd__ = "%s/Datacard"%cwd__

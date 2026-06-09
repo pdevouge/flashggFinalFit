@@ -34,7 +34,6 @@ class InterferenceModel:
     self.MH.setConstant(True)
     self.xvar.setVal(750)
     self.xvar.setConstant(True)
-    print(self.Functions['I_im'].getVal())
 
 
   def retrieveSigInfos(self):
@@ -53,7 +52,6 @@ class InterferenceModel:
 
     dependents.add(self.xvar)
     dependents.add(self.MH)
-    print(formula)
 
     self.Functions['I_re'] = ROOT.RooFormulaVar("interference_re","",formula, dependents)
 
@@ -66,8 +64,6 @@ class InterferenceModel:
 
     dependents.add(self.xvar)
     dependents.add(self.MH)
-
-    print(formula)
 
     self.Functions['I_im'] = ROOT.RooFormulaVar("interference_im","",formula, dependents)
 
@@ -95,8 +91,8 @@ class InterferenceModel:
     dependents.add(self.Functions['I_re'])
     dependents.add(self.Functions['I_im'])
 
-    formula = "4+2*sqrt(@0*@1)*(@3*cos(@2)-@4*sin(@2))"
+    formula = "2*sqrt(@0*@1)*(@3*cos(@2)-@4*sin(@2))"
 
-    self.Pdfs['interference'] = ROOT.RooGenericPdf("interference","",formula, dependents)
+    self.Pdfs['interference'] = ROOT.RooFormulaVar("interference","",formula, dependents)
 
 

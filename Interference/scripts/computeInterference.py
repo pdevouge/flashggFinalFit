@@ -70,13 +70,15 @@ def plotInterference(ifm,_range= 0.1,_binwidth=1.):
 
   canv = ROOT.TCanvas()
   canv.SetLeftMargin(0.15)
-  range_m, range_p = 600,900
+  range_m, range_p = 748,752
   ifm.MH.setVal(int(mass))
   ifm.MH.setConstant(True)
+  ifm.xvar.setBinning(ROOT.RooBinning(2000,range_m,range_p))
   frame = ifm.xvar.frame()
   frame.GetYaxis().SetRangeUser(-2, 2)
-  # ifm.Pdfs['interference'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
-  # ifm.Functions['I_re'].plotOn(frame, ROOT.RooFit.Name("Re"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
+  frame.GetXaxis().SetRangeUser(range_m, range_p)
+  ifm.Pdfs['interference'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
+  ifm.Functions['I_re'].plotOn(frame, ROOT.RooFit.Name("Re"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
   ifm.Functions['I_im'].plotOn(frame, ROOT.RooFit.Name("Im"), LineColor=ROOT.kGreen, LineStyle=1, LineWidth=2)
   frame.Draw()
 
