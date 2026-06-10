@@ -126,6 +126,14 @@ if len(opt.run_only) == 0 or "signal" in opt.run_only:
         --massPoints {cfg["signal"]["mass_points"]} --batch local"""
     subprocess.call(cmd, shell=True)
 
+if len(opt.run_only) == 0 or "interference" in opt.run_only:
+    # Run Background fit
+    os.chdir("../Interference")
+
+cmd = f"""python3 RunInterferenceScripts.py --inputConfig config_high_mass.py --mode computeIntf \
+        --modeOpts \" --nBins {MBins}  --minMass {MLow} --maxMass {MHigh} \""""
+    subprocess.call(cmd, shell=True)
+
 if len(opt.run_only) == 0 or "background" in opt.run_only:
     # Run Background fit
     os.chdir("../Background")

@@ -70,7 +70,7 @@ def plotInterference(ifm,_range= 0.1,_binwidth=1.):
 
   canv = ROOT.TCanvas()
   canv.SetLeftMargin(0.15)
-  range_m, range_p = 748,752
+  range_m, range_p = int(MHLow), int(MHHigh)
   ifm.MH.setVal(int(mass))
   ifm.MH.setConstant(True)
   ifm.xvar.setBinning(ROOT.RooBinning(2000,range_m,range_p))

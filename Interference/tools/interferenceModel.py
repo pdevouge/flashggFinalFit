@@ -24,7 +24,7 @@ class InterferenceModel:
     self.massPoints = _massPoints
     self.width = _width
     self.intLumi = ROOT.RooRealVar("IntLumi","IntLumi",1.,0.,999999999.) # in pb^-1
-    self.dPhase = ROOT.RooRealVar("delta","delta",1,0.,np.pi)
+    self.dPhase = ROOT.RooRealVar("delta","delta",0.,0.,2*np.pi)
     self.Pdfs = od()
     self.Functions = od()
     self.Splines = od()
@@ -41,7 +41,9 @@ class InterferenceModel:
     fin = ROOT.TFile(fsigName)
     wsin = fin.Get("%s_%s"%(outputWSName__,sqrts__))
     self.Splines['ea'] = wsin.function("fea_%s"%(self.name)).Clone()
-    self.Pdfs[self.name] = wsin.pdf("%s_%s"%(outputWSObjectTitle__,self.name)).Clone()
+    self.Pdfs['reso_dcb_%s'%self.name] = wsin.pdf('reso_dcb_%s'%self.name)
+    self.Pdfs['sig_pdf'] = wsin.pdf("%s_%s"%(outputWSObjectTitle__,self.name)).Clone()
+    self.Functions['sig_norm'] = wsin.function("%s_%s_norm"%(outputWSObjectTitle__,self.name)).Clone()
 
 
   def make_interference_real(self):
@@ -70,13 +72,14 @@ class InterferenceModel:
   def make_Mb(self):
     script_dir = os.path.abspath( os.path.dirname( __file__ ) )
     ggbox_xs = pd.read_csv('%s/csv/mcfm_xsec_ggbox.csv'%(script_dir)).set_index('mh').eval('xsec/width')
-
     self.Splines['ggbox_xsec'] = ROOT.RooSpline1D("ggbox_xs_%s"%(self.name),"ggbox_xs_%s"%(self.name), self.xvar, len(ggbox_xs), ggbox_xs.index.to_numpy(), ggbox_xs.to_numpy())
 
-    self.Functions['Mbkg'] = ROOT.RooFormulaVar("Mbkg","Mbkg","@0*@1",ROOT.RooArgList(self.Splines['ea'],self.Splines['ggbox_xsec']))
+    self.Pdfs['ggbox_pdf'] = ROOT.RooGenericPdf("Mbkg","Mbkg","@0*@1",ROOT.RooArgList(self.Splines['ea'],self.Splines['ggbox_xsec']))
+
+    self.Functions['Mbkg'] = ROOT.RooFFTConvPdf("Mbkg", "Mbkg", self.xvar, self.Pdfs['ggbox_pdf'], self.Pdfs['reso_dcb_%s'%self.name])
 
   def make_Ms(self):
-    self.Functions['Msig'] = ROOT.RooFormulaVar("Msig","Msig","@0*@1",ROOT.RooArgList(self.Splines['ea'],self.Pdfs[self.name]))
+    self.Functions['Msig'] = ROOT.RooProduct("Msig","Msig",ROOT.RooArgList(self.Functions['sig_norm'],self.Pdfs['sig_pdf']))
 
   def buildInterference(self):
     self.make_interference_imaginary()
