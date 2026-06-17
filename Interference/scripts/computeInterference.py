@@ -51,17 +51,25 @@ xvar = inputWS0.var(opt.xvar)
 xvar.setRange(int(MHLow), int(MHHigh))
 xvarFit = xvar.Clone()
 
-MH = ROOT.RooRealVar("MH","m_{H}", int(MHLow), int(MHHigh))
-MH.setUnit("GeV")
-MH.setConstant(True)
-
 if 'p' in opt.width:
   width = opt.width.replace('p','.')
   width = f"({float(width)/100})"
 else:
   width = "%s.%s"%(opt.width[0],opt.width[1:])
 
-intfm = InterferenceModel(opt.proc,opt.cat,opt.ext,opt.year,sqrts__,xvar,MH,opt.massPoints,width)
+intfm = InterferenceModel(opt.proc,opt.cat,opt.ext,opt.year,sqrts__,xvar,opt.massPoints,width)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SAVE: to output workspace
+foutDir = "%s/outdir_%s/computeIntf/output"%(iwd__,opt.ext)
+foutName = "%s/outdir_%s/computeIntf/output/CMS-HGG_intfm_%s_%s_%s_%s.root"%(iwd__,opt.ext,opt.ext,opt.proc,opt.year,opt.cat)
+print("\n --> Saving output workspace to file: %s"%foutName)
+if not os.path.isdir(foutDir): os.system("mkdir %s"%foutDir)
+fout = ROOT.TFile(foutName,"RECREATE")
+outWS = ROOT.RooWorkspace("%s_%s"%(outputWSName__,sqrts__),"%s_%s"%(outputWSName__,sqrts__))
+intfm.save(outWS)
+outWS.Write()
+fout.Close()
 
 
 def plotInterference(ifm,_range= 0.1,_binwidth=1.):
@@ -71,15 +79,15 @@ def plotInterference(ifm,_range= 0.1,_binwidth=1.):
   canv = ROOT.TCanvas()
   canv.SetLeftMargin(0.15)
   range_m, range_p = int(MHLow), int(MHHigh)
-  ifm.MH.setVal(int(mass))
-  ifm.MH.setConstant(True)
+  ifm.Vars['MH'].setVal(int(mass))
+  ifm.Vars['MH'].setConstant(True)
   ifm.xvar.setBinning(ROOT.RooBinning(2000,range_m,range_p))
   frame = ifm.xvar.frame()
-  frame.GetYaxis().SetRangeUser(-2, 2)
+  # frame.GetYaxis().SetRangeUser(-2, 2)
   frame.GetXaxis().SetRangeUser(range_m, range_p)
-  ifm.Pdfs['interference'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
-  ifm.Functions['I_re'].plotOn(frame, ROOT.RooFit.Name("Re"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
-  ifm.Functions['I_im'].plotOn(frame, ROOT.RooFit.Name("Im"), LineColor=ROOT.kGreen, LineStyle=1, LineWidth=2)
+  ifm.Functions['SBI'].plotOn(frame, ROOT.RooFit.Name("pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
+  # ifm.Functions['I_re'].plotOn(frame, ROOT.RooFit.Name("Re"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
+  # ifm.Functions['I_im'].plotOn(frame, ROOT.RooFit.Name("Im"), LineColor=ROOT.kGreen, LineStyle=1, LineWidth=2)
   frame.Draw()
 
   canv.SaveAs("./interference_model.pdf")

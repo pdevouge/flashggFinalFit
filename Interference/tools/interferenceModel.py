@@ -12,7 +12,7 @@ from commonTools import *
 
 class InterferenceModel:
   # Constructor
-  def __init__(self,_proc,_cat,_ext,_year,_sqrts,_xvar,_MH,_massPoints,_width):
+  def __init__(self,_proc,_cat,_ext,_year,_sqrts,_xvar,_massPoints,_width):
     self.proc = _proc
     self.cat = _cat
     self.ext = _ext
@@ -20,18 +20,15 @@ class InterferenceModel:
     self.sqrts = _sqrts
     self.name = "%s_%s_%s_%s"%(self.proc,self.year,self.cat,self.sqrts)
     self.xvar = _xvar
-    self.MH = _MH
     self.massPoints = _massPoints
     self.width = _width
-    self.intLumi = ROOT.RooRealVar("IntLumi","IntLumi",1.,0.,999999999.) # in pb^-1
-    self.dPhase = ROOT.RooRealVar("delta","delta",0.,0.,2*np.pi)
+    self.Vars = od()
+    self.Vars['dPhi'] = ROOT.RooRealVar("delta","delta",0.,0.,2*np.pi)
     self.Pdfs = od()
     self.Functions = od()
     self.Splines = od()
     self.retrieveSigInfos()
     self.buildInterference()
-    self.MH.setVal(750)
-    self.MH.setConstant(True)
     self.xvar.setVal(750)
     self.xvar.setConstant(True)
 
@@ -40,10 +37,12 @@ class InterferenceModel:
     fsigName = "%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,self.ext,self.ext,self.proc,self.year,self.cat)
     fin = ROOT.TFile(fsigName)
     wsin = fin.Get("%s_%s"%(outputWSName__,sqrts__))
-    self.Splines['ea'] = wsin.function("fea_%s"%(self.name)).Clone()
+    wsin.var('MH').setVal(750)
+    self.Vars['MH'] = wsin.var('MH')
+    self.Splines['ea'] = wsin.function("fea_%s"%(self.name))
     self.Pdfs['reso_dcb_%s'%self.name] = wsin.pdf('reso_dcb_%s'%self.name)
-    self.Pdfs['sig_pdf'] = wsin.pdf("%s_%s"%(outputWSObjectTitle__,self.name)).Clone()
-    self.Functions['sig_norm'] = wsin.function("%s_%s_norm"%(outputWSObjectTitle__,self.name)).Clone()
+    self.Pdfs['sig_pdf'] = wsin.pdf("%s_%s"%(outputWSObjectTitle__,self.name))
+    self.Functions['sig_norm'] = wsin.function("%s_%s_norm"%(outputWSObjectTitle__,self.name))
 
 
   def make_interference_real(self):
@@ -53,7 +52,7 @@ class InterferenceModel:
     formula = f"(CMS_hgg_mass^2-MH^2) / sqrt((CMS_hgg_mass^2-MH^2)^2 + MH^2*({Gx})^2)"
 
     dependents.add(self.xvar)
-    dependents.add(self.MH)
+    dependents.add(self.Vars['MH'])
 
     self.Functions['I_re'] = ROOT.RooFormulaVar("interference_re","",formula, dependents)
 
@@ -65,7 +64,7 @@ class InterferenceModel:
     formula = f"MH*{Gx} / sqrt((CMS_hgg_mass^2-MH^2)^2 + MH^2*({Gx})^2)"
 
     dependents.add(self.xvar)
-    dependents.add(self.MH)
+    dependents.add(self.Vars['MH'])
 
     self.Functions['I_im'] = ROOT.RooFormulaVar("interference_im","",formula, dependents)
 
@@ -90,12 +89,20 @@ class InterferenceModel:
     dependents = ROOT.RooArgList()
     dependents.add(self.Functions['Mbkg'])
     dependents.add(self.Functions['Msig'])
-    dependents.add(self.dPhase)
+    dependents.add(self.Vars['dPhi'])
     dependents.add(self.Functions['I_re'])
     dependents.add(self.Functions['I_im'])
 
     formula = "2*sqrt(@0*@1)*(@3*cos(@2)-@4*sin(@2))"
 
-    self.Pdfs['interference'] = ROOT.RooFormulaVar("interference","",formula, dependents)
+    self.Functions['interference'] = ROOT.RooFormulaVar("interference","",formula, dependents)
 
+    self.Functions['SBI'] = ROOT.RooFormulaVar("sbi_func","@0+@1+@2",ROOT.RooArgList(self.Functions['Msig'],self.Functions['Mbkg'],self.Functions['interference']))
 
+  def save(self,wsout):
+    wsout.imp = getattr(wsout,"import")
+    self.xvar.setBins(10000, "cache")
+    wsout.imp(self.xvar, ROOT.RooFit.RecycleConflictNodes())
+    for sp in self.Splines.keys():
+      wsout.imp(self.Splines[sp],ROOT.RooFit.RecycleConflictNodes())
+    wsout.imp(self.Functions['SBI'],ROOT.RooFit.RecycleConflictNodes())

@@ -50,7 +50,6 @@ def writeSubFiles(_opts):
   if not os.path.isdir("%s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])): os.system("mkdir %s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode']))
 
   _jobdir = "%s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])
-  print(_jobdir)
   # Remove current job files
   if len(glob.glob("%s/*"%_jobdir)): os.system("rm %s/*"%_jobdir)
 
@@ -123,50 +122,26 @@ def submitFiles(_opts):
     jobOptsStr = _opts['jobOpts']
 
     # For separate submission file per process x category
-    if( _opts['mode'] == "signalFit" )&( not _opts['groupSignalFitJobsByCat'] ):
+    if( _opts['mode'] == "computeIntf" ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
           pcidx = pidx*_opts['nCats']+cidx
           _subfile = "%s/%s_%g"%(_jobdir,_executable,pcidx)
           cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
           run(cmdLine)
-    # Separate submission per category
-    elif( _opts['mode'] == "packageSignal" )|( _opts['mode'] == "fTest" )|( _opts['mode'] == "calcPhotonSyst" )|(( _opts['mode'] == "signalFit" )&( _opts['groupSignalFitJobsByCat'] )):
-      for cidx in range(_opts['nCats']):
-        c = _opts['cats'].split(",")[cidx]
-        _subfile = "%s/%s_%s"%(_jobdir,_executable,c)
-        cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
-        run(cmdLine)
-    # Single submission
-    elif(_opts['mode'] == "getDiagProc"):
-      _subfile = "%s/%s"%(_jobdir,_executable)
-      cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
-      run(cmdLine)
     print("  --> Finished submitting files")
 
   # Running locally
   elif _opts['batch'] == 'local':
     _executable = "sub_%s_%s"%(_opts['mode'],_opts['ext'])
     # For separate submission file per process x category
-    if( _opts['mode'] == "signalFit" )&( not _opts['groupSignalFitJobsByCat'] ):
+    if( _opts['mode'] == "computeIntf" ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
           pcidx = pidx*_opts['nCats']+cidx
           _subfile = "%s/%s_%g"%(_jobdir,_executable,pcidx)
           cmdLine = "bash %s.sh"%(_subfile)
           run(cmdLine)
-    # Separate submission per category
-    elif( _opts['mode'] == "packageSignal" )|( _opts['mode'] == "fTest" )|( _opts['mode'] == "calcPhotonSyst" )|(( _opts['mode'] == "signalFit" )&( _opts['groupSignalFitJobsByCat'] )):
-      for cidx in range(_opts['nCats']):
-        c = _opts['cats'].split(",")[cidx]
-        _subfile = "%s/%s_%s"%(_jobdir,_executable,c)
-        cmdLine = "bash %s.sh"%_subfile
-        run(cmdLine)
-    # Single submission
-    elif(_opts['mode'] == "getDiagProc"):
-      _subfile = "%s/%s"%(_jobdir,_executable)
-      cmdLine = "bash %s.sh"%_subfile
-      run(cmdLine)
     print("  --> Finished running files")
 
 
