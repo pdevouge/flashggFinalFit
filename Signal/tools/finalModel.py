@@ -384,7 +384,6 @@ class FinalModel:
     sys_meanName = "%s_syst"%(dmName)
     # Build formula string and dependents list
     dependents = ROOT.RooArgList()
-    dependents.add(self.MH)
     dependents.add(self.Functions[dmName])
     if not skipSystematics:
       # Add systematics
@@ -409,9 +408,9 @@ class FinalModel:
       if len(sigma) > 0: sigma = sigma[1:] # remove leading '+'
 
     formula = "(@0)"
-    if not skipSystematics: formula += f"*({sigma})"
-    formula += "+(@1)"
-    if not skipSystematics: formula += f"*(1.+{sigma})"
+    if not skipSystematics:
+      formula += "+(%s)*(@0+@%g)"%(sigma,dependents.getSize())
+      dependents.add(self.MH)
     print(formula)
     self.Functions[sys_meanName] = ROOT.RooFormulaVar(sys_meanName,sys_meanName,formula,dependents)
 
