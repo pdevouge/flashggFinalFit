@@ -32,11 +32,14 @@ def get_options():
   parser.add_option('--mass', dest='mass', default='125', help='Input workspace mass')
   parser.add_option('--mergeYears', dest='mergeYears', default=False, action="store_true", help="Merge category across years")
   parser.add_option('--skipBkg', dest='skipBkg', default=False, action="store_true", help="Only add signal processes to datacard")
+  parser.add_option('--skipIntf', dest='skipIntf', default=False, action="store_true", help="Ignore interference processes")
   parser.add_option('--bkgScaler', dest='bkgScaler', default=1., type="float", help="Add overall scale factor for background")
   parser.add_option('--sigModelWSDir', dest='sigModelWSDir', default='./Models/signal', help='Input signal model WS directory')
   parser.add_option('--sigModelExt', dest='sigModelExt', default='packaged', help='Extension used when saving signal model')
   parser.add_option('--bkgModelWSDir', dest='bkgModelWSDir', default='./Models/background', help='Input background model WS directory')
   parser.add_option('--bkgModelExt', dest='bkgModelExt', default='multipdf', help='Extension used when saving background model')
+  parser.add_option('--intfModelWSDir', dest='intfModelWSDir', default='./Models/interference', help='Input interference model WS directory')
+  parser.add_option('--intfModelExt', dest='intfModelExt', default='intfm', help='Extension used when saving interference model')
   # For yields calculations:
   parser.add_option('--skipZeroes', dest='skipZeroes', default=False, action="store_true", help="Skip signal processes with 0 sum of weights")
   parser.add_option('--skipCOWCorr', dest='skipCOWCorr', default=False, action="store_true", help="Skip centralObjectWeight correction for events in acceptance. Use if no centralObjectWeight in workspace")
@@ -163,6 +166,36 @@ if( not opt.skipBkg)&( opt.cat != "NOTAG" ):
       data.loc[len(data)] = ["year",'bkg',_proc_bkg,_proc_bkg,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_bkg,opt.bkgScaler]
       data.loc[len(data)] = ["year",'data',_proc_data,_proc_data,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_data,-1]
 
+# Interference processes
+if( not opt.skipIntf):
+  _proc_intf = 'sbi_mass'
+  _proc_ggb = 'ggbox_mass'
+  for year in years:
+    for proc in procs:
+
+      # Identifier
+      _id = "%s_%s_%s_%s"%(proc,year,opt.cat,sqrts__)
+
+      # Mapping to STXS definition here
+      _procOriginal = proc
+      _proc = "%s_%s_%s"%(procToDatacardName(proc),year,decayMode)
+      _proc_s0 = procToData(proc.split("_")[0])
+
+      # Define category: add year tag if not merging
+      if opt.mergeYears: _cat = opt.cat
+      else: _cat = "%s_%s"%(opt.cat,year)
+
+      # Input model ws
+      if opt.cat == "NOTAG": _modelWSFile, _model = '-', '-'
+      else:
+        _modelWSFile = "%s/CMS-HGG_%s_%s.root"%(opt.intfModelWSDir,opt.intfModelExt,_cat)
+        _model_ggb = "%s:Mbkg_%s"%(intfWSName__,_id)
+        _model_sbi = "%s:sbi_%s"%(intfWSName__,_id)
+
+      # Add signal process to dataFrame:
+      print(" --> Adding to dataFrame: (interference proc,cat) = (%s,%s)"%(_proc,_cat))
+      data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb,'-',_cat,'-','-',_modelWSFile,_model_ggb,_rate]
+      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_sbi,_rate]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Yields: for each signal row in dataFrame extract the yield
