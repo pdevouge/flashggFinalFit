@@ -75,10 +75,10 @@ class InterferenceModel:
 
     self.Pdfs['ggbox_pdf'] = ROOT.RooGenericPdf("Mbkg","Mbkg","@0*@1",ROOT.RooArgList(self.Splines['ea'],self.Splines['ggbox_xsec']))
 
-    self.Functions['Mbkg'] = ROOT.RooFFTConvPdf("Mbkg", "Mbkg", self.xvar, self.Pdfs['ggbox_pdf'], self.Pdfs['reso_dcb_%s'%self.name])
+    self.Functions['Mbkg'] = ROOT.RooFFTConvPdf("Mbkg_%s"%self.name, "Mbkg_%s"%self.name, self.xvar, self.Pdfs['ggbox_pdf'], self.Pdfs['reso_dcb_%s'%self.name])
 
   def make_Ms(self):
-    self.Functions['Msig'] = ROOT.RooProduct("Msig","Msig",ROOT.RooArgList(self.Functions['sig_norm'],self.Pdfs['sig_pdf']))
+    self.Functions['Msig'] = ROOT.RooProduct("Msig_%s"%self.name,"Msig_%s"%self.name,ROOT.RooArgList(self.Functions['sig_norm'],self.Pdfs['sig_pdf']))
 
   def buildInterference(self):
     self.make_interference_imaginary()
@@ -97,7 +97,7 @@ class InterferenceModel:
 
     self.Functions['interference'] = ROOT.RooFormulaVar("interference","",formula, dependents)
 
-    self.Functions['SBI'] = ROOT.RooFormulaVar("sbi_func","@0+@1+@2",ROOT.RooArgList(self.Functions['Msig'],self.Functions['Mbkg'],self.Functions['interference']))
+    self.Pdfs['SBI'] = ROOT.RooGenericPdf("sbi_%s"%self.name,"@0+@1+@2",ROOT.RooArgList(self.Functions['Msig'],self.Functions['Mbkg'],self.Functions['interference']))
 
   def save(self,wsout):
     wsout.imp = getattr(wsout,"import")
@@ -105,4 +105,4 @@ class InterferenceModel:
     wsout.imp(self.xvar, ROOT.RooFit.RecycleConflictNodes())
     for sp in self.Splines.keys():
       wsout.imp(self.Splines[sp],ROOT.RooFit.RecycleConflictNodes())
-    wsout.imp(self.Functions['SBI'],ROOT.RooFit.RecycleConflictNodes())
+    wsout.imp(self.Pdfs['SBI'],ROOT.RooFit.RecycleConflictNodes())

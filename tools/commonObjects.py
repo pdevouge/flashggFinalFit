@@ -57,3 +57,5 @@ outputWSNuisanceTitle__ = "CMS_hgg_nuisance"
 outputNuisanceExtMap = {'scales':'','scalesCorr':'','smears':'','scalesGlobal':''}
 # Bkg output WS objects
 bkgWSName__ = "multipdf"
+# Intf output WS objects
+intfWSName__ = "wintf"
