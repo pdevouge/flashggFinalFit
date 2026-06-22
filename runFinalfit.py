@@ -166,10 +166,12 @@ if len(opt.run_only) == 0 or "combine" in opt.run_only:
     if not os.path.isdir("Models"):
         os.system("mkdir -p Models/signal")
         os.system("mkdir -p Models/background")
+        os.system("mkdir -p Models/interference")
     else:
         print("Models directory already exists: models will not be copied into Combine dir. Leaving...")
         leave()
 
-    os.system(f"cp ../Signal/outdir_packaged/CMS-HGG_sigfit_packaged*.root Models/signal/")
-    os.system(f"cp ../Background/outdir_{ext}/CMS-HGG_multipdf*.root Models/background/")
+    os.system(f"cp ../Signal/outdir_packaged/CMS-HGG_sigfit_packaged_{cat}_{year}*.root Models/signal/")
+    os.system(f"cp ../Background/outdir_{ext}/CMS-HGG_multipdf_{cat}_{year}*.root Models/background/")
+    os.system(f"cp ../Interference/outdir_{ext}/computeIntf/output/CMS-HGG_intfm_{cat}_{year}*.root Models/interference/")
     os.system(f"cp ../Datacard/Datacard_{ext}.txt .")
