@@ -195,7 +195,7 @@ if( not opt.skipIntf):
       # Add signal process to dataFrame:
       print(" --> Adding to dataFrame: (interference proc,cat) = (%s,%s)"%(_proc,_cat))
       data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb,'-',_cat,'-','-',_modelWSFile,_model_ggb,_rate]
-      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_sbi,_rate]
+      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,'%s_sbi'%_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_sbi,_rate]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Yields: for each signal row in dataFrame extract the yield

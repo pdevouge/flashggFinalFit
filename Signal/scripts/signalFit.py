@@ -15,7 +15,6 @@ from signalTools import *
 from replacementMap import globalReplacementMap
 from XSBRMap import *
 from simultaneousFit import *
-from interferenceModel import *
 from finalModel import *
 from plottingTools import *
 
