@@ -207,7 +207,7 @@ class FinalModel:
     else:
       self.buildRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
     finalPdfName = self.Pdfs['final'].GetName()
-    self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1*@2*@3",ROOT.RooArgList(self.Splines['xs'],self.Splines['br'],self.Splines['ea'],self.Functions['rate_%s'%self.name]))
+    self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1*@2",ROOT.RooArgList(self.Splines['xs'],self.Splines['br'],self.Functions['rate_%s'%self.name]))
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function for making nuisance splines w/ info to add to Nuisance dict

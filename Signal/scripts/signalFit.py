@@ -208,7 +208,6 @@ if not opt.skipMC:
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
     Roodata = inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,lowW,sqrts__,catRVFit))
-    effAcc[mp] = Roodata.sumEntries() #EffxAcc dict
     d = reduceDataset(Roodata,aset)
     if opt.skipVertexScenarioSplit: datasetRVForFit['low_w'][mp] = d
     else: datasetRVForFit['low_w'][mp] = splitRVWV(d,aset,mode="RV")
@@ -218,7 +217,9 @@ if not opt.skipMC:
     WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procRVFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit)),aset)
+    Roodata = inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit))
+    effAcc[mp] = Roodata.sumEntries() #EffxAcc dict
+    d = reduceDataset(Roodata,aset)
     nominalDatasets[mp] = d.Clone()
     if opt.skipVertexScenarioSplit: datasetRVForFit['nom_w'][mp] = d
     else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")

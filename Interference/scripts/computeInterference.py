@@ -74,26 +74,66 @@ fout.Close()
 
 def plotInterference(ifm,_range= 0.1,_binwidth=1.):
 
-  mass = 750
+  mass = 500
+  ifm.Vars['MH'].setVal(mass)
 
-  canv = ROOT.TCanvas()
-  canv.SetLeftMargin(0.15)
-  range_m, range_p = int(MHLow), int(MHHigh)
-  ifm.Vars['MH'].setVal(int(mass))
-  ifm.Vars['MH'].setConstant(True)
-  ifm.Vars['dPhi'].setVal(0)
-  ifm.Vars['dPhi'].setConstant(True)
-  ifm.xvar.setBinning(ROOT.RooBinning(2000,range_m,range_p))
-  frame = ifm.xvar.frame()
-  # frame.GetYaxis().SetRangeUser(-2, 2)
-  frame.GetXaxis().SetRangeUser(range_m, range_p)
-  ifm.Pdfs['SBI'].plotOn(frame, ROOT.RooFit.Name("sbi_pdf"), LineColor=ROOT.kBlue, LineStyle=1, LineWidth=2)
-  ifm.Functions['Msig'].plotOn(frame, ROOT.RooFit.Name("sig_pdf"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
-  # ifm.Functions['I_re'].plotOn(frame, ROOT.RooFit.Name("Re"), LineColor=ROOT.kRed, LineStyle=1, LineWidth=2)
-  # ifm.Functions['I_im'].plotOn(frame, ROOT.RooFit.Name("Im"), LineColor=ROOT.kGreen, LineStyle=1, LineWidth=2)
-  frame.Draw()
+  sig_pdf = ifm.Pdfs["Msig"]
+  sig_norm = ifm.Functions["Msig_norm"]
 
-  canv.SaveAs("./interference_model.pdf")
+  bkg_pdf = ifm.Pdfs["Mbkg"]
+  bkg_norm = ifm.Functions["Mbkg_norm"]
+
+  sbi_pdf = ifm.Pdfs["SBI"]
+  sbi_norm = ifm.Functions["SBI_norm"]
+
+  graph_sig = ROOT.TGraph()
+  graph_bkg = ROOT.TGraph()
+  graph_sbi = ROOT.TGraph()
+
+  ymin = 0
+  ymax = 0
+  for i, x in enumerate(range(400, 1201)):
+      ifm.xvar.setVal(x)
+      y_sig = sig_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * sig_norm.getVal()
+      graph_sig.SetPoint(i, x, y_sig)
+
+      y_bkg = bkg_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * bkg_norm.getVal()
+      graph_bkg.SetPoint(i, x, y_bkg)
+
+      y_sbi = sbi_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * sbi_norm.getVal()
+      graph_sbi.SetPoint(i, x, y_sbi)
+      ymax = np.max([ymax,y_sig,y_bkg,y_sbi])
+
+  c = ROOT.TCanvas()
+  graph_sig.SetLineColor(ROOT.kGreen)
+  graph_sig.SetLineWidth(2)
+  graph_bkg.SetLineColor(ROOT.kRed)
+  graph_bkg.SetLineWidth(2)
+  graph_sbi.SetLineColor(ROOT.kBlue)
+  graph_sbi.SetLineWidth(2)
+  graph_sbi.SetLineStyle(2)
+
+  graph_sig.Draw("AL")
+  graph_sig.SetMaximum(1.1 * ymax)   # 10% headroom
+  graph_sig.SetMinimum(0.)
+  graph_bkg.Draw("L SAME")
+  graph_sbi.Draw("L SAME")
+
+  leg = ROOT.TLegend(0.65, 0.70, 0.88, 0.88)
+  leg.SetBorderSize(0)
+  leg.SetFillStyle(0)
+
+  leg.AddEntry(graph_sbi, "S+B+I", "l")
+  leg.AddEntry(graph_bkg, "Background", "l")
+  leg.AddEntry(graph_sig, "Signal", "l")
+
+  leg.Draw()
+
+  graph_sig.GetXaxis().SetLimits(400, 1200)
+  graph_sig.SetTitle('Interference process')
+  c.Update()
+
+  c.SaveAs("./interference_model.pdf")
 
 
 plotInterference(intfm)
