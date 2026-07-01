@@ -140,6 +140,8 @@ class FinalModel:
       else:
         self.buildPdf(self.ssfMap['Total'],ext='total',useDCB=self.useDCB)
         self.Pdfs['final'] = self.Pdfs['total']
+      # Build final normalisation, datasets and extended Pdfs
+      self.buildNorm()
     else:
       self.NuisanceSplines = od()
       # If not skip systematics: add nuisance params to splines
@@ -148,8 +150,8 @@ class FinalModel:
       for sp in self.ssfMap['Total'].Splines.keys():
         self.Splines[sp] = self.ssfMap['Total'].Splines[sp].Clone()
       self.Pdfs['final'] = self.Pdfs['total']
-    # Build final normalisation, datasets and extended Pdfs
-    self.buildNorm()
+      # Build final normalisation, datasets and extended Pdfs
+      self.buildAnalyticalNorm(ext='total')
     self.buildDatasets()
     self.buildExtended()
 
@@ -202,10 +204,7 @@ class FinalModel:
   # Function to build final normalisation: XS * BR * eff * acc * rate
   def buildNorm(self):
     # Build rate function: encode affect of nuisances on signal rate
-    if self.doAnalyticalForm:
-      self.buildAnalyticalRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
-    else:
-      self.buildRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
+    self.buildRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
     finalPdfName = self.Pdfs['final'].GetName()
     self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1*@2",ROOT.RooArgList(self.Splines['xs'],self.Splines['br'],self.Functions['rate_%s'%self.name]))
 
@@ -448,6 +447,17 @@ class FinalModel:
     self.Functions[rateName] = ROOT.RooFormulaVar(rateName,rateName,formula,dependents)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # Function to build final normalisation: PDF integral
+  def buildAnalyticalNorm(self, ext=''):
+    # Build rate function: encode affect of nuisances on signal rate
+    self.buildAnalyticalRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
+    extStr = "%s_%s"%(self.name,ext) if ext!='total' else '%s'%self.name
+    finalPdfName = self.Pdfs['final'].GetName()
+    self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1",ROOT.RooArgList(self.Pdfs['rel_bw_%s'%extStr].createIntegral(ROOT.RooArgSet(self.xvar)),self.Functions['rate_%s'%self.name]))
+    #ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1*@2*@3",ROOT.RooArgList(self.Splines['xs'],self.Splines['br'],self.Splines['ea'],self.Functions['rate_%s'%self.name]))
+
+
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function for making nuisance param w/ info to add to Nuisance dict
   def makeNuisance(self,nuisanceName,nuisanceMeanConst,nuisanceSigmaConst,nuisanceRateConst,nuisanceType,nuisanceOpts=[]):
     self.NuisanceMap[nuisanceType][nuisanceName] = {
@@ -681,7 +691,7 @@ class FinalModel:
   # Function to build extended Pdfs and normalisation with luminosity
   def buildExtended(self):
     finalPdfName = self.Pdfs['final'].GetName()
-    self.Functions['final_normThisLumi'] = ROOT.RooFormulaVar("%s_normThisLumi"%finalPdfName,"%s_normThisLumi"%finalPdfName,"@0*@1*@2*@3*@4",ROOT.RooArgList(self.Splines['xs'],self.Splines['br'],self.Splines['ea'],self.Functions['rate_%s'%self.name],self.intLumi))
+    self.Functions['final_normThisLumi'] = ROOT.RooFormulaVar("%s_normThisLumi"%finalPdfName,"%s_normThisLumi"%finalPdfName,"@0*@1",ROOT.RooArgList(self.Functions['final_norm'],self.intLumi))
     self.Pdfs['final_extend'] = ROOT.RooExtendPdf("extend%s"%finalPdfName,"extend%s"%finalPdfName,self.Pdfs['final'],self.Functions['final_norm'])
     self.Pdfs['final_extendThisLumi'] = ROOT.RooExtendPdf("extend%sThisLumi"%finalPdfName,"extend%sThisLumi"%finalPdfName,self.Pdfs['final'],self.Functions['final_normThisLumi'])
 
