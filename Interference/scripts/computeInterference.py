@@ -57,7 +57,7 @@ if 'p' in opt.width:
 else:
   width = "%s.%s"%(opt.width[0],opt.width[1:])
 
-intfm = InterferenceModel(opt.proc,opt.cat,opt.ext,opt.year,sqrts__,xvar,opt.massPoints,width)
+intfm = InterferenceModel(opt.proc,opt.cat,opt.ext,opt.year,sqrts__,xvar,MHLow,MHHigh,opt.massPoints,width)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SAVE: to output workspace
@@ -92,7 +92,7 @@ def plotInterference(ifm,_range= 0.1,_binwidth=1.):
 
   ymin = 0
   ymax = 0
-  for i, x in enumerate(range(400, 1201)):
+  for i, x in enumerate(range(500, 1001)):
       ifm.xvar.setVal(x)
       y_sig = sig_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * sig_norm.getVal()
       graph_sig.SetPoint(i, x, y_sig)

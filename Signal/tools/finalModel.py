@@ -373,6 +373,7 @@ class FinalModel:
 
     # * true lineshape: relativistic BW
     self.Pdfs['rel_bw_%s'%extStr] = self.ssfMap['Total'].Pdfs['rel_bw'].Clone()
+    self.Functions['rel_bw'] = self.ssfMap['Total'].Functions['rel_bw'].Clone()
 
     self.xvar.setBins(10000, "cache")
     self.Pdfs[ext] = ROOT.RooFFTConvPdf("%s_%s"%(outputWSObjectTitle__,extStr),"%s_%s"%(outputWSObjectTitle__,extStr), self.xvar, self.Pdfs['rel_bw_%s'%extStr], self.Pdfs['reso_dcb_%s'%extStr])
@@ -453,9 +454,19 @@ class FinalModel:
     self.buildAnalyticalRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
     extStr = "%s_%s"%(self.name,ext) if ext!='total' else '%s'%self.name
     finalPdfName = self.Pdfs['final'].GetName()
-    self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1",ROOT.RooArgList(self.Pdfs['rel_bw_%s'%extStr].createIntegral(ROOT.RooArgSet(self.xvar)),self.Functions['rate_%s'%self.name]))
-    #ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1*@2*@3",ROOT.RooArgList(self.Splines['xs'],self.Splines['br'],self.Splines['ea'],self.Functions['rate_%s'%self.name]))
+    lineshape_integral = self.Pdfs['rel_bw_%s'%extStr].getNormIntegral(ROOT.RooArgSet(self.xvar))
 
+    mp = self.massPoints.split(',')
+    minMass, maxMass = int(mp[0]), int(mp[-1])
+    mh = np.arange(minMass, maxMass + 1, dtype=np.float64)
+    pdf_y = np.empty(len(mh), dtype=np.float64)
+    for i, m in enumerate(mh):
+        self.MH.setVal(m)
+        pdf_y[i] = lineshape_integral.getVal()
+    self.Functions['rel_bw_integral'] = ROOT.RooSpline1D("rel_bw_integral","rel_bw_integral",self.MH,len(mh),mh,pdf_y)
+    self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1",ROOT.RooArgList(self.Functions['rel_bw_integral'],self.Functions['rate_%s'%self.name]))
+
+    self.Functions['Msig'] = ROOT.RooFormulaVar('Msig','Msig','@0*@1',ROOT.RooArgList(self.Functions['rel_bw'],self.Functions['rate_%s'%self.name]))
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function for making nuisance param w/ info to add to Nuisance dict
@@ -703,6 +714,7 @@ class FinalModel:
     wsout.imp(self.xvar, ROOT.RooFit.RecycleConflictNodes())
     for sp in self.Splines.keys():
       wsout.imp(self.Splines[sp],ROOT.RooFit.RecycleConflictNodes())
+    wsout.imp(self.Functions['Msig'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['final'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_norm'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['final_normThisLumi'],ROOT.RooFit.RecycleConflictNodes())

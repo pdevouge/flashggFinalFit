@@ -12,7 +12,7 @@ from commonTools import *
 
 class InterferenceModel:
   # Constructor
-  def __init__(self,_proc,_cat,_ext,_year,_sqrts,_xvar,_massPoints,_width):
+  def __init__(self,_proc,_cat,_ext,_year,_sqrts,_xvar,_MHLow,_MHHigh,_massPoints,_width):
     self.proc = _proc
     self.cat = _cat
     self.ext = _ext
@@ -20,6 +20,8 @@ class InterferenceModel:
     self.sqrts = _sqrts
     self.name = "%s_%s_%s_%s"%(self.proc,self.year,self.cat,self.sqrts)
     self.xvar = _xvar
+    self.MHLow = _MHLow
+    self.MHHigh = _MHHigh
     self.massPoints = _massPoints
     self.width = _width
     self.Vars = od()
@@ -27,28 +29,20 @@ class InterferenceModel:
     self.Pdfs = od()
     self.Functions = od()
     self.Splines = od()
-    self.retrieveSigInfos()
-    self.buildInterference()
 
-
-  def retrieveSigInfos(self):
     fsigName = "%s/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_%s_%s_%s.root"%(swd__,self.ext,self.ext,self.proc,self.year,self.cat)
     fin = ROOT.TFile(fsigName)
     wsin = fin.Get("%s_%s"%(outputWSName__,sqrts__))
-    wsin.var('MH').setVal(750)
+    self.retrieveSigInfos(wsin)
+    self.buildInterference(wsin)
+
+
+  def retrieveSigInfos(self, wsin):
+
     self.Vars['MH'] = wsin.var('MH')
     self.Vars['truem'] = wsin.var('true_mass')
-    self.Splines['ea'] = wsin.function("effs_Total")
-    self.Splines['ea'].redirectServers(ROOT.RooArgSet(self.xvar))
-    self.Pdfs['reso_dcb_%s'%self.name] = wsin.pdf('reso_dcb_%s'%self.name)
-    self.Pdfs['reso_dcb_%s'%self.name].redirectServers(ROOT.RooArgSet(self.xvar))
-
-    self.Pdfs['Msig_pdf'] = wsin.pdf("rel_bw")
-    self.Pdfs['Msig_pdf'].redirectServers(ROOT.RooArgSet(self.xvar))
-    self.Functions['Msig_norm'] = wsin.function("%s_%s_norm"%(outputWSObjectTitle__,self.name))
-    self.Functions['Msig_norm'].redirectServers(ROOT.RooArgSet(self.xvar))
-    self.Pdfs['Msig'] = wsin.pdf("%s_%s"%(outputWSObjectTitle__,self.name))
-    self.Pdfs['Msig'].redirectServers(ROOT.RooArgSet(self.xvar))
+    self.Splines['ea'] = wsin.function("effs_Total").Clone()
+    self.Pdfs['reso_dcb_%s'%self.name] = wsin.pdf('reso_dcb_%s'%self.name).Clone()
 
   def make_interference_real(self):
     # (mgg**2-Mx**2)/sqrt((mgg**2-Mx**2)**2 + Mx**2*Gx**2)
@@ -84,32 +78,38 @@ class InterferenceModel:
 
     self.Pdfs['Mbkg'] = ROOT.RooFFTConvPdf("Mbkg_%s"%self.name, "Mbkg_%s"%self.name, self.xvar, self.Pdfs['Mbkg_pdf'], self.Pdfs['reso_dcb_%s'%self.name])
 
+    # Normalization
+    mp = self.massPoints.split(',')
+    minMass, maxMass = int(mp[0]), int(mp[-1])
+    mh = np.arange(minMass, maxMass + 1, dtype=np.float64)
+    pdf_y = np.empty(len(mh), dtype=np.float64)
+    for i, m in enumerate(mh):
+        self.Vars['MH'].setVal(m)
+        pdf_y[i] = self.Pdfs['Mbkg_pdf'].getNormIntegral(ROOT.RooArgSet(self.xvar)).getVal()
+
     MbkgPdfName = self.Pdfs['Mbkg'].GetName()
-    # Can be replaced by self.Functions['Mbkg_func'].createIntegral
-    self.Functions['Mbkg_norm'] = self.Pdfs['Mbkg_pdf'].createIntegral(
-        ROOT.RooArgSet(self.xvar)
-    )
-    self.Functions['Mbkg_norm'].SetName("%s_norm" % MbkgPdfName)
+    self.Functions['Mbkg_norm'] = ROOT.RooSpline1D("%s_norm" % MbkgPdfName,"%s_norm" % MbkgPdfName,self.Vars['MH'],len(mh),mh,pdf_y)
 
-  def make_Ms(self):
+  def make_Ms(self, wsin):
+    wsin.Print('v')
+    self.Functions['Msig_func'] = wsin.function("Msig").Clone()
+    # self.Pdfs['Msig'].redirectServers(ROOT.RooArgSet(self.xvar))
 
-    self.Functions['Msig_func'] = ROOT.RooExtendPdf("Msig_func","Msig_func",self.Pdfs['Msig_pdf'],self.Functions['Msig_norm'])#ROOT.RooFormulaVar("Msig_func", "Msig_func", "@0*@1", ROOT.RooArgList(self.Pdfs['Msig_pdf'], self.Functions['Msig_norm']))
-
-  def buildInterference(self):
+  def buildInterference(self, wsin):
     self.make_interference_imaginary()
     self.make_interference_real()
     self.make_Mb()
-    self.make_Ms()
+    self.make_Ms(wsin)
 
     dependents = ROOT.RooArgList()
-    dependents.add(self.Functions['Mbkg_func'])
+    # dependents.add(self.Functions['Mbkg_func'])
     dependents.add(self.Functions['Msig_func'])
-    dependents.add(self.Vars['dPhi'])
-    dependents.add(self.Functions['I_re'])
-    dependents.add(self.Functions['I_im'])
+    # dependents.add(self.Vars['dPhi'])
+    # dependents.add(self.Functions['I_re'])
+    # dependents.add(self.Functions['I_im'])
 
     # Full SBI before resolution smearing
-    sbi_formula = "@0 + @1 + 2*sqrt(@0*@1)*(@3*cos(@2)-@4*sin(@2))"
+    sbi_formula = "@0" #"@0 + @1 + 2*sqrt(@0*@1)*(@3*cos(@2)-@4*sin(@2))"
     self.Functions['SBI_func'] = ROOT.RooFormulaVar(
         "sbi_func_%s" % self.name, "",
         sbi_formula, dependents
@@ -127,12 +127,18 @@ class InterferenceModel:
         self.Pdfs['reso_dcb_%s' % self.name]
     )
 
+    # Normalization
+    mp = self.massPoints.split(',')
+    # minMass, maxMass = int(mp[0]), int(mp[-1])
+    # mh = np.arange(minMass, maxMass + 1, dtype=np.float64)
+    mh = np.array([float(m) for m in mp])
+    pdf_y = np.empty(len(mh), dtype=np.float64)
+    for i, m in enumerate(mh):
+        self.Vars['MH'].setVal(m)
+        pdf_y[i] = self.Pdfs['SBI_truth'].getNormIntegral(ROOT.RooArgSet(self.xvar)).getVal()
+
     sbiPdfName = self.Pdfs['SBI'].GetName()
-    # createIntegral returns a live RooAbsReal that recomputes when MH changes
-    self.Functions['SBI_norm'] = self.Pdfs['SBI_truth'].createIntegral(
-        ROOT.RooArgSet(self.xvar)
-    )
-    self.Functions['SBI_norm'].SetName("%s_norm" % sbiPdfName)
+    self.Functions['SBI_norm'] = ROOT.RooSpline1D("%s_norm" % sbiPdfName,"%s_norm" % sbiPdfName,self.Vars['MH'],len(mh),mh,pdf_y)
 
   def save(self,wsout):
     wsout.imp = getattr(wsout,"import")
@@ -140,7 +146,5 @@ class InterferenceModel:
     wsout.imp(self.xvar, ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['SBI'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Pdfs['Mbkg'],ROOT.RooFit.RecycleConflictNodes())
-    wsout.imp(self.Pdfs['Msig'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['SBI_norm'],ROOT.RooFit.RecycleConflictNodes())
     wsout.imp(self.Functions['Mbkg_norm'],ROOT.RooFit.RecycleConflictNodes())
-    wsout.imp(self.Functions['Msig_norm'],ROOT.RooFit.RecycleConflictNodes())

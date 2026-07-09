@@ -204,6 +204,7 @@ class SimultaneousFit:
     self.Varlists = od()
     self.Polynomials = od()
     self.Pdfs = od()
+    self.Functions = od()
     self.ResoFuncs = od()
     self.Coeffs = od()
     self.Splines = od()
@@ -486,6 +487,7 @@ class SimultaneousFit:
     formula = f"(CMS_hgg_mass/MH)^{power} / ((CMS_hgg_mass^2 - MH^2)^2 + CMS_hgg_mass^2*({Gtot})^2) * {kf} * ({ratio}) * {eff}"
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
+    self.Functions['rel_bw'] = ROOT.RooFormulaVar("rel_bw_func","",formula, dependents)
 
     # DEBUG
     # self.xvar.setVal(490)
