@@ -41,8 +41,10 @@ class InterferenceModel:
 
     self.Vars['MH'] = wsin.var('MH')
     self.Vars['truem'] = wsin.var('true_mass')
-    self.Splines['ea'] = wsin.function("effs_Total").Clone()
-    self.Pdfs['reso_dcb_%s'%self.name] = wsin.pdf('reso_dcb_%s'%self.name).Clone()
+    self.Splines['ea'] = wsin.function("effs_Total")
+    self.Splines['ea'].redirectServers(ROOT.RooArgSet(self.xvar))
+    self.Pdfs['reso_dcb_%s'%self.name] = wsin.pdf('reso_dcb_%s'%self.name)
+    self.Pdfs['reso_dcb_%s'%self.name].redirectServers(ROOT.RooArgSet(self.xvar))
 
   def make_interference_real(self):
     # (mgg**2-Mx**2)/sqrt((mgg**2-Mx**2)**2 + Mx**2*Gx**2)
@@ -91,9 +93,14 @@ class InterferenceModel:
     self.Functions['Mbkg_norm'] = ROOT.RooSpline1D("%s_norm" % MbkgPdfName,"%s_norm" % MbkgPdfName,self.Vars['MH'],len(mh),mh,pdf_y)
 
   def make_Ms(self, wsin):
-    wsin.Print('v')
-    self.Functions['Msig_func'] = wsin.function("Msig").Clone()
-    # self.Pdfs['Msig'].redirectServers(ROOT.RooArgSet(self.xvar))
+
+    self.Functions['Msig_func'] = wsin.function("Msig")
+    self.Functions['Msig_func'].redirectServers(ROOT.RooArgSet(self.xvar))
+
+    self.Pdfs['Msig'] = wsin.pdf("%s_%s"%(outputWSObjectTitle__,self.name))
+    self.Pdfs['Msig'].redirectServers(ROOT.RooArgSet(self.xvar))
+    self.Functions['Msig_norm'] = wsin.function("%s_%s_norm"%(outputWSObjectTitle__,self.name))
+    self.Functions['Msig_norm'].redirectServers(ROOT.RooArgSet(self.xvar))
 
   def buildInterference(self, wsin):
     self.make_interference_imaginary()
@@ -102,14 +109,14 @@ class InterferenceModel:
     self.make_Ms(wsin)
 
     dependents = ROOT.RooArgList()
-    # dependents.add(self.Functions['Mbkg_func'])
+    dependents.add(self.Functions['Mbkg_func'])
     dependents.add(self.Functions['Msig_func'])
-    # dependents.add(self.Vars['dPhi'])
-    # dependents.add(self.Functions['I_re'])
-    # dependents.add(self.Functions['I_im'])
+    dependents.add(self.Vars['dPhi'])
+    dependents.add(self.Functions['I_re'])
+    dependents.add(self.Functions['I_im'])
 
     # Full SBI before resolution smearing
-    sbi_formula = "@0" #"@0 + @1 + 2*sqrt(@0*@1)*(@3*cos(@2)-@4*sin(@2))"
+    sbi_formula = "@0 + @1 + 2*sqrt(@0*@1)*(@3*cos(@2)-@4*sin(@2))"
     self.Functions['SBI_func'] = ROOT.RooFormulaVar(
         "sbi_func_%s" % self.name, "",
         sbi_formula, dependents

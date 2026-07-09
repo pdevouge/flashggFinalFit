@@ -74,7 +74,8 @@ fout.Close()
 
 def plotInterference(ifm,_range= 0.1,_binwidth=1.):
 
-  mass = 500
+  mass = 750
+  lumi = 26700
   ifm.Vars['MH'].setVal(mass)
 
   sig_pdf = ifm.Pdfs["Msig"]
@@ -94,13 +95,13 @@ def plotInterference(ifm,_range= 0.1,_binwidth=1.):
   ymax = 0
   for i, x in enumerate(range(500, 1001)):
       ifm.xvar.setVal(x)
-      y_sig = sig_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * sig_norm.getVal()
+      y_sig = sig_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * sig_norm.getVal() * lumi
       graph_sig.SetPoint(i, x, y_sig)
 
-      y_bkg = bkg_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * bkg_norm.getVal()
+      y_bkg = bkg_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * bkg_norm.getVal() * lumi
       graph_bkg.SetPoint(i, x, y_bkg)
 
-      y_sbi = sbi_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * sbi_norm.getVal()
+      y_sbi = sbi_pdf.getVal(ROOT.RooArgSet(ifm.xvar)) * sbi_norm.getVal() * lumi
       graph_sbi.SetPoint(i, x, y_sbi)
       ymax = np.max([ymax,y_sig,y_bkg,y_sbi])
 
