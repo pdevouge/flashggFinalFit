@@ -406,6 +406,8 @@ class SimultaneousFit:
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildSignalSplines(self, decay='hgg'):
     script_dir = os.path.abspath( os.path.dirname( __file__ ) )
+    effs_m = pd.Series(self.effAcc)
+    self.Splines['effs'] = ROOT.RooSpline1D("effs_%s"%(self.name),"effs_%s"%(self.name), self.xvar, len(effs_m), effs_m.index.astype(float).to_numpy(), effs_m.to_numpy())
     mcfm = pd.read_csv('%s/csv/mcfm_xsec_v2.csv'%script_dir).set_index('m_x')
     limit_pb = pd.read_csv('%s/csv/limitExp_spin0_138fb_Oct2025.csv'%script_dir).set_index('mh')['up_pb']
     gx_lhc_gev = pd.read_csv('%s/csv/lhchwg_hsm_width_v2.csv'%script_dir).set_index('mh')
@@ -459,7 +461,11 @@ class SimultaneousFit:
     dependents.add(self.xvar)
     dependents.add(self.MH)
 
-    formula = f"{br_x} * {xsec} * {kf} * ghgg_sm_m_{self.name} / ghgg_sm_MH_{self.name} \
+    # -- EffxAcc --
+    ea = self.Splines['effs'].GetName()
+    dependents.add(self.Splines['effs'])
+
+    formula = f"{br_x} * {xsec} * {ea} * {kf} * ghgg_sm_m_{self.name} / ghgg_sm_MH_{self.name} \
                 * 2/pi * {self.width} * ({m_mx})^2 / ((({m_mx})^2 - 1)^2 + {self.width}^2) * 1 / MH"
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
