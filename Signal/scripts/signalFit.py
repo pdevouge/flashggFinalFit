@@ -15,7 +15,6 @@ from signalTools import *
 from replacementMap import globalReplacementMap
 from XSBRMap import *
 from simultaneousFit import *
-from interferenceModel import *
 from finalModel import *
 from plottingTools import *
 
@@ -199,6 +198,9 @@ if not opt.skipVertexScenarioSplit:
   datasetWVForFit['low_w'] = od()
   datasetWVForFit['nom_w'] = od()
 
+# Construct Efficiency*Acceptance LUT
+effAcc = od()
+
 if not opt.skipMC:
   for mp in opt.massPoints.split(","):
     # Load low width samples for true lineshape description
@@ -215,12 +217,20 @@ if not opt.skipMC:
     WSFileName = glob.glob("%s/output*M%s_%s*%s.root"%(opt.inputWSDir,mp,nomW_str,procRVFit))[0]
     f = ROOT.TFile(WSFileName,"read")
     inputWS = f.Get(inputWSName__)
-    d = reduceDataset(inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit)),aset)
+    Roodata = inputWS.data("%s_%s_%s_%s_%s"%(procToData(procRVFit.split("_")[0]),mp,opt.width,sqrts__,catRVFit))
+    effAcc[mp] = Roodata.sumEntries() #EffxAcc dict
+    d = reduceDataset(Roodata,aset)
     nominalDatasets[mp] = d.Clone()
     if opt.skipVertexScenarioSplit: datasetRVForFit['nom_w'][mp] = d
     else: datasetRVForFit['nom_w'][mp] = splitRVWV(d,aset,mode="RV")
     inputWS.Delete()
     f.Close()
+  # EffxAcc will be turned to splines.
+  # To allow extrapolation to mass points outside of range, repeat values.
+  # TODO: Construct Eff*Acc LUT before FinalFit
+  effAcc['3000'] = list(effAcc.values())[-1]
+  effAcc['100'] = list(effAcc.values())[0]
+  effAcc.move_to_end('100', last=False)
 
   # Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
   if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):
@@ -356,7 +366,7 @@ if 'p' in opt.width:
   width = f"({float(width)/100})"
 else:
   width = "%s.%s"%(opt.width[0],opt.width[1:])
-ssfRV = SimultaneousFit(name,opt.proc,opt.cat,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,
+ssfRV = SimultaneousFit(name,opt.proc,opt.cat,effAcc,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,
                         width,
                         opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
 if opt.useInterpolation:
@@ -374,7 +384,7 @@ ssfMap[name] = ssfRV
 
 if not opt.skipVertexScenarioSplit:
   name = "WV"
-  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,datasetWVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,width,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
+  ssfWV = SimultaneousFit(name,opt.proc,opt.cat,effAcc,datasetWVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,width,opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)
   if opt.useInterpolation:
     if opt.useDCB: ssfWV.buildDCBplusGaussian()
     else: ssfWV.buildNGaussians(nRV)
@@ -387,10 +397,6 @@ if not opt.skipVertexScenarioSplit:
       ssfRV.buildAnalytical()
 
   ssfMap[name] = ssfWV
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# INTERFERENCE MODEL: construction
-print("\n --> Constructing interference model")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # FINAL MODEL: construction
@@ -426,8 +432,6 @@ if opt.doPlots:
     truemass_range = 0.001 if (opt.width == "001" or opt.width == "0p014") else 0.2
     truemass_nbins = 150 if (opt.width == "001" or opt.width == "0p014") else 100
     plotTrueLineshape(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins, _skipMC=opt.skipMC)
-    # Uncomment the following to plot the comparison to internally produced Pythia samples
-    # plotPythiaComparison(ssfRV,_outdir="%s/outdir_%s/signalFit/Plots/trueLineshapeBW"%(swd__,opt.ext),_range=truemass_range,_nbins=truemass_nbins, _skipMC=opt.skipMC, proc=opt.proc)
     if not opt.skipResolutionModel:
       if not os.path.isdir("%s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/signalFit/Plots/analyticalModel"%(swd__,opt.ext))
       recomass_range = 0.1 if (opt.width == "001" or opt.width == "0p014") else 0.2

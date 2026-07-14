@@ -20,11 +20,14 @@ def get_options():
   parser.add_option('--mass', dest='mass', default='125', help='Input workspace mass')
   parser.add_option('--mergeYears', dest='mergeYears', default=False, action="store_true", help="Merge category across years")
   parser.add_option('--skipBkg', dest='skipBkg', default=False, action="store_true", help="Only add signal processes to datacard")
+  parser.add_option('--skipIntf', dest='skipIntf', default=False, action="store_true", help="Ignore interference processes")
   parser.add_option('--bkgScaler', dest='bkgScaler', default=1., type="float", help="Add overall scale factor for background")
   parser.add_option('--sigModelWSDir', dest='sigModelWSDir', default='./Models/signal', help='Input signal model WS directory')
   parser.add_option('--sigModelExt', dest='sigModelExt', default='packaged', help='Extension used when saving signal model')
   parser.add_option('--bkgModelWSDir', dest='bkgModelWSDir', default='./Models/background', help='Input background model WS directory')
   parser.add_option('--bkgModelExt', dest='bkgModelExt', default='multipdf', help='Extension used when saving background model')
+  parser.add_option('--intfModelWSDir', dest='intfModelWSDir', default='./Models/interference', help='Input interference model WS directory')
+  parser.add_option('--intfModelExt', dest='intfModelExt', default='intfm', help='Extension used when saving interference model')
   # For yields calculations:
   parser.add_option('--skipZeroes', dest='skipZeroes', default=False, action="store_true", help="Skip signal processes with 0 sum of weights")
   parser.add_option('--skipCOWCorr', dest='skipCOWCorr', default=False, action="store_true", help="Skip centralObjectWeight correction for events in acceptance. Use if no centralObjectWeight in workspace")
@@ -59,9 +62,12 @@ options['sigModelWSDir'] = opt.sigModelWSDir
 options['sigModelExt'] = opt.sigModelExt
 options['bkgModelWSDir'] = opt.bkgModelWSDir
 options['bkgModelExt'] = opt.bkgModelExt
+options['intfModelWSDir'] = opt.intfModelWSDir
+options['intfModelExt'] = opt.intfModelExt
 options['modeOpts'] = ''
 if opt.mergeYears:  options['modeOpts'] += ' --mergeYears'
 if opt.skipBkg: options['modeOpts'] += ' --skipBkg'
+if opt.skipIntf: options['modeOpts'] += ' --skipIntf'
 if opt.bkgScaler != 1.: options['modeOpts'] += ' --bkgScaler %.4f'%opt.bkgScaler
 if opt.skipZeroes: options['modeOpts'] += ' --skipZeroes'
 if opt.skipCOWCorr: options['modeOpts'] += ' --skipCOWCorr'

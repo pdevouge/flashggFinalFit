@@ -172,10 +172,11 @@ def nChi2Addition(X,ssf,verbose=False):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 class SimultaneousFit:
   # Constructor
-  def __init__(self,_name,_proc,_cat,_datasetForFit,_xvar,_true_mass,_reduced_mass,_MH,_MHLow,_MHHigh,_width,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
+  def __init__(self,_name,_proc,_cat,_effAcc,_datasetForFit,_xvar,_true_mass,_reduced_mass,_MH,_MHLow,_MHHigh,_width,_massPoints,_nBins,_MHPolyOrder,_minimizerMethod,_minimizerTolerance,verbose=True):
     self.name = _name
     self.proc = _proc
     self.cat = _cat
+    self.effAcc = _effAcc
     self.datasetForFit = _datasetForFit
     self.xvar = _xvar
     self.true_mass = _true_mass
@@ -203,6 +204,7 @@ class SimultaneousFit:
     self.Varlists = od()
     self.Polynomials = od()
     self.Pdfs = od()
+    self.Functions = od()
     self.ResoFuncs = od()
     self.Coeffs = od()
     self.Splines = od()
@@ -461,6 +463,7 @@ class SimultaneousFit:
                 * 2/pi * {self.width} * ({m_mx})^2 / ((({m_mx})^2 - 1)^2 + {self.width}^2) * 1 / MH"
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
+    self.Functions['rel_bw'] = ROOT.RooFormulaVar("rel_bw_func","",formula, dependents)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildAnalytical(self):

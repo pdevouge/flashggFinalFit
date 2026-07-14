@@ -3,6 +3,7 @@ import os
 # Paths and directory
 cmsswbase__ = os.environ['CMSSW_BASE']
 cwd__ = os.environ['CMSSW_BASE']+"/src/flashggFinalFit"
+iwd__ = "%s/Interference"%cwd__
 swd__ = "%s/Signal"%cwd__
 bwd__ = "%s/Background"%cwd__
 dwd__ = "%s/Datacard"%cwd__
@@ -56,3 +57,5 @@ outputWSNuisanceTitle__ = "CMS_hgg_nuisance"
 outputNuisanceExtMap = {'scales':'','scalesCorr':'','smears':'','scalesGlobal':''}
 # Bkg output WS objects
 bkgWSName__ = "multipdf"
+# Intf output WS objects
+intfWSName__ = "wintf"
