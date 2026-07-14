@@ -426,7 +426,7 @@ class SimultaneousFit:
       gtot = pd.read_csv('%s/csv/gtot_rsg.csv'%(script_dir)).set_index('m_x')
       self.Splines[f'gtot_MH'] = ROOT.RooSpline1D("gtot_MH_%s"%(self.name),"gtot_MH_%s"%(self.name), var, len(gtot), gtot.index.to_numpy(), gtot.to_numpy())
 
-  # Construct Pythia model: m^2*Gtot(m,mX)/()^2+m^2*Gtot(m,mX)
+  # Construct Pythia model: m^2*Gtot(m,mX)/(m^2-mX^2)^2+m^2*Gtot(m,mX)
   def buildTrueLineshape(self):
     dependents = ROOT.RooArgList()
     self.buildSignalSplines()
@@ -437,6 +437,7 @@ class SimultaneousFit:
     kf = "(%s / %s)"%(self.Splines[f'xsec_m'].GetName(), self.Splines[f'xsec_MH'].GetName())
 
     # -- Gtot --
+    # RSG needs a corrective factor
     if self.proc == 'rsg':
       gx_corr = self.Splines[f'gtot_MH'].GetName()
       dependents.add(self.Splines[f'gtot_MH'])
@@ -444,15 +445,15 @@ class SimultaneousFit:
     else:
       gx_corr = 1
       power_bw = 3
-    Gx = f"sqrt(2) * {self.width}^2 * MH " if self.proc=='rsg' else f"{self.width}*MH"
+    Gx = f"sqrt(2) * {self.width}^2 * MH * {gx_corr} " if self.proc=='rsg' else f"{self.width}*MH"
 
     # Here we construct Gtot(m,MX). The df gtot_o_m3 accounts for the mX dependence, by having multiple columns, one for each mX.
     # To avoid the tedious task of constructing one signal model per mass point, we express Gtot as follow:
-    # ∑overX:(MH-mX)<eps*(Gtot(m,mX))  -> If MH~=mX, then Gtot si correctly computed
+    # ∑overX:(MH-mX)<eps*(Gtot(m,mX))  -> If MH~=mX, then Gtot is correctly computed
     eps = 1e-6
     terms = []
     for mp in self.massPoints.split(','):
-        Gtot_expr = "%s * %s * %s/%s * (CMS_hgg_mass/MH)^%s"%(Gx,gx_corr,self.Splines[f'gtot_o_m3_{mp}_m'].GetName(),self.Splines[f'gtot_o_m3_{mp}_MH'].GetName(),power_bw)
+        Gtot_expr = "%s * %s/%s * (CMS_hgg_mass/MH)^%s"%(Gx,self.Splines[f'gtot_o_m3_{mp}_m'].GetName(),self.Splines[f'gtot_o_m3_{mp}_MH'].GetName(),power_bw)
         term = f"(abs(MH-{mp})<{eps}) * ({Gtot_expr})"
         terms.append(term)
         dependents.add(self.Splines[f'gtot_o_m3_{mp}_m'])
@@ -484,7 +485,8 @@ class SimultaneousFit:
       power = 2 + 3 + 2
     else:
       power = 2 + 3
-    formula = f"(CMS_hgg_mass/MH)^{power} / ((CMS_hgg_mass^2 - MH^2)^2 + CMS_hgg_mass^2*({Gtot})^2) * {kf} * ({ratio}) * {eff}"
+    formula = f"2/pi * (CMS_hgg_mass/MH)^{power} / ((CMS_hgg_mass^2 - MH^2)^2 + CMS_hgg_mass^2*({Gtot})^2) * {kf} * ({ratio}) * {eff}"
+    # NB: effxAcc added here instead of in the normalization because NWA non-applicable => effAcc depends on m instead of mX
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
     self.Functions['rel_bw'] = ROOT.RooFormulaVar("rel_bw_func","",formula, dependents)

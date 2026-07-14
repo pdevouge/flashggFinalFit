@@ -448,7 +448,7 @@ class FinalModel:
     self.Functions[rateName] = ROOT.RooFormulaVar(rateName,rateName,formula,dependents)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  # Function to build final normalisation: PDF integral
+  # Function to build final normalisation: PDF integral * model dependent parameter Br(mX)*xsec(mX)
   def buildAnalyticalNorm(self, ext=''):
     # Build rate function: encode affect of nuisances on signal rate
     self.buildAnalyticalRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
@@ -467,6 +467,7 @@ class FinalModel:
     self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1",ROOT.RooArgList(self.Functions['rel_bw_integral'],self.Functions['rate_%s'%self.name]))
 
     self.Functions['Msig'] = ROOT.RooFormulaVar('Msig','Msig','@0*@1',ROOT.RooArgList(self.Functions['rel_bw'],self.Functions['rate_%s'%self.name]))
+    # NB: Here xsec*br=1; the extracted limit is a limit on xsec*br
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   # Function for making nuisance param w/ info to add to Nuisance dict
