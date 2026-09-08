@@ -41,8 +41,8 @@ class InterferenceModel:
 
     self.Vars['MH'] = wsin.var('MH')
     self.Vars['truem'] = wsin.var('true_mass')
-    self.Splines['ea'] = wsin.function("effs_Total")
-    self.Splines['ea'].redirectServers(ROOT.RooArgSet(self.xvar))
+    # self.Splines['ea'] = wsin.function("effs_Total")
+    # self.Splines['ea'].redirectServers(ROOT.RooArgSet(self.xvar))
     self.Pdfs['reso_dcb_%s'%self.name] = wsin.pdf('reso_dcb_%s'%self.name)
     self.Pdfs['reso_dcb_%s'%self.name].redirectServers(ROOT.RooArgSet(self.xvar))
 
@@ -71,12 +71,15 @@ class InterferenceModel:
 
   def make_Mb(self):
     script_dir = os.path.abspath( os.path.dirname( __file__ ) )
-    ggbox_xs = pd.read_csv('%s/csv/mcfm_xsec_ggbox.csv'%(script_dir)).set_index('mh').eval('xsec/width')
+    # ggbox_xs = pd.read_csv('%s/csv/mcfm_xsec_ggbox.csv'%(script_dir)).set_index('mh').eval('xsec/width')
+    ggbox_xs = pd.read_csv('%s/csv/sherpa_xsec_ggbox.csv'%(script_dir), comment='#').set_index('x')['y']
     self.Splines['ggbox_xsec'] = ROOT.RooSpline1D("ggbox_xs_%s"%(self.name),"ggbox_xs_%s"%(self.name), self.xvar, len(ggbox_xs), ggbox_xs.index.to_numpy(), ggbox_xs.to_numpy())
+    ggbox_eff = pd.read_csv('%s/csv/ggbox_eff_%s_%s.csv'%(script_dir,self.year,self.cat)).set_index('mNom')['eff']
+    self.Splines['ggbox_eff'] = ROOT.RooSpline1D("ggbox_eff_%s"%(self.name),"ggbox_eff_%s"%(self.name), self.xvar, len(ggbox_eff), ggbox_eff.index.to_numpy(), ggbox_eff.to_numpy())
 
-    self.Pdfs['Mbkg_pdf'] = ROOT.RooGenericPdf("Mbkg_pdf","Mbkg_pdf","@0*@1",ROOT.RooArgList(self.Splines['ea'],self.Splines['ggbox_xsec']))
+    self.Pdfs['Mbkg_pdf'] = ROOT.RooGenericPdf("Mbkg_pdf","Mbkg_pdf","@0*@1",ROOT.RooArgList(self.Splines['ggbox_eff'],self.Splines['ggbox_xsec']))
 
-    self.Functions['Mbkg_func'] = ROOT.RooFormulaVar("Mbkg_func","Mbkg_func","@0*@1",ROOT.RooArgList(self.Splines['ea'],self.Splines['ggbox_xsec']))
+    self.Functions['Mbkg_func'] = ROOT.RooFormulaVar("Mbkg_func","Mbkg_func","@0*@1",ROOT.RooArgList(self.Splines['ggbox_eff'],self.Splines['ggbox_xsec']))
 
     self.Pdfs['Mbkg'] = ROOT.RooFFTConvPdf("Mbkg_%s"%self.name, "Mbkg_%s"%self.name, self.xvar, self.Pdfs['Mbkg_pdf'], self.Pdfs['reso_dcb_%s'%self.name])
 
