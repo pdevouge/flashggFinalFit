@@ -408,20 +408,11 @@ class SimultaneousFit:
     script_dir = os.path.abspath( os.path.dirname( __file__ ) )
     effs_m = pd.Series(self.effAcc)
     self.Splines['effs'] = ROOT.RooSpline1D("effs_%s"%(self.name),"effs_%s"%(self.name), self.xvar, len(effs_m), effs_m.index.astype(float).to_numpy(), effs_m.to_numpy())
-    mcfm = pd.read_csv('%s/csv/mcfm_xsec_v2.csv'%script_dir).set_index('m_x')
-    limit_pb = pd.read_csv('%s/csv/limitExp_spin0_138fb_Oct2025.csv'%script_dir).set_index('mh')['up_pb']
-    gx_lhc_gev = pd.read_csv('%s/csv/lhchwg_hsm_width_v2.csv'%script_dir).set_index('mh')
-    xsec_lhc_pb = pd.read_csv('%s/csv/lhchwg_hsm_xsec.csv'%script_dir).set_index('mh')['xsec']
-    xsec_mcfm_lo = mcfm.query('xsec_lo > 1e-10')['xsec_lo']
-    xsec_mcfm_pl = mcfm['xsec']
-    xsec_mcfm_py = mcfm['xsec_pythia']
-    kf_mcfm = xsec_lhc_pb[200] / xsec_mcfm_lo[200]
 
-    self.Splines['xsec_ul'] = ROOT.RooSpline1D("xsec_ul_%s"%(self.name),"xsec_ul_%s"%(self.name), self.MH, len(limit_pb), limit_pb.index.to_numpy(), limit_pb.to_numpy())
-    xsec_sm_ = lambda x : np.interp(x, xsec_mcfm_lo.index, xsec_mcfm_lo.values * kf_mcfm)
-    xsec_n3lo_ggF = 48.6
-    kf_n3lo =  xsec_n3lo_ggF / xsec_sm_(125)
-    kf_pythia = xsec_n3lo_ggF / xsec_mcfm_py.loc[120]
+    # xsec (lhc for mw < 200, mcfm otherwise)
+    xsec_mcfm = pd.read_csv('%s/csv/xsec_lhc_mcfm.csv'%script_dir).set_index('m_x')
+    # partial widths (from Higgs handbook)
+    gx_lhc_gev = pd.read_csv('%s/csv/lhchwg_hsm_width_v2.csv'%script_dir).set_index('mh')
 
     var_map = {
       'MH': self.MH,
@@ -429,44 +420,34 @@ class SimultaneousFit:
       'truem': self.true_mass
     }
     for vname, var in var_map.items():
-      self.Splines[f'xsec_sm_{vname}'] = ROOT.RooSpline1D("xsec_sm_%s_%s"%(vname,self.name),"xsec_sm_%s_%s"%(vname,self.name), var, len(xsec_mcfm_lo), xsec_mcfm_lo.index.to_numpy(), xsec_mcfm_lo.to_numpy() * kf_mcfm * kf_n3lo)
-      self.Splines[f'xsec_pl_{vname}'] = ROOT.RooSpline1D("xsec_pl_%s_%s"%(vname,self.name),"xsec_pl_%s_%s"%(vname,self.name), var, len(xsec_mcfm_pl), xsec_mcfm_pl.index.to_numpy(), xsec_mcfm_pl.to_numpy())
-      self.Splines[f'xsec_py_{vname}'] = ROOT.RooSpline1D("xsec_py_%s_%s"%(vname,self.name),"xsec_py_%s_%s"%(vname,self.name), var, len(xsec_mcfm_py), xsec_mcfm_py.index.to_numpy(), xsec_mcfm_py.to_numpy() * kf_pythia)
+      self.Splines[f'xsec_mcfm_{vname}'] = ROOT.RooSpline1D("xsec_mcfm_%s_%s"%(vname,self.name),"xsec_mcfm_%s_%s"%(vname,self.name), var, len(xsec_mcfm), xsec_mcfm.index.to_numpy(), xsec_mcfm['xsec_lo'].to_numpy())
       self.Splines[f'ghgg_sm_{vname}'] = ROOT.RooSpline1D("ghgg_sm_%s_%s"%(vname,self.name),"ghgg_sm_%s_%s"%(vname,self.name), var, len(gx_lhc_gev), gx_lhc_gev.index.to_numpy(), gx_lhc_gev[decay].to_numpy())
 
   def buildTrueLineshape(self, decay='hgg', xsec='sm'):
     dependents = ROOT.RooArgList()
     self.buildSignalSplines(decay)
-    br_x = "(%s / %s)"%(self.Splines['xsec_ul'].GetName(),self.Splines['xsec_sm_MH'].GetName())
-    dependents.add(self.Splines['xsec_ul'])
-    dependents.add(self.Splines['xsec_sm_MH'])
 
-    if xsec == 'sm':
-      xsec_type = 'xsec_sm'
-    elif xsec == 'pythia':
-      xsec_type = 'xsec_py'
-    else:
-      xsec_type = 'xsec_pl'
+    # -- xsec ratio -- #
+    xsec_ratio = "(%s / %s)"%(self.Splines[f'xsec_mcfm_m'].GetName(), self.Splines[f'xsec_mcfm_MH'].GetName())
+    dependents.add(self.Splines[f'xsec_mcfm_MH'])
+    dependents.add(self.Splines[f'xsec_mcfm_m'])
 
-    if xsec != 'sm': dependents.add(self.Splines[f'{xsec_type}_MH'])
-    dependents.add(self.Splines[f'{xsec_type}_m'])
-
-    kf = "(%s / %s)"%(self.Splines['xsec_sm_MH'].GetName(), self.Splines[f'{xsec_type}_MH'].GetName())
-    xsec = self.Splines[f'{xsec_type}_m'].GetName()
-
-    dependents.add(self.Splines['ghgg_sm_MH'])
-    dependents.add(self.Splines['ghgg_sm_m'])
-
-    m_mx = "(%s / %s)"%(self.xvar.GetName(),self.MH.GetName())
+    # -- mass ratio -- #
+    m_o_mx = "(%s / %s)"%(self.xvar.GetName(),self.MH.GetName())
     dependents.add(self.xvar)
     dependents.add(self.MH)
 
-    # -- EffxAcc --
+    # -- partial width ratio -- #
+    # kappa_f = "(%s / %s) * %s^3"%(self.Splines[f'ghgg_sm_m'].GetName(),self.Splines[f'ghgg_sm_MH'].GetName(),m_o_mx)
+    # dependents.add(self.Splines[f'ghgg_sm_m'])
+    # dependents.add(self.Splines[f'ghgg_sm_MH'])
+    kappa_f = 1 # model independent
+
+    # -- EffxAcc -- #
     ea = self.Splines['effs'].GetName()
     dependents.add(self.Splines['effs'])
 
-    formula = f"{br_x} * {xsec} * {ea} * {kf} * ghgg_sm_m_{self.name} / ghgg_sm_MH_{self.name} \
-                * 2/pi * {self.width} * ({m_mx})^2 / ((({m_mx})^2 - 1)^2 + {self.width}^2) * 1 / MH"
+    formula = f"2/pi * 1/MH * ({m_o_mx})^5 * {self.width} * {kappa_f} / ((({m_o_mx})^2 - 1)^2 + {self.width}^2) * {xsec_ratio} * {ea}"
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
     self.Functions['rel_bw'] = ROOT.RooFormulaVar("rel_bw_func","",formula, dependents)
