@@ -8,6 +8,7 @@ print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RUNNING COMBINE LIMITS ~~~~~~~~~~~~~~~~~
 
 parser = OptionParser(usage="usage: %prog datacard.txt [options] \nrun with --help to get list of options")
 parser.add_option('--outdir',dest='outdir', default="", help='Where to save the limits (default: cwd)')
+parser.add_option('--extension',dest='ext', default="default", help='File extension')
 parser.add_option('--title',dest='title', default="RSGraviton, 2022", help='Type of signal to display in plot title')
 parser.add_option('--mass_points',dest='mass_points', default="125", help='Mass points for which to calculate the limits')
 parser.add_option('--width_parameter',dest='width_p', default="0.0001414", help='Value of Gamma(m)=Gx/Mx (eg. sqrt(2)*kMpl^2 for spin-2 gravitons)')
@@ -44,13 +45,13 @@ for m in mass_points:
 
   # width = float(opt.width_p) * m
 
-  cmd = f"""combineTool.py -M AsymptoticLimits -d {datacard} \
+  cmd = f"""combineTool.py -M AsymptoticLimits -d {datacard} --name {opt.ext}\
     -n .limit --parallel 4 -m {m} --run blind --rAbsAcc 0.00005 --rRelAcc 0.00005""" # --freezeParameters G0 --setParameters G0={width}"""
 
   subprocess.call(cmd, shell=True)
 
-cmd = "combineTool.py -M CollectLimits *.limit.* --use-dirs -o limits.json"
+cmd = f"combineTool.py -M CollectLimits *.limit.* -o limits_{opt.ext}.json"
 subprocess.call(cmd, shell=True)
 
-cmd = f"python3 {os.path.dirname(__file__)}/plot_limits.py --input limits_default.json --title='{opt.title}'"
+cmd = f"python3 {os.path.dirname(__file__)}/plot_limits.py --input limits_{opt.ext}.json --title='{opt.title}' --output limits_{opt.ext}"
 subprocess.call(cmd, shell=True)

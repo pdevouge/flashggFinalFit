@@ -49,8 +49,8 @@ def plotIndividualDCB(ssf,_outdir='./',_extension='', _mass='',_from_formulas=Fa
     pave_text.Draw()
 
     frame.SetTitle(f"Reduced Mass - {mass}")
-    canv.SaveAs("%s/individualDCB_%s_%s.png"%(_outdir,mass,_extension))
-    canv.SaveAs("%s/individualDCB_%s_%s.pdf"%(_outdir,mass,_extension))
+    canv.SaveAs("%s/individualDCB_%s_%s_%s.png"%(_outdir,ssf.cat,mass,_extension))
+    canv.SaveAs("%s/individualDCB_%s_%s_%s.pdf"%(_outdir,ssf.cat,mass,_extension))
 
 def plotDCBParameters(ssf,_outdir='./'):
   for f in ['dm', 'sigma', 'a1', 'n1', 'a2', 'n2']:
@@ -72,8 +72,8 @@ def plotDCBParameters(ssf,_outdir='./'):
     g.SetLineWidth(2)
     g.Draw("AP")
     ssf.ResoFuncs["%s_function"%f].Draw("same")
-    canv.SaveAs("%s/DCB_parameters_%s.png"%(_outdir,f))
-    canv.SaveAs("%s/DCB_parameters_%s.pdf"%(_outdir,f))
+    canv.SaveAs("%s/DCB_parameters_%s_%s.png"%(_outdir,ssf.cat,f))
+    canv.SaveAs("%s/DCB_parameters_%s_%s.pdf"%(_outdir,ssf.cat,f))
 
 def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=False):
   # Here it is easier to create a 'temporary' rel BW based on true mass, for plotting purposes
@@ -125,8 +125,8 @@ def plotTrueLineshape(ssf, _outdir='./', _range= 0.001, _nbins=150, _skipMC=Fals
     pave_text.Draw()
 
     frame.SetTitle(f"True lineshape model, M - {mass}")
-    canv.SaveAs("%s/true_lineshape_%s.png"%(_outdir,mass))
-    canv.SaveAs("%s/true_lineshape_%s.pdf"%(_outdir,mass))
+    canv.SaveAs("%s/true_lineshape_%s_%s.png"%(_outdir,ssf.cat,mass))
+    canv.SaveAs("%s/true_lineshape_%s_%s.pdf"%(_outdir,ssf.cat,mass))
 
 # A function to compare the true lineshape model with the internally produced Pythia samples
 # The comparison with the CMSSW samples is done in plotTrueLineshape()
@@ -256,8 +256,8 @@ def plotAnalyticalModel(ssf,_outdir='./',_range= 0.1,_binwidth=1.0,_skipMC=False
     pave_text.Draw()
 
     frame.SetTitle(f"Final Model, M - {mass}")
-    canv.SaveAs("%s/analytical_model_%s.png"%(_outdir,mass))
-    canv.SaveAs("%s/analytical_model_%s.pdf"%(_outdir,mass))
+    canv.SaveAs("%s/analytical_model_%s_%s.png"%(_outdir,ssf.cat,mass))
+    canv.SaveAs("%s/analytical_model_%s_%s.pdf"%(_outdir,ssf.cat,mass))
 
 # Function to extract the sigma effective of a histogram
 # Function to extract the sigma effective of a histogram

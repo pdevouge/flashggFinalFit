@@ -10,6 +10,7 @@ def get_options():
   # Take inputs from config file
   parser.add_option('--input', dest='inputJson', default='limits_default.json', help="Limits.json")
   parser.add_option('--title', dest='title', default='Limit', help="Plot title")
+  parser.add_option('--output', dest='output', default='limit', help="Output file name")
   parser.add_option('--unblinded', dest='unblinded', action='store_true', help="Unblind limit plot")
   return parser.parse_args()
 (opt,args) = get_options()
@@ -17,7 +18,7 @@ def get_options():
 
 # Style and pads
 ModTDRStyle()
-canv = ROOT.TCanvas('limit', 'limit')
+canv = ROOT.TCanvas(opt.output, opt.output)
 pads = OnePad()
 
 # Get limit TGraphs as a dictionary

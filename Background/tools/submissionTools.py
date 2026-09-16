@@ -1,11 +1,21 @@
 import os
+import sys
 import glob
 import re
+import subprocess
 from commonObjects import *
 
 def run(cmd):
   print("%s\n\n"%cmd)
-  os.system(cmd)
+  # changed os.system() to subprocess.call() as os.system() does not handle signals.
+  ret = subprocess.call(cmd, shell=True)
+  if ret < 0:
+    print(f"[ERROR] Command was interrupted by signal {-ret}. Stopping.")
+    sys.exit(1)
+  elif ret != 0:
+    print(f"[ERROR] Command failed (exit code {ret}). Stopping.")
+    sys.exit(ret)
+  return ret
 
 def writePreamble(_file):
   _file.write("#!/bin/bash\n")
