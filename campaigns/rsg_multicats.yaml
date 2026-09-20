@@ -1,0 +1,35 @@
+# Example: mass points are selected out of a shared, unsplit HDNA pool.
+campaign: rsg_multicats
+
+common:
+  year: "2022postEE"
+  cats: "rsg_med_cat"  # Default category
+  procs: "rsg"
+  width: "001"
+  tree_input_dir: "../RSG_500-1000_multicats"  # Directory where the samples will be placed
+  background_file: "allData_PostEE.root"
+
+# Background is reprocessed once per distinct catDict in to match signal's categorization unless otherwise
+background_postprocessing:
+  raw_input_dir: "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/Data"
+  process_map: "../HDNA_config_jsons/process_map.yaml"
+  outfiles_map: "../HDNA_config_jsons/outfiles.yaml"
+  varDict: "../HDNA_config_jsons/variations.json"
+
+signal_postprocessing:
+  raw_input_dir: "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/RSGrav"
+  process_map: "../HDNA_config_jsons/process_map.yaml"
+  outfiles_map: "../HDNA_config_jsons/rsg_outfiles.yaml"
+  varDict: "../HDNA_config_jsons/variations.json"
+  syst: false
+  dataset_name_template: "RSGravitonTo2G_kMpl-{width}_M-{mass}_{year}"  # To find the signal samples
+
+subranges:
+  - name: "500-1000"
+    parquet_dir: "parquet_500-1000"  # destination dir this subrange's postprocessed output (merge/root) is written to
+    signal_dir: "signal_500-1000"
+    binning: "400,1200"
+    nbins: "800"
+    mass_points: "500,550,600,650,700,750,800,900,1000"  # used for signal fitting/packaging
+    limits_mass_points: "500:1000:20"  # optional: scan for the limits stage instead of mass_points above (comma list or low:high:nbins)
+    catDict: "../HDNA_config_jsons/category_rsg_500-1000.json"  # json describing this subrange's categories (supersed common.cats)
