@@ -10,6 +10,8 @@ def get_options():
   # Take inputs from config file
   parser.add_option('--input', dest='inputJson', default='limits_default.json', help="Limits.json")
   parser.add_option('--title', dest='title', default='Limit', help="Plot title")
+  parser.add_option('--lumi', dest='lumi', default='', help="Lumi value")
+  parser.add_option('--com', dest='com', default='13.6', help="Center of mass value")
   parser.add_option('--output', dest='output', default='limit', help="Output file name")
   parser.add_option('--unblinded', dest='unblinded', action='store_true', help="Unblind limit plot")
   return parser.parse_args()
@@ -62,7 +64,7 @@ lumi.SetNDC()
 lumi.SetTextFont(42)
 lumi.SetTextSize(0.04)
 lumi.SetTextAlign(31)
-lumi.DrawLatex(0.95, 0.96, "138 fb^{-1} (13.6 TeV)")
+lumi.DrawLatex(0.95, 0.96, f"{opt.lumi} fb^{{-1}} ({opt.com} TeV)")
 
 canv.Print('.pdf')
 canv.Print('.png')
