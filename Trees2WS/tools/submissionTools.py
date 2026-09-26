@@ -58,7 +58,7 @@ def writeSubFiles(_opts):
     # Write details depending on mode
     if( _opts['mode'] == "trees2ws" ):
       # Extract list of files
-      tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
+      tfiles = glob.glob("%s/%s"%(_opts['inputDir'],_opts.get('inputPattern','*.root')))
       # Run separate command per file
       for tfidx,tf in enumerate(tfiles):
         # Extract production mode (and decay extension if required)
@@ -74,7 +74,7 @@ def writeSubFiles(_opts):
 
     elif( _opts['mode'] == "trees2ws_data" ):
       # Extract list of files
-      tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
+      tfiles = glob.glob("%s/%s"%(_opts['inputDir'],_opts.get('inputPattern','*.root')))
       # Run separate command per file
       for tfidx,tf in enumerate(tfiles):
         _cmd = "python3 %s/trees2ws_data.py --inputConfig %s --inputTreeFile %s"%(twd__,_opts['inputConfig'],tf)
@@ -111,7 +111,7 @@ def writeSubFiles(_opts):
     # Write details depending on mode
     if( _opts['mode'] == "trees2ws" ):
       # Extract list of files
-      tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
+      tfiles = glob.glob("%s/%s"%(_opts['inputDir'],_opts.get('inputPattern','*.root')))
       # Create separate submission file per script
       for tfidx,tf in enumerate(tfiles):
         _f = open("%s/%s_%g.sh"%(_jobdir,_executable,tfidx),"w")
@@ -129,7 +129,7 @@ def writeSubFiles(_opts):
 
     elif( _opts['mode'] == "trees2ws_data" ):
       # Extract list of files
-      tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
+      tfiles = glob.glob("%s/%s"%(_opts['inputDir'],_opts.get('inputPattern','*.root')))
       # Create separate submission file per script
       for tfidx,tf in enumerate(tfiles):
         _f = open("%s/%s_%g.sh"%(_jobdir,_executable,tfidx),"w")
@@ -175,7 +175,7 @@ def submitFiles(_opts):
     jobOptsStr = _opts['jobOpts']
 
     if( _opts['mode'] == "trees2ws" )|( _opts['mode'] == 'trees2ws_data' ):
-      tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
+      tfiles = glob.glob("%s/%s"%(_opts['inputDir'],_opts.get('inputPattern','*.root')))
       for tfidx in range(len(tfiles)):
         _subfile = "%s/%s_%g"%(_jobdir,_executable,tfidx)
         cmdLine = "qsub -q %s %s -o %s.log -e %s.err %s.sh"%(_opts['queue'],jobOptsStr,_subfile,_subfile,_subfile)
@@ -195,7 +195,7 @@ def submitFiles(_opts):
     _executable = "sub_%s_%s"%(_opts['mode'],_opts['ext'])
 
     if( _opts['mode'] == "trees2ws" )|( _opts['mode'] == 'trees2ws_data' ):
-      tfiles = glob.glob("%s/*.root"%_opts['inputDir'])
+      tfiles = glob.glob("%s/%s"%(_opts['inputDir'],_opts.get('inputPattern','*.root')))
       for tfidx in range(len(tfiles)):
         _subfile = "%s/%s_%g"%(_jobdir,_executable,tfidx)
         cmdLine = "bash %s.sh"%(_subfile)

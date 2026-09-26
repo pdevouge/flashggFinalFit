@@ -14,6 +14,7 @@ def get_options():
   parser = OptionParser()
   # Take inputs from config file
   parser.add_option('--inputDir', dest='inputDir', default='', help="Path to input trees (for trees2ws) or path to input workspaces (for mass_shift)")
+  parser.add_option('--inputPattern', dest='inputPattern', default='*.root', help="Glob pattern for which files in --inputDir to convert (default: *.root, i.e. all of them). Needed when the directory is shared between analyses: <tree_input_dir>/data/ holds one background file per subrange, and converting them all applies whichever --massCutRange this invocation has to every one of them.")
   parser.add_option('--inputConfig', dest='inputConfig', default='', help="Name of input config file for trees2ws/trees2ws_data")
   parser.add_option('--ext', dest='ext', default='test', help="Extension to add to output jobs dir")
   parser.add_option('--year', dest='year', default='2016', help="Year of trees to process")
@@ -39,6 +40,7 @@ def leave():
 # Extract options from config file:
 options = od()
 options['inputDir']    = opt.inputDir
+options['inputPattern'] = opt.inputPattern
 options['inputConfig'] = opt.inputConfig
 options['ext']         = opt.ext
 options['year']        = opt.year
