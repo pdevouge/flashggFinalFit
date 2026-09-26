@@ -38,6 +38,8 @@ def get_options():
   parser.add_option('--sigModelExt', dest='sigModelExt', default='packaged', help='Extension used when saving signal model')
   parser.add_option('--bkgModelWSDir', dest='bkgModelWSDir', default='./Models/background', help='Input background model WS directory')
   parser.add_option('--bkgModelExt', dest='bkgModelExt', default='multipdf', help='Extension used when saving background model')
+  parser.add_option('--bkgModelTag', dest='bkgModelTag', default='', help="fTest's --year, as it appears in the background model's filename and its pdf/pdfindex names. "
+                    "Only needed with --mergeYears: per-year mode reads the tag off --inputWSDirMap, but the merged label (e.g. 2022 for preEE+postEE) is not one of those keys.")
   parser.add_option('--intfModelWSDir', dest='intfModelWSDir', default='./Models/interference', help='Input interference model WS directory')
   parser.add_option('--intfModelExt', dest='intfModelExt', default='intfm', help='Extension used when saving interference model')
   # For yields calculations:
@@ -80,7 +82,10 @@ else: procs = opt.procs.split(",")
 procs.sort()
 
 # Initiate pandas dataframe
-columns_data = ['year','type','procOriginal','proc','proc_s0','cat','inputWSFile','nominalDataName','modelWSFile','model','rate']
+# bkgCat: category token the background workspace objects are named after. It
+# equals 'cat' per-year but not under --mergeYears, so writeToDatacard.py reads 
+# it from here rather than rebuilding it. 
+columns_data = ['year','type','procOriginal','proc','proc_s0','cat','inputWSFile','nominalDataName','modelWSFile','model','rate','bkgCat']
 data = pd.DataFrame( columns=columns_data )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -131,7 +136,7 @@ for year in years:
 
     # Add signal process to dataFrame:
     print(" --> Adding to dataFrame: (proc,cat) = (%s,%s)"%(_proc,_cat))
-    data.loc[len(data)] = [year,'sig',_procOriginal,_proc,_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model,_rate]
+    data.loc[len(data)] = [year,'sig',_procOriginal,_proc,_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model,_rate,'-']
 
 # Background and data processes
 if( not opt.skipBkg)&( opt.cat != "NOTAG" ):
@@ -139,21 +144,28 @@ if( not opt.skipBkg)&( opt.cat != "NOTAG" ):
   _proc_data = "data_obs"
   if opt.mergeYears:
     _cat = opt.cat
-    _modelWSFile = "%s/CMS-HGG_%s_%s.root"%(opt.bkgModelWSDir,opt.bkgModelExt,_cat)
-    _model_bkg = "%s:CMS_%s_%s_%s_bkgshape"%(bkgWSName__,decayMode,_cat,sqrts__)
+    # The original code assumed "merged" always meant every era combined, which
+    # fTest leaves tag-less (--year all). To merge only some eras (2022preEE +
+    # 2022postEE) and still tag them (fTest --year 2022), we add the tag back
+    # here with opt.bkgModelTag.
+    _bkgCat = "%s_%s"%(_cat,opt.bkgModelTag) if opt.bkgModelTag else _cat
+    _modelWSFile = "%s/CMS-HGG_%s_%s.root"%(opt.bkgModelWSDir,opt.bkgModelExt,_bkgCat)
+    _model_bkg = "%s:CMS_%s_%s_%s_bkgshape"%(bkgWSName__,decayMode,_bkgCat,sqrts__)
     _model_data = "%s:roohist_data_mass_%s"%(bkgWSName__,_cat)
     _proc_s0 = '-' #not needed for data/bkg
     _inputWSFile = '-' #not needed for data/bkg
     _nominalDataName = '-' #not needed for data/bkg
     print(" --> Adding to dataFrame: (proc,cat) = (%s,%s)"%(_proc_bkg,_cat))
     print(" --> Adding to dataFrame: (proc,cat) = (%s,%s)"%(_proc_data,_cat))
-    data.loc[len(data)] = ["merged",'bkg',_proc_bkg,_proc_bkg,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_bkg,opt.bkgScaler]
-    data.loc[len(data)] = ["merged",'data',_proc_data,_proc_data,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_data,-1]
+    # merged background gets the _bkgCat tag
+    data.loc[len(data)] = ["merged",'bkg',_proc_bkg,_proc_bkg,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_bkg,opt.bkgScaler,_bkgCat]
+    data.loc[len(data)] = ["merged",'data',_proc_data,_proc_data,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_data,-1,'-']
 
   # Category separate per year
   else:
     for year in years:
       _cat = "%s_%s"%(opt.cat,year)
+      _bkgCat = _cat # per-year the bin is tagged with the era, so it IS the token
       _catStripYear = opt.cat
       _modelWSFile = "%s/CMS-HGG_%s_%s.root"%(opt.bkgModelWSDir,opt.bkgModelExt,_cat)
       _model_bkg = "%s:CMS_%s_%s_%s_bkgshape"%(bkgWSName__,decayMode,_cat,sqrts__)
@@ -163,8 +175,8 @@ if( not opt.skipBkg)&( opt.cat != "NOTAG" ):
       _nominalDataName = '-' #not needed for data/bkg
       print(" --> Adding to dataFrame: (proc,cat) = (%s,%s)"%(_proc_bkg,_cat))
       print(" --> Adding to dataFrame: (proc,cat) = (%s,%s)"%(_proc_data,_cat))
-      data.loc[len(data)] = ["year",'bkg',_proc_bkg,_proc_bkg,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_bkg,opt.bkgScaler]
-      data.loc[len(data)] = ["year",'data',_proc_data,_proc_data,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_data,-1]
+      data.loc[len(data)] = ["year",'bkg',_proc_bkg,_proc_bkg,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_bkg,opt.bkgScaler,_bkgCat]
+      data.loc[len(data)] = ["year",'data',_proc_data,_proc_data,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_data,-1,'-']
 
 # Interference processes
 if( not opt.skipIntf):
@@ -194,8 +206,8 @@ if( not opt.skipIntf):
 
       # Add signal process to dataFrame:
       print(" --> Adding to dataFrame: (interference proc,cat) = (%s,%s)"%(_proc,_cat))
-      data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb,'-',_cat,'-','-',_modelWSFile,_model_ggb,_rate]
-      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,'%s_sbi'%_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_sbi,_rate]
+      data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb,'-',_cat,'-','-',_modelWSFile,_model_ggb,_rate,'-']
+      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,'%s_sbi'%_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_sbi,_rate,'-']
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Yields: for each signal row in dataFrame extract the yield

@@ -233,10 +233,33 @@ def writeMCStatUncertainty(f,d,options):
   return True
 
 
+# The pdfindex RooCategory carries the same token as the bkgshape pdf, ie
+# whatever fTest was given as --year. Three cases, datacard bin vs index:
+#
+#   usual per-year -- fTest --year 2022preEE. The bin is tagged too, they match:
+#       bin    rsg_std_cat_2022preEE
+#       index  pdfindex_rsg_std_cat_2022preEE_13TeV
+#
+#   legacy merged -- fTest --year all. The tag is dropped, they match again:
+#       bin    rsg_high_cat
+#       index  pdfindex_rsg_high_cat_13TeV
+#
+#   ours (eg preEE+postEE as 2022) -- fTest --year 2022, plus makeYields.py
+#   --bkgModelTag. The bin drops the era but the objects keep the merged
+#   label, so they do NOT match:
+#       bin    rsg_high_cat
+#       index  pdfindex_rsg_high_cat_2022_13TeV
+#
+# Solution: take the token from the bkgCat column makeYields.py fills.
+def getBkgShapeCat(d,cat):
+  bkg = d[(d['cat']==cat)&(d['type']=='bkg')]
+  if not len(bkg): return cat # --skipBkg: no background row to read it from
+  return bkg.iloc[0]['bkgCat']
+
 def writePdfIndex(f,d,options):
   f.write("\n")
   for cat in d[~d['cat'].str.contains("NOTAG")].cat.unique():
-    indexStr = "pdfindex_%s_13TeV"%cat
+    indexStr = "pdfindex_%s_13TeV"%getBkgShapeCat(d,cat)
     f.write("%-55s  discrete\n"%indexStr)
   return True
 

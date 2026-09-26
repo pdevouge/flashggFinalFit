@@ -26,6 +26,7 @@ def get_options():
   parser.add_option('--sigModelExt', dest='sigModelExt', default='packaged', help='Extension used when saving signal model')
   parser.add_option('--bkgModelWSDir', dest='bkgModelWSDir', default='./Models/background', help='Input background model WS directory')
   parser.add_option('--bkgModelExt', dest='bkgModelExt', default='multipdf', help='Extension used when saving background model')
+  parser.add_option('--bkgModelTag', dest='bkgModelTag', default='', help="MergeYears label the background fit was tagged with (with --mergeYears only)")
   parser.add_option('--intfModelWSDir', dest='intfModelWSDir', default='./Models/interference', help='Input interference model WS directory')
   parser.add_option('--intfModelExt', dest='intfModelExt', default='intfm', help='Extension used when saving interference model')
   # For yields calculations:
@@ -66,6 +67,7 @@ options['intfModelWSDir'] = opt.intfModelWSDir
 options['intfModelExt'] = opt.intfModelExt
 options['modeOpts'] = ''
 if opt.mergeYears:  options['modeOpts'] += ' --mergeYears'
+if opt.bkgModelTag: options['modeOpts'] += ' --bkgModelTag %s'%opt.bkgModelTag
 if opt.skipBkg: options['modeOpts'] += ' --skipBkg'
 if opt.skipIntf: options['modeOpts'] += ' --skipIntf'
 if opt.bkgScaler != 1.: options['modeOpts'] += ' --bkgScaler %.4f'%opt.bkgScaler
