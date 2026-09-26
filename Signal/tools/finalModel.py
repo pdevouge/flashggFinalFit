@@ -355,10 +355,17 @@ class FinalModel:
 
   def buildAnalyticalPdf(self,ssf,ext=''):
     extStr = "%s_%s"%(self.name,ext) if ext!='total' else '%s'%self.name
-    # Extract resolution parameters
+    # Add era tag to the objects SimultaneousFit created ('dm_p0', 'dm_formula', ...). 
+    # Clone(newname) renames only the top objects, so we also need to rename every deps.
+    for f in ['dm','sigma','a1','n1','a2','n2']:
+      ssf.ResoFuncs['%s_formula'%f].SetName("%s_formula_%s"%(f,extStr))
+      for i in range(ssf.ResoFuncs['%s_function'%f].GetNpar()):
+        ssf.Vars['reso_func_%s_p%s'%(f,i)].SetName("%s_p%s_%s"%(f,i,extStr))
+
+    # With the deps now renamed, we can clone and create the new DCB reso PDF.
     for f in ['dm_scaled','sigma_scaled','n1_formula','n2_formula','a1_formula','a2_formula']:
       k = "%s_dcb"%(f.split('_')[0])
-      self.Functions["%s_%s"%(k,extStr)] = ssf.ResoFuncs[f].Clone()
+      self.Functions["%s_%s"%(k,extStr)] = ssf.ResoFuncs[f].Clone("%s_%s"%(k,extStr))
     # Build mean and sigma functions: including systematics
     self.buildAnalyticalMean('dm_dcb_%s'%(extStr),skipSystematics=self.skipSystematics)
     self.buildAnalyticalSigma('sigma_dcb_%s'%extStr,skipSystematics=self.skipSystematics)
@@ -371,9 +378,11 @@ class FinalModel:
                                                           self.Functions['a2_dcb_%s'%extStr],
                                                           self.Functions['n2_dcb_%s'%extStr])
 
-    # * true lineshape: relativistic BW
-    self.Pdfs['rel_bw_%s'%extStr] = self.ssfMap['Total'].Pdfs['rel_bw'].Clone()
-    self.Functions['rel_bw'] = self.ssfMap['Total'].Functions['rel_bw'].Clone()
+    # * true lineshape: relativistic BW (same logic as before: rename then clone)
+    self.Splines['effs_%s'%extStr] = ssf.Splines['effs']
+    self.Splines['effs_%s'%extStr].SetName("effs_%s"%extStr)
+    self.Pdfs['rel_bw_%s'%extStr] = ssf.Pdfs['rel_bw'].Clone("rel_bw_%s"%extStr)
+    self.Functions['rel_bw_func_%s'%extStr] = ssf.Functions['rel_bw'].Clone("rel_bw_func_%s"%extStr)
 
     self.xvar.setBins(10000, "cache")
     self.Pdfs[ext] = ROOT.RooFFTConvPdf("%s_%s"%(outputWSObjectTitle__,extStr),"%s_%s"%(outputWSObjectTitle__,extStr), self.xvar, self.Pdfs['rel_bw_%s'%extStr], self.Pdfs['reso_dcb_%s'%extStr])
@@ -454,7 +463,13 @@ class FinalModel:
     self.buildAnalyticalRate("rate_%s"%self.name,skipSystematics=self.skipSystematics)
     extStr = "%s_%s"%(self.name,ext) if ext!='total' else '%s'%self.name
     finalPdfName = self.Pdfs['final'].GetName()
-    lineshape_integral = self.Pdfs['rel_bw_%s'%extStr].getNormIntegral(ROOT.RooArgSet(self.xvar))
+    # rel_bw is a relativistic BW peaked at m = MH, and for NWA it is a very narrow spike.
+    # Integrating it over the full range of xvar can make integrator scheme sample only 
+    # off-peak points, yielding an uncorrect integral value.
+    # So we integrate over a window centred on the peak instead, clipped to the fit range.
+    PEAK_WINDOW_FRAC = 0.10
+    PEAK_WINDOW_MIN = 5.0  # GeV, floor for very low MH
+    rel_bw_pdf = self.Pdfs['rel_bw_%s'%extStr]
 
     mp = self.massPoints.split(',')
     minMass, maxMass = int(mp[0]), int(mp[-1])
@@ -462,11 +477,30 @@ class FinalModel:
     pdf_y = np.empty(len(mh), dtype=np.float64)
     for i, m in enumerate(mh):
         self.MH.setVal(m)
-        pdf_y[i] = lineshape_integral.getVal()
-    self.Functions['rel_bw_integral'] = ROOT.RooSpline1D("rel_bw_integral","rel_bw_integral",self.MH,len(mh),mh,pdf_y)
+        half = max(PEAK_WINDOW_MIN, PEAK_WINDOW_FRAC*m)
+        lo, hi = max(self.xvar.getMin(), m-half), min(self.xvar.getMax(), m+half)
+        self.xvar.setRange("relbw_peak", lo, hi)
+        pdf_y[i] = rel_bw_pdf.createIntegral(ROOT.RooArgSet(self.xvar), ROOT.RooFit.Range("relbw_peak")).getVal()
+
+    # The lineshape integral varies smoothly with mass, so a large jump between adjacent 1GeV points means the integration failed. 
+    # Catch it here (previously could propagate through the signal normalisation into the limit calculation without complain).
+    if (pdf_y <= 0).any():
+        bad = mh[pdf_y <= 0]
+        raise Exception("rel_bw_integral is non-positive at MH = %s: the lineshape "
+                        "integration failed for %s"%(list(bad[:10]), extStr))
+    ratio = np.maximum(pdf_y[1:]/pdf_y[:-1], pdf_y[:-1]/pdf_y[1:])
+    if (ratio > 1.5).any():
+        i = int(np.argmax(ratio))
+        raise Exception("rel_bw_integral jumps by %.3gx between MH = %g and %g for %s "
+                        "(max sane step over 1 GeV is ~1.5x). The lineshape integration "
+                        "is unreliable -- check PEAK_WINDOW_FRAC and the integrator."
+                        %(ratio[i], mh[i], mh[i+1], extStr))
+
+    # Per-era name
+    self.Functions['rel_bw_integral'] = ROOT.RooSpline1D("rel_bw_integral_%s"%extStr,"rel_bw_integral_%s"%extStr,self.MH,len(mh),mh,pdf_y)
     self.Functions['final_norm'] = ROOT.RooFormulaVar("%s_norm"%finalPdfName,"%s_norm"%finalPdfName,"@0*@1",ROOT.RooArgList(self.Functions['rel_bw_integral'],self.Functions['rate_%s'%self.name]))
 
-    self.Functions['Msig'] = ROOT.RooFormulaVar('Msig','Msig','@0*@1',ROOT.RooArgList(self.Functions['rel_bw'],self.Functions['rate_%s'%self.name]))
+    self.Functions['Msig'] = ROOT.RooFormulaVar("Msig_%s"%self.name,"Msig_%s"%self.name,'@0*@1',ROOT.RooArgList(self.Functions['rel_bw_func_%s'%extStr],self.Functions['rate_%s'%self.name]))
     # NB: Here xsec*br=1; the extracted limit is a limit on xsec*br
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

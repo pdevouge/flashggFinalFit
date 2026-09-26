@@ -428,14 +428,18 @@ class SimultaneousFit:
     self.buildSignalSplines(decay)
 
     # -- xsec ratio -- #
-    xsec_ratio = "(%s / %s)"%(self.Splines[f'xsec_mcfm_m'].GetName(), self.Splines[f'xsec_mcfm_MH'].GetName())
+    xsec_MH = "@%g"%dependents.getSize()
     dependents.add(self.Splines[f'xsec_mcfm_MH'])
+    xsec_m = "@%g"%dependents.getSize()
     dependents.add(self.Splines[f'xsec_mcfm_m'])
+    xsec_ratio = "(%s / %s)"%(xsec_m, xsec_MH)
 
     # -- mass ratio -- #
-    m_o_mx = "(%s / %s)"%(self.xvar.GetName(),self.MH.GetName())
+    m = "@%g"%dependents.getSize()
     dependents.add(self.xvar)
+    mx = "@%g"%dependents.getSize()
     dependents.add(self.MH)
+    m_o_mx = "(%s / %s)"%(m, mx)
 
     # -- partial width ratio -- #
     # kappa_f = "(%s / %s) * %s^3"%(self.Splines[f'ghgg_sm_m'].GetName(),self.Splines[f'ghgg_sm_MH'].GetName(),m_o_mx)
@@ -444,10 +448,10 @@ class SimultaneousFit:
     kappa_f = 1 # model independent
 
     # -- EffxAcc -- #
-    ea = self.Splines['effs'].GetName()
+    ea = "@%g"%dependents.getSize()
     dependents.add(self.Splines['effs'])
 
-    formula = f"2/pi * 1/MH * ({m_o_mx})^5 * {self.width} * {kappa_f} / ((({m_o_mx})^2 - 1)^2 + {self.width}^2) * {xsec_ratio} * {ea}"
+    formula = f"2/pi * 1/{mx} * ({m_o_mx})^5 * {self.width} * {kappa_f} / ((({m_o_mx})^2 - 1)^2 + {self.width}^2) * {xsec_ratio} * {ea}"
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
     self.Functions['rel_bw'] = ROOT.RooFormulaVar("rel_bw_func","",formula, dependents)
