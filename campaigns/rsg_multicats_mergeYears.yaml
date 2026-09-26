@@ -2,12 +2,13 @@
 campaign: rsg_multicats
 
 common:
-  years: ["2022postEE"]
+  years: ["2022preEE", "2022postEE"]
+  merged_label: "2022"
   cats: "rsg_med_cat"  # Default category
   procs: "rsg"
   width: "001"
-  tree_input_dir: "../RSG_500-1000_multicats"  # Directory where the samples will be placed
-  background_file: "allData_PostEE.root"
+  tree_input_dir: "../RSG_500-1000_2022_multicats"  # Directory where the samples will be placed
+  background_file: "allData_2022.root"
 
 # Background is reprocessed once per distinct catDict in to match signal's categorization unless otherwise
 background_postprocessing:

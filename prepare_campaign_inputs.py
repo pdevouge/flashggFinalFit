@@ -62,6 +62,10 @@
 #
 # group_subranges_by_catdict() checks all of this before anything runs, and
 # exits with a message naming the subranges that clash.
+#
+# Multi-year campaigns (`years` with >= 2 eras) pass --merge-eras <merged_label>
+# down to prepare_output_file.py, which combines every era's data into one extra
+# allData_<merged_label>.root beside the per-era files. 
 import os, sys, glob, shutil, subprocess
 from optparse import OptionParser
 
@@ -158,6 +162,21 @@ def group_subranges_by_catdict(bp, common, subranges):
     does depend on catDict -- hence once per distinct catDict rather than
     once for the whole campaign.
     """
+    # prepare_output_file.py names its own output from outfiles.yaml, so it only
+    # ever writes allData_<era>.root (or allData_<merged_label>.root when it is
+    # given --merge-eras). That is rarely the name a campaign wants in data/,
+    # which needs one distinct file per catDict, so we track the produced name
+    # ("background_source_file") separately from the wanted name
+    # ("background_file") and let the staging step rename source -> wanted.
+    years = common.get("years") or []
+    multi_year = len(years) > 1
+    if multi_year and not common.get("merged_label"):
+        print("[ERROR] common.merged_label must be set for a multi-year campaign -- it names the "
+              "combined all-era background file (allData_<merged_label>.root) that "
+              "prepare_output_file.py --merge-eras produces.")
+        sys.exit(1)
+    default_src = f"allData_{common['merged_label']}.root" if multi_year else None
+
     # First we create cat_dict -> {"background_file", "output_dir", "subranges": [names]}
     # we essentially check that: same catDict → same file and dir
     groups = {}  
@@ -168,6 +187,11 @@ def group_subranges_by_catdict(bp, common, subranges):
                   f"or on background_postprocessing.catDict as a campaign-wide default.")
             sys.exit(1)
         bkg_file = subrange.get("background_file", common["background_file"])  # Does subrange has bkg filename or do we use campaign-wide?
+        # Escape hatch if the produced name is ever something else entirely.
+        src_file = (subrange.get("background_source_file")
+                    or bp.get("background_source_file")
+                    or default_src
+                    or bkg_file)
         out_dir = subrange.get("background_output_dir", bp.get("output_dir"))  # Does subrange has bkg output dir or do we use campaign-wide?
         if out_dir is None:
             # If no output dir is specified, create one
@@ -182,14 +206,16 @@ def group_subranges_by_catdict(bp, common, subranges):
         # catDict: (bkg filename, output dir, associated subranges)
         if cat_dict in groups:
             g = groups[cat_dict]
-            if g["background_file"] != bkg_file or g["output_dir"] != out_dir:
+            if (g["background_file"] != bkg_file or g["output_dir"] != out_dir
+                    or g["background_source_file"] != src_file):
                 print(f"[ERROR] subranges {g['subranges']} and '{subrange['name']}' share catDict {cat_dict!r} "
                       f"but disagree on background_file/background_output_dir -- subranges sharing a catDict "
                       f"must also share the same background output.")
                 sys.exit(1)
             g["subranges"].append(subrange["name"]) # simply append subrange name if catDict already in groups
         else:
-            groups[cat_dict] = {"background_file": bkg_file, "output_dir": out_dir, "subranges": [subrange["name"]]}
+            groups[cat_dict] = {"background_file": bkg_file, "background_source_file": src_file,
+                                "output_dir": out_dir, "subranges": [subrange["name"]]}
 
     # Second we check the opposite: same file (or dir) → same catDict
     by_file, by_location = {}, {}
@@ -223,10 +249,12 @@ def run_background_postprocessing(cfg, opt, subranges):
 
     # For each catDict and associated parameter (filename, output dir, list of subranges)
     for cat_dict, g in group_subranges_by_catdict(bp, common, subranges).items():
-        bkg_file = g["background_file"] # bkg filename
+        bkg_file = g["background_file"] # bkg filename we want under data/
+        src_file = g["background_source_file"] # bkg filename prepare_output_file.py writes
         output_dir = g["output_dir"] # bkg output dir
         data_root_source_dir = output_dir if output_dir else bp["raw_input_dir"] 
-        print(f" --> Background for subrange(s) {g['subranges']}: catDict={cat_dict}, background_file={bkg_file!r}")
+        print(f" --> Background for subrange(s) {g['subranges']}: catDict={cat_dict}, background_file={bkg_file!r}"
+              + (f" (from {src_file!r})" if src_file != bkg_file else ""))
 
         # Merge and root steps
         if opt.run_background and not opt.stage_only:
@@ -235,22 +263,25 @@ def run_background_postprocessing(cfg, opt, subranges):
                 os.makedirs(output_dir, exist_ok=True)
 
             pnn_step = "--do-predictions" if opt.run_pnn else ""
+            # Multi-year: ask prepare_output_file.py for the extra all-era dataset on top of its per-era ones.
+            years = common.get("years") or []
+            merge_eras = f"--merge-eras {common['merged_label']}" if len(years) > 1 else ""
             maps_opts = f"""--process-map {bp['process_map']} --outfiles-map {bp['outfiles_map']} \
                 --varDict {bp['varDict']} --cats --catDict {cat_dict}"""
 
             if is_real_batch(opt) and opt.root_step:
                 # Phase 2: read the merged parquet back from where the merge
                 # jobs landed (data_root_source_dir), not the raw input pool.
-                cmd = f"""prepare_output_file.py --root --merge-data-only \
+                cmd = f"""prepare_output_file.py --root --merge-data-only {merge_eras} \
                     --input {data_root_source_dir} --output {data_root_source_dir} {maps_opts} {batch_opts(opt)}"""
             elif is_real_batch(opt):
                 # Phase 1: merge jobs only -- see the two-step note at the top.
                 extra_opts = f"--output {output_dir}" if output_dir else ""
-                cmd = f"""prepare_output_file.py {pnn_step} --merge --merge-data-only \
+                cmd = f"""prepare_output_file.py {pnn_step} --merge --merge-data-only {merge_eras} \
                     --input {bp['raw_input_dir']} {extra_opts} {maps_opts} {batch_opts(opt)}"""
             else:
                 extra_opts = f"--output {output_dir}" if output_dir else ""
-                cmd = f"""prepare_output_file.py {pnn_step} --merge --merge-data-only --root \
+                cmd = f"""prepare_output_file.py {pnn_step} --merge --merge-data-only --root {merge_eras} \
                     --input {bp['raw_input_dir']} {extra_opts} {maps_opts} {batch_opts(opt)}"""
 
             ret = run(cmd, opt.dry_run, cwd=FINALFIT_DIR)
@@ -274,27 +305,34 @@ def run_background_postprocessing(cfg, opt, subranges):
 
         # mv files step -- reached from both branches above: after a completed
         # local run, and when we're only picking up what's already on disk.
-        pattern = os.path.join(data_root_source_dir, "root", "Data", bkg_file)
+        # We glob the name prepare_output_file.py actually wrote and copy it to the
+        # name this campaign asked for. 
+        pattern = os.path.join(data_root_source_dir, "root", "Data", src_file)
 
         if opt.dry_run:
-            print(f"[DRY RUN] would glob {pattern} and copy matches into {data_dir}/")
+            print(f"[DRY RUN] would glob {pattern} and copy the match to {os.path.join(data_dir, bkg_file)}")
             continue
 
         matches = sorted(glob.glob(pattern))
         if not matches:
-            print(f"[WARNING] No file matching {bkg_file!r} found at {pattern}. Run with "
+            print(f"[ERROR] No file matching {src_file!r} found at {pattern}. Run with "
                   f"--run-background, or check background_postprocessing.raw_input_dir/output_dir and "
-                  f"background_file in the campaign yaml.")
-            continue
+                  f"background_file/background_source_file in the campaign yaml.")
+            sys.exit(1)
+        if len(matches) > 1:
+            print(f"[ERROR] {src_file!r} matched {len(matches)} files at {pattern}, so there is no single "
+                  f"background to stage as {bkg_file!r}: {matches}. Make background_source_file name "
+                  f"exactly one file.")
+            sys.exit(1)
 
         os.makedirs(data_dir, exist_ok=True)
-        for src in matches:
-            dst = os.path.join(data_dir, os.path.basename(src))
-            print(f" --> cp {src} -> {dst}")
-            shutil.copy(src, dst)
+        src = matches[0]
+        dst = os.path.join(data_dir, bkg_file)
+        print(f" --> cp {src} -> {dst}")
+        shutil.copy(src, dst)
 
 
-def build_dataset_selection(pp, common, subrange, dry_run):
+def build_dataset_selection(pp, common, subrange, dry_run, year, suffix=""):
     """Build a local dir of empty subdirs, one per dataset we want, to feed
     prepare_output_file.py's --folder-structure.
 
@@ -303,12 +341,17 @@ def build_dataset_selection(pp, common, subrange, dry_run):
     filter: it processes every top-level subdir it's told to list.
     --folder-structure redirects that *listing* step only; --input/--output
     still control where data is read and written.
+
+    `year` is the era to format into dataset_name_template: single-year
+    campaigns pass common["year"] (suffix=""); multi-year campaigns call
+    this once per era in common.years, each with its own `suffix` (e.g.
+    "_2022preEE") so the two eras' selections stay physically separate.
     """
     template = pp["dataset_name_template"]
     masses = [m.strip() for m in subrange["mass_points"].split(",")]
-    dataset_names = [template.format(width=common["width"], mass=m, year=common["year"]) for m in masses]
+    dataset_names = [template.format(width=common["width"], mass=m, year=year) for m in masses]
 
-    selection_dir = os.path.join(FINALFIT_DIR, ".dataset_selection", subrange["parquet_dir"])
+    selection_dir = os.path.join(FINALFIT_DIR, ".dataset_selection", subrange["parquet_dir"] + suffix)
     print(f" --> Dataset selection for '{subrange['name']}' ({len(dataset_names)} datasets):")
     for name in dataset_names:
         print(f"       {name}")
@@ -324,20 +367,24 @@ def build_dataset_selection(pp, common, subrange, dry_run):
     return selection_dir
 
 
-def run_postprocessing(cfg, subrange, opt):
+def run_postprocessing(cfg, subrange, opt, year, multi_year):
     common = cfg["common"]
     pp = cfg["signal_postprocessing"]
     dry_run = opt.dry_run
 
-    # Where this subrange's output lands, whether produced fresh here or
-    # already sitting there from a pre-split input (no raw_input_dir).
-    output_dir = os.path.abspath(os.path.join(FINALFIT_DIR, common["tree_input_dir"], subrange["parquet_dir"]))
+    suffix = f"_{year}" if multi_year else ""
+    parquet_dir_name = subrange["parquet_dir"] + suffix
+    signal_dir_name = subrange["signal_dir"] + suffix
+
+    # Where this subrange's (this era's, if multi-year) output lands, whether
+    # produced fresh here or already sitting there from a pre-split input.
+    output_dir = os.path.abspath(os.path.join(FINALFIT_DIR, common["tree_input_dir"], parquet_dir_name))
 
     if pp.get("raw_input_dir"):
         # Shared pool: select just this subrange's datasets via
         # --folder-structure and write to our own dir, rather than
         # processing (or writing into) the whole pool.
-        selection_dir = build_dataset_selection(pp, common, subrange, dry_run)
+        selection_dir = build_dataset_selection(pp, common, subrange, dry_run, year, suffix)
         input_dir = pp["raw_input_dir"]
         extra_opts = f"--folder-structure {selection_dir} --output {output_dir}"
     else:
@@ -388,7 +435,7 @@ def run_postprocessing(cfg, subrange, opt):
     else:
         print(f" --> --stage-only set: just staging existing output for subrange '{subrange['name']}'.")
 
-    signal_dir = os.path.abspath(os.path.join(FINALFIT_DIR, common["tree_input_dir"], subrange["signal_dir"]))
+    signal_dir = os.path.abspath(os.path.join(FINALFIT_DIR, common["tree_input_dir"], signal_dir_name))
     stage_signal_root_files(output_dir, signal_dir, dry_run)
 
 
@@ -401,6 +448,17 @@ def main():
     with open(args[0]) as f:
         cfg = yaml.safe_load(f)
 
+    common = cfg["common"]
+    years = common.get("years")
+    if not years:
+        print("[ERROR] campaign yaml common block must set 'years' -- a list of eras, "
+              "e.g. [\"2022postEE\"] for a single era, or [\"2022preEE\", \"2022postEE\"] to combine them.")
+        sys.exit(1)
+    if isinstance(years, str):
+        print("[ERROR] common.years must be a YAML list (e.g. [\"2022postEE\"]), not a bare string.")
+        sys.exit(1)
+    multi_year = len(years) > 1
+
     only = set(x.strip() for x in opt.only.split(",") if x.strip())
     if only: # only certain subranges
         subranges = [s for s in cfg["subranges"] if s["name"] in only]
@@ -412,13 +470,17 @@ def main():
 
     print(f"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PREPARING INPUTS: {cfg['campaign']} ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     print(f" --> Subranges to run: {[s['name'] for s in subranges]}")
+    print(f" --> Years: {years}" + (" (mergeYears)" if multi_year else ""))
 
-    # Once per distinct signal catDict.
+    # Once per distinct signal catDict 
     run_background_postprocessing(cfg, opt, subranges)
 
     for subrange in subranges:
         print(f"\n==================== Subrange '{subrange['name']}' ====================")
-        run_postprocessing(cfg, subrange, opt)
+        for year in years:
+            if multi_year:
+                print(f"\n---- Era '{year}' ----")
+            run_postprocessing(cfg, subrange, opt, year, multi_year)
 
     print("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUTS READY -- now run run_campaign.py under cmsenv/setup.sh ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
