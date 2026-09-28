@@ -97,7 +97,7 @@ print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Make directory to store job scripts and output
-if not os.path.isdir("%s/outdir_%s"%(bwd__,options['ext'])): os.system("mkdir %s/outdir_%s"%(bwd__,options['ext']))
+if not os.path.isdir("%s/results/outdir_%s"%(bwd__,options['ext'])): os.system("mkdir -p %s/results/outdir_%s"%(bwd__,options['ext']))
 
 # Write submission files: style depends on batch system
 writeSubFiles(options)

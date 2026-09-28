@@ -49,11 +49,11 @@ def writeCondorSub(_file,_exec,_queue,_nJobs,_jobOpts,doHoldOnFailure=True,doPer
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def writeSubFiles(_opts):
   # Make directory to store sub files
-  if not os.path.isdir("%s/outdir_%s"%(bwd__,_opts['ext'])): os.system("mkdir %s/outdir_%s"%(bwd__,_opts['ext']))
-  if not os.path.isdir("%s/outdir_%s/%s"%(bwd__,_opts['ext'],_opts['mode'])): os.system("mkdir %s/outdir_%s/%s"%(bwd__,_opts['ext'],_opts['mode']))
-  if not os.path.isdir("%s/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode'])): os.system("mkdir %s/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode']))
+  if not os.path.isdir("%s/results/outdir_%s"%(bwd__,_opts['ext'])): os.system("mkdir -p %s/results/outdir_%s"%(bwd__,_opts['ext']))
+  if not os.path.isdir("%s/results/outdir_%s/%s"%(bwd__,_opts['ext'],_opts['mode'])): os.system("mkdir -p %s/results/outdir_%s/%s"%(bwd__,_opts['ext'],_opts['mode']))
+  if not os.path.isdir("%s/results/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode'])): os.system("mkdir -p %s/results/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode']))
 
-  _jobdir = "%s/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode'])
+  _jobdir = "%s/results/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode'])
   # Remove current job files
   if len(glob.glob("%s/*"%_jobdir)): os.system("rm %s/*"%_jobdir)
 
@@ -107,7 +107,7 @@ def writeSubFiles(_opts):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for submitting files to batch system
 def submitFiles(_opts):
-  _jobdir = "%s/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode'])
+  _jobdir = "%s/results/outdir_%s/%s/jobs"%(bwd__,_opts['ext'],_opts['mode'])
   # CONDOR
   if _opts['batch'] == "condor":
     _executable = "condor_%s_%s"%(_opts['mode'],_opts['ext'])

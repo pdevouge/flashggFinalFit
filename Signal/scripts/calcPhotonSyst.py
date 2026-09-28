@@ -169,8 +169,8 @@ for ir,r in data.iterrows():
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Output dataFrame as pickle file to be read in by signalFit.py
-if not os.path.isdir("%s/outdir_%s"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s"%(swd__,opt.ext))
-if not os.path.isdir("%s/outdir_%s/calcPhotonSyst"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/calcPhotonSyst"%(swd__,opt.ext))
-if not os.path.isdir("%s/outdir_%s/calcPhotonSyst/pkl"%(swd__,opt.ext)): os.system("mkdir %s/outdir_%s/calcPhotonSyst/pkl"%(swd__,opt.ext))
-with open("%s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,opt.ext,opt.cat),"wb") as f: pickle.dump(data,f)
-print(" --> Successfully saved photon systematics as pkl file: %s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,opt.ext,opt.cat))
+if not os.path.isdir("%s/results/outdir_%s"%(swd__,opt.ext)): os.system("mkdir -p %s/results/outdir_%s"%(swd__,opt.ext))
+if not os.path.isdir("%s/results/outdir_%s/calcPhotonSyst"%(swd__,opt.ext)): os.system("mkdir -p %s/results/outdir_%s/calcPhotonSyst"%(swd__,opt.ext))
+if not os.path.isdir("%s/results/outdir_%s/calcPhotonSyst/pkl"%(swd__,opt.ext)): os.system("mkdir -p %s/results/outdir_%s/calcPhotonSyst/pkl"%(swd__,opt.ext))
+with open("%s/results/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,opt.ext,opt.cat),"wb") as f: pickle.dump(data,f)
+print(" --> Successfully saved photon systematics as pkl file: %s/results/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,opt.ext,opt.cat))

@@ -303,8 +303,8 @@ class FinalModel:
 
         leg.Draw()
         canv.Update()
-        canv.SaveAs("%s/outdir_%s/CUBIC_spline_%s.pdf"%(swd__,self.ext,sParam))
-        canv.SaveAs("%s/outdir_%s/CUBIC_spline_%s.png"%(swd__,self.ext,sParam))
+        canv.SaveAs("%s/results/outdir_%s/CUBIC_spline_%s.pdf"%(swd__,self.ext,sParam))
+        canv.SaveAs("%s/results/outdir_%s/CUBIC_spline_%s.png"%(swd__,self.ext,sParam))
 
   # Function for building Nuisance param splines:
   def buildNuisanceSplines(self):
@@ -313,7 +313,7 @@ class FinalModel:
       if getattr(self,sType) != '': self.NuisanceSplines[sType] = od()
 
     # Extract calcPhotonSyst output
-    psname = "%s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,self.ext,self.cat)
+    psname = "%s/results/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,self.ext,self.cat)
     if not os.path.exists(psname):
       print(" --> [ERROR] Photon systematics do not exist (%s). Please run calcPhotonSyst mode first or skip systematics (--skipSystematics)"%psname)
       sys.exit(1)
@@ -522,7 +522,7 @@ class FinalModel:
       if getattr(self,sType) != '': self.NuisanceMap[sType] = od()
 
     # Extract calcPhotonSyst output
-    psname = "%s/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,self.ext,self.cat)
+    psname = "%s/results/outdir_%s/calcPhotonSyst/pkl/%s.pkl"%(swd__,self.ext,self.cat)
     if not os.path.exists(psname):
       print(" --> [ERROR] Photon systematics do not exist (%s). Please run calcPhotonSyst mode first or skip systematics (--skipSystematics)"%psname)
       sys.exit(1)

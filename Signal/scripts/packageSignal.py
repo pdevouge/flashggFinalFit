@@ -26,7 +26,7 @@ def rooiter(x):
 
 # Extract all files to be merged
 fNames = {}
-for ext in opt.exts.split(","): fNames[ext] = glob.glob("outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_*_%s.root"%(ext,ext,opt.cat))
+for ext in opt.exts.split(","): fNames[ext] = glob.glob("results/outdir_%s/signalFit/output/CMS-HGG_sigfit_%s_*_%s.root"%(ext,ext,opt.cat))
 
 # Define ouput packaged workspace
 print(" --> Packaging output workspaces")
@@ -74,13 +74,13 @@ for ext, fNames_by_ext in fNames.items():
       else: packagedWS.imp(_data)
 
 # Save to file
-if not os.path.isdir("outdir_%s"%opt.outputExt): os.system("mkdir outdir_%s"%opt.outputExt)
+if not os.path.isdir("results/outdir_%s"%opt.outputExt): os.system("mkdir -p results/outdir_%s"%opt.outputExt)
 if opt.mergeYears:
-  print(" --> Writing to: ./outdir_%s/CMS-HGG_sigfit_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat))
-  f = ROOT.TFile("./outdir_%s/CMS-HGG_sigfit_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat),"RECREATE")
+  print(" --> Writing to: ./results/outdir_%s/CMS-HGG_sigfit_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat))
+  f = ROOT.TFile("./results/outdir_%s/CMS-HGG_sigfit_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat),"RECREATE")
 else:
-  print(" --> Writing to: ./outdir_%s/CMS-HGG_sigfit_%s_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat,opt.year))
-  f = ROOT.TFile("./outdir_%s/CMS-HGG_sigfit_%s_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat,opt.year),"RECREATE")
+  print(" --> Writing to: ./results/outdir_%s/CMS-HGG_sigfit_%s_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat,opt.year))
+  f = ROOT.TFile("./results/outdir_%s/CMS-HGG_sigfit_%s_%s_%s.root"%(opt.outputExt,opt.outputExt,opt.cat,opt.year),"RECREATE")
 
 packagedWS.Write()
 f.Close()

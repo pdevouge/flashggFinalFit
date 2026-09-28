@@ -151,6 +151,8 @@ print(f" --> Luminosity label for the limit plot: {lumi_label} fb^-1 (lumiMap['{
 
 ext = cfg["common"]["extension"]
 config_name = f"config_{ext}.py"
+# Configs now live in each section's config/ subdir; scripts run with cwd = the section dir.
+config_rel = f"config/{config_name}"
 input_dir = os.path.join(os.getcwd(),cfg["tree"]["input_dir"])
 cat = cfg["common"]["cats"]
 MLow, MHigh = cfg["common"]["binning"].split(",")
@@ -186,13 +188,13 @@ signalScriptCfg = {{
 
 }}
 """
-    write_file(os.path.join(base_dir, "Signal", config_name), py_config)
+    write_file(os.path.join(base_dir, "Signal", "config", config_name), py_config)
 
 # TODO: Interference logic related
 if not merge_years:
     write_signal_config(years[0], ext, f'{input_dir}/{cfg["signal"]["dir"]}/ws_{cfg["signal"]["procs"]}/')
-    copy_file(os.path.join(base_dir, "Signal", config_name),
-              os.path.join(base_dir, "Interference", config_name))
+    copy_file(os.path.join(base_dir, "Signal", "config", config_name),
+              os.path.join(base_dir, "Interference", "config", config_name))
 
 
 # For background
@@ -215,7 +217,7 @@ backgroundScriptCfg = {{
 }}
 """
 
-write_file(os.path.join(base_dir, "Background", config_name), py_config)
+write_file(os.path.join(base_dir, "Background", "config", config_name), py_config)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Trees2ws step
@@ -230,12 +232,12 @@ if len(opt.run_only) == 0 or "trees" in opt.run_only:
         # Each era's signal trees live in their own <dir>_<year>
         print(f"\n---- trees2ws for era '{year}' ----")
         year_suffix = f"_{year}" if era_qualified else ""
-        cmd = f"python3 RunWSScripts.py --inputDir {input_dir}/{dir}{year_suffix}/ --inputConfig config_high_mass.py \
+        cmd = f"python3 RunWSScripts.py --inputDir {input_dir}/{dir}{year_suffix}/ --inputConfig config/config_high_mass.py \
             --year {year} --ext {ext} --mode trees2ws --batch local --modeOpts \"--minMass {MLow} --maxMass {MHigh} {syst_opt} \""
         run(cmd)
 
     # Convert ONLY 'inputPattern'.root background file. <tree_input_dir>/data/ is shared
-    cmd = f"python3 RunWSScripts.py --inputDir {input_dir}/data/ --inputPattern {bkg_file} --inputConfig config_high_mass.py \
+    cmd = f"python3 RunWSScripts.py --inputDir {input_dir}/data/ --inputPattern {bkg_file} --inputConfig config/config_high_mass.py \
         --year {bkg_year} --ext {ext} --mode trees2ws_data --batch local --modeOpts \"--applyMassCut --massCutRange {MLow},{MHigh} \""
     run(cmd)
 
@@ -256,13 +258,13 @@ if len(opt.run_only) == 0 or "signal" in opt.run_only:
             write_signal_config(year, ext_year, ws_dir)
 
         if opt.do_syst:
-            cmd = f"""python3 RunSignalScripts.py --inputConfig {config_name} --mode calcPhotonSyst \
+            cmd = f"""python3 RunSignalScripts.py --inputConfig {config_rel} --mode calcPhotonSyst \
                 --modeOpts \" --nBins {MBins}  --minMass {MLow} --maxMass {MHigh}\""""
             run(cmd)
 
         syst_opt = '' if opt.do_syst else '--skipSystematics'
 
-        cmd = f"""python3 RunSignalScripts.py --inputConfig {config_name} --mode signalFit \
+        cmd = f"""python3 RunSignalScripts.py --inputConfig {config_rel} --mode signalFit \
             --modeOpts \" --doPlots {syst_opt} --skipVertexScenarioSplit --skipBeamspotReweigh --nBins {MBins}  --minMass {MLow} --maxMass {MHigh} {cfg['signal']['options']} \""""
         run(cmd)
 
@@ -271,7 +273,7 @@ if len(opt.run_only) == 0 or "signal" in opt.run_only:
             --massPoints {cfg["signal"]["mass_points"]} --batch local"""
     else:
         # ext_years[0] rather than ext: under --onlyYear the single fit still
-        # lives in outdir_<ext>_<era>, so --exts has to carry the era tag.
+        # lives in results/outdir_<ext>_<era>, so --exts has to carry the era tag.
         cmd = f"""python3 RunPackager.py --cats {cat} --exts {ext_years[0]} --outputExt {ext} --year {years[0]} \
             --massPoints {cfg["signal"]["mass_points"]} --batch local"""
     run(cmd)
@@ -297,7 +299,7 @@ if (len(opt.run_only) == 0 or "interference" in opt.run_only) and not (opt.skip_
         --massList {mPoints} --outCsv tools/csv/ggbox_eff_{years[0]}_{cat}_09_09.csv"""
     run(cmd)
 
-    # cmd = f"""python3 RunInterferenceScripts.py --inputConfig {config_name} --mode computeIntf \
+    # cmd = f"""python3 RunInterferenceScripts.py --inputConfig {config_rel} --mode computeIntf \
     #     --modeOpts \"  --minMass {MLow} --maxMass {MHigh} \""""
     # run(cmd)
 
@@ -308,7 +310,7 @@ if len(opt.run_only) == 0 or "background" in opt.run_only:
     # Run Background fit
     chdir("../Background")
 
-    cmd = f"python3 RunBackgroundScripts.py --inputConfig {config_name} --mode fTestParallel"
+    cmd = f"python3 RunBackgroundScripts.py --inputConfig {config_rel} --mode fTestParallel"
     run(cmd)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -337,7 +339,7 @@ if len(opt.run_only) == 0 or "datacard" in opt.run_only:
     run(cmd)
 
     cmd = f"""python3 makeDatacard.py --ext {ext} --years {','.join(years)} --prune {syst_opt} \
-        --skipCOWCorr --doMCStatUncertainty --saveDataFrame --output Datacard_{ext} --mass {MNom}"""
+        --skipCOWCorr --doMCStatUncertainty --saveDataFrame --output results/Datacard_{ext} --mass {MNom}"""
     run(cmd)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -345,7 +347,7 @@ if len(opt.run_only) == 0 or "datacard" in opt.run_only:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if len(opt.run_only) == 0 or "combine" in opt.run_only:
     # Each subrange/extension gets its own Combine/<ext>/ area
-    combine_dir = os.path.join(base_dir, "Combine", ext)
+    combine_dir = os.path.join(base_dir, "Combine", "results", ext)
     models_sig = os.path.join(combine_dir, "Models", "signal")
     models_bkg = os.path.join(combine_dir, "Models", "background")
     models_intf = os.path.join(combine_dir, "Models", "interference")
@@ -359,24 +361,24 @@ if len(opt.run_only) == 0 or "combine" in opt.run_only:
 
     # Copy everything into Combine dir.
     for c in cat_list:
-        src = os.path.join(base_dir, "Background", f"outdir_{ext}",
+        src = os.path.join(base_dir, "Background", f"results/outdir_{ext}",
                            f"CMS-HGG_multipdf_{c}_{bkg_year}.root")
         if not os.path.exists(src):
             fail(f"No background model at {src}. Did the background step run for '{bkg_year}'?")
         run(f"cp {src} {models_bkg}/")
     if not opt.skip_intf:
         for c in cat_list:
-            intf_glob = os.path.join(base_dir, "Interference", f"outdir_{ext}", "computeIntf",
+            intf_glob = os.path.join(base_dir, "Interference", f"results/outdir_{ext}", "computeIntf",
                                      "output", f"CMS-HGG_intfm_{c}_{years[0]}*.root")
             run(f"cp {intf_glob} {models_intf}/")
-    run(f"cp {os.path.join(base_dir, 'Datacard', f'Datacard_{ext}.txt')} {combine_dir}/")
+    run(f"cp {os.path.join(base_dir, 'Datacard', 'results', f'Datacard_{ext}.txt')} {combine_dir}/")
 
     packaged_files = []
     for c in cat_list:
         name = f"CMS-HGG_sigfit_{ext}_{c}.root" if merge_years else f"CMS-HGG_sigfit_{ext}_{c}_{years[0]}*.root"
-        packaged_files += glob.glob(os.path.join(base_dir, "Signal", f"outdir_{ext}", name))
+        packaged_files += glob.glob(os.path.join(base_dir, "Signal", f"results/outdir_{ext}", name))
     if not packaged_files:
-        print(f"[WARNING] No packaged signal file found for {ext}/{cat} in Signal/outdir_{ext}/. Did the signal step run?")
+        print(f"[WARNING] No packaged signal file found for {ext}/{cat} in Signal/results/outdir_{ext}/. Did the signal step run?")
     for src in packaged_files:
         copy_file(src, os.path.join(models_sig, os.path.basename(src)))
 
@@ -385,14 +387,14 @@ if len(opt.run_only) == 0 or "combine" in opt.run_only:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if len(opt.run_only) == 0 or "text2ws" in opt.run_only:
     # Build the physics-model workspace (mu_inclusive by default) from the datacard
-    chdir(os.path.join(base_dir, "Combine", ext))
+    chdir(os.path.join(base_dir, "Combine", "results", ext))
 
     combine_mode = cfg.get("combine", {}).get("mode", "mu_inclusive")
     common_opts = cfg.get("combine", {}).get(
         "common_opts", f"-m {MNom} higgsMassRange={MLow},{MHigh}"
     )
 
-    cmd = f"""python3 ../RunText2Workspace.py --mode {combine_mode} --batch local \
+    cmd = f"""python3 ../../RunText2Workspace.py --mode {combine_mode} --batch local \
         --ext _{ext} --common_opts \"{common_opts}\""""
     run(cmd)
 
@@ -400,7 +402,7 @@ if len(opt.run_only) == 0 or "text2ws" in opt.run_only:
 # Limits step
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if len(opt.run_only) == 0 or "limits" in opt.run_only:
-    chdir(os.path.join(base_dir, "Combine", ext))
+    chdir(os.path.join(base_dir, "Combine", "results", ext))
 
     combine_mode = cfg.get("combine", {}).get("mode", "mu_inclusive")
     workspace = f"Datacard_{ext}_{combine_mode}.root"
@@ -408,7 +410,7 @@ if len(opt.run_only) == 0 or "limits" in opt.run_only:
     mass_points = cfg.get("limits", {}).get("mass_points", cfg["signal"]["mass_points"])
     limit_jobs = opt.limit_jobs if opt.limit_jobs else cfg.get("limits", {}).get("jobs", 1)
 
-    cmd = f"""python3 ../RunLimits.py {workspace} --outdir Limits --extension {ext} \
+    cmd = f"""python3 ../../RunLimits.py {workspace} --outdir Limits --extension {ext} \
         --mass_points {mass_points} --parallel {limit_jobs} --title \"{title}\" --lumi \"{lumi_label}\""""
     run(cmd)
 
@@ -434,11 +436,11 @@ if len(opt.run_only) == 0 or "collect" in opt.run_only:
         else:
             shutil.copy(src, dst)
 
-    collect(f"Signal/outdir_{ext}", "signal")
-    collect(f"Background/outdir_{ext}", "background")
+    collect(f"Signal/results/outdir_{ext}", "signal")
+    collect(f"Background/results/outdir_{ext}", "background")
     if not opt.skip_intf:
-        collect(f"Interference/outdir_{ext}", "interference")
-    collect(f"Datacard/Datacard_{ext}.txt", "Datacard.txt")
-    collect(f"Combine/{ext}", "combine")
+        collect(f"Interference/results/outdir_{ext}", "interference")
+    collect(f"Datacard/results/Datacard_{ext}.txt", "Datacard.txt")
+    collect(f"Combine/results/{ext}", "combine")
 
     print(f" --> Collected results for '{ext}' into {results_dir}")

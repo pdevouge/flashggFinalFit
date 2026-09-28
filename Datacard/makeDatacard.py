@@ -44,7 +44,7 @@ if opt.doSTXSScaleCorrelationScheme: from tools.STXS_tools import STXSScaleCorre
 # Concatenate dataframes
 print(" --> Loading per category dataframes into single dataframe")
 extStr = "_%s"%opt.ext if opt.ext != '' else ''
-pkl_files = glob.glob("./yields%s/*.pkl"%extStr)
+pkl_files = glob.glob("./results/yields%s/*.pkl"%extStr)
 pkl_files.sort() # Categories in alphabetical order
 data = pd.DataFrame()
 for f_pkl_name in pkl_files:
