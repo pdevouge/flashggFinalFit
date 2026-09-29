@@ -464,12 +464,14 @@ class FinalModel:
     extStr = "%s_%s"%(self.name,ext) if ext!='total' else '%s'%self.name
     finalPdfName = self.Pdfs['final'].GetName()
     # rel_bw is a relativistic BW peaked at m = MH, and for NWA it is a very narrow spike.
-    # Integrating it over the full range of xvar can make integrator scheme sample only 
+    # Integrating it over the full range of xvar can make integrator (Romberg) sample only 
     # off-peak points, yielding an uncorrect integral value.
-    # So we integrate over a window centred on the peak instead, clipped to the fit range.
-    PEAK_WINDOW_FRAC = 0.10
-    PEAK_WINDOW_MIN = 5.0  # GeV, floor for very low MH
+    # Replaced with RooAdaptiveGaussKronrodIntegrator1D for accurate values.
+    
     rel_bw_pdf = self.Pdfs['rel_bw_%s'%extStr]
+    rel_bw_pdf.specialIntegratorConfig(ROOT.kTRUE).method1D().setLabel("RooAdaptiveGaussKronrodIntegrator1D")
+    self.xvar.setRange("relbw_full", self.xvar.getMin(), self.xvar.getMax())
+    relbw_integral = rel_bw_pdf.createIntegral(ROOT.RooArgSet(self.xvar), ROOT.RooFit.Range("relbw_full"))
 
     mp = self.massPoints.split(',')
     minMass, maxMass = int(mp[0]), int(mp[-1])
@@ -477,10 +479,7 @@ class FinalModel:
     pdf_y = np.empty(len(mh), dtype=np.float64)
     for i, m in enumerate(mh):
         self.MH.setVal(m)
-        half = max(PEAK_WINDOW_MIN, PEAK_WINDOW_FRAC*m)
-        lo, hi = max(self.xvar.getMin(), m-half), min(self.xvar.getMax(), m+half)
-        self.xvar.setRange("relbw_peak", lo, hi)
-        pdf_y[i] = rel_bw_pdf.createIntegral(ROOT.RooArgSet(self.xvar), ROOT.RooFit.Range("relbw_peak")).getVal()
+        pdf_y[i] = relbw_integral.getVal()
 
     # The lineshape integral varies smoothly with mass, so a large jump between adjacent 1GeV points means the integration failed. 
     # Catch it here (previously could propagate through the signal normalisation into the limit calculation without complain).
@@ -493,7 +492,7 @@ class FinalModel:
         i = int(np.argmax(ratio))
         raise Exception("rel_bw_integral jumps by %.3gx between MH = %g and %g for %s "
                         "(max sane step over 1 GeV is ~1.5x). The lineshape integration "
-                        "is unreliable -- check PEAK_WINDOW_FRAC and the integrator."
+                        "is unreliable -- check integration method. "
                         %(ratio[i], mh[i], mh[i+1], extStr))
 
     # Per-era name
