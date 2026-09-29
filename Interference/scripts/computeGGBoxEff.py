@@ -1,13 +1,16 @@
+import os
+import sys
 import glob
 import json
-import sys
+import yaml
 from optparse import OptionParser
-
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
-import yaml
 from scipy.interpolate import UnivariateSpline
+
+from commonObjects import *
+from plottingTools import *
 
 xsec_bkg = {
   'GGBox_MGG200To500': 7.351e3,
@@ -22,36 +25,23 @@ xsec_bkg = {
 def get_options():
     parser = OptionParser()
     parser.add_option('--verbose', dest='verbose', action='store_true')
-
-    parser.add_option('--config', dest='config', default=None,
-                       help='YAML config file describing the reco_mass/gen_mass '
-                            'file groups (and their per-group mass cuts). Required.')
-
-    parser.add_option('--window', dest='window', default=None, type='float',
-                       help='Half-width of the mass window, as a fraction of m ')
-
+    parser.add_option("--ext", dest='ext', default='',
+                       help="Extension of this run. Output goes to "
+                            "results/outdir_<ext>/computeGGBoxEff/, as for computeInterference. Required.")
+    parser.add_option("--ext", dest='ext', default='', help="Extension")
+    parser.add_option("--proc", dest='proc', default='', help="Signal process")
+    parser.add_option("--cat", dest='cat', default='', help="RECO category")
+    parser.add_option("--year", dest='year', default='2016', help="Year")
+    parser.add_option('--catDict', dest='catDict', default=None, help='Category JSON. Required.')
+    parser.add_option('--config', dest='config', default=None, help='YAML config file describing the reco_mass/gen_mass file groups. Required.')
     # Scan of mass points: either an explicit list, or min/max/n
-    parser.add_option('--logSpace', action='store_true',
-                     help='Use log-spaced mass points instead of linear spacing')
-    parser.add_option('--massList', dest='massList', default='',
-                       help='Comma-separated explicit list of mass points to scan '
-                            '(overrides --minMass/--maxMass/--nMassPoints if given)')
-    parser.add_option('--minMass', dest='minMass', default=100., type='float',
-                       help='Minimum mass point of the scan')
-    parser.add_option('--maxMass', dest='maxMass', default=3000., type='float',
-                       help='Maximum mass point of the scan')
-    parser.add_option('--nMassPoints', dest='nMassPoints', default=40, type='int',
-                       help='Number of mass points in the scan')
-
-    parser.add_option('--catDict', dest='catDict', default=None,
-                       help='Category JSON (the same catDict the campaign passes to '
-                            'HiggsDNA, e.g. category_spin0_500-1000.json). Required.')
-    parser.add_option('--cat', dest='cat', default=None,
-                       help='Which category in --catDict to compute the efficiency for. '
-                            'Its cat_filter is appended to the RECO cuts. Required.')
-
-    parser.add_option('--outCsv', dest='outCsv', default='ggbox_efficiency.csv',
-                       help='Output CSV file')
+    parser.add_option('--window', dest='window', default=None, type='float', help='Half-width of the mass window, as a fraction of m ')
+    parser.add_option('--logSpace', action='store_true', help='Use log-spaced mass points instead of linear spacing')
+    parser.add_option('--massList', dest='massList', default='', help='Comma-separated explicit list of mass points to scan (overrides --minMass/--maxMass/--nMassPoints if given)')
+    parser.add_option('--minMass', dest='minMass', default=100., type='float', help='Minimum mass point of the scan')
+    parser.add_option('--maxMass', dest='maxMass', default=3000., type='float', help='Maximum mass point of the scan')
+    parser.add_option('--nMassPoints', dest='nMassPoints', default=40, type='int', help='Number of mass points in the scan')
+    parser.add_option('--doPlots', dest='doPlots', action='store_true', help='Also draw the efficiency and the numerator/denominator.')
 
     opt, args = parser.parse_args()
 
@@ -356,8 +346,20 @@ def main():
     print(f" --> Smoothing the efficiency with a spline")
     eff_df = add_spline_fit(eff_df)
 
-    eff_df.to_csv(opt.outCsv, index=False)
-    print(f" --> Efficiency table saved to {opt.outCsv}")
+    outDir = "%s/results/outdir_%s/computeGGBoxEff/output"%(iwd__,opt.ext)
+    if not os.path.isdir(outDir): os.makedirs(outDir)
+    outCsv = "%s/ggbox_eff_%s_%s_%s_%s.csv"%(outDir,opt.ext,opt.proc,opt.year,opt.cat)
+
+    eff_df.to_csv(outCsv, index=False)
+    print(f" --> Efficiency table saved to {outCsv}")
+
+    if opt.doPlots:
+        plotDir = "%s/results/outdir_%s/computeGGBoxEff/plots"%(iwd__,opt.ext)
+        if not os.path.isdir(plotDir): os.makedirs(plotDir)
+        # tag by year and category, so per-category runs do not overwrite each other
+        print(f" --> Plotting into {plotDir}")
+        plotGGBoxEfficiency(outCsv, plotDir, "_%s_%s_%s"%(opt.proc,opt.year,opt.cat))
+        plotGGBoxNumDen(outCsv, plotDir, "_%s_%s_%s"%(opt.proc,opt.year,opt.cat))
 
     print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ (END) ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ")
 

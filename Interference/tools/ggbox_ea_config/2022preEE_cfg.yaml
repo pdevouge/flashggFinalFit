@@ -1,0 +1,31 @@
+reco:
+  - var:
+      gen_mass: 'mass_me'
+      weight: 'weight'
+    normalize: true
+
+  - files:
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/reco_parquets/PreEE_GGBox_MGG80/nominal/*.parquet"
+    cut: "mass < 200.15 and first1 and first2 and lead_pt > 20 and sublead_pt > 15 and abs(lead_eta) < 3.0 and abs(sublead_eta) < 3.0"
+  - files:
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/reco_parquets/PreEE_GGBox_MGG200To500/nominal/*.parquet"
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/reco_parquets/PreEE_GGBox_MGG500To1000/nominal/*.parquet"
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/reco_parquets/PreEE_GGBox_MGG1000To2000/nominal/*.parquet"
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/reco_parquets/PreEE_GGBox_MGG2000/nominal/*.parquet"
+    cut: "mass >= 200.15 & first1 and first2 and lead_pt > 20 and sublead_pt > 15 and abs(lead_eta) < 3.0 and abs(sublead_eta) < 3.0"
+
+gen:
+  - var:
+      gen_mass: 'massME'
+      weight: 'genWeight'
+    normalize: true
+
+  - files:
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/gen_parquets/*_GGBox_MGG80/GenPart/*.parquet"
+    cut: "massME < 200.15 and first1 and first2 and pt1_st > 20 and pt2_st > 15 and abs(eta1_st) < 3.0 and abs(eta2_st) < 3.0"
+  - files:
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/gen_parquets/*_GGBox_MGG200To500/GenPart/*.parquet"
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/gen_parquets/*_GGBox_MGG500To1000/GenPart/*.parquet"
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/gen_parquets/*_GGBox_MGG1000To2000/GenPart/*.parquet"
+      - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/gen_parquets/*_GGBox_MGG2000/GenPart/*.parquet"
+    cut: "first1 and first2 and pt1_st > 20 and pt2_st > 15 and abs(eta1_st) < 3.0 and abs(eta2_st) < 3.0"

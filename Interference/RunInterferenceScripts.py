@@ -108,12 +108,12 @@ elif options['batch'] == "local":
 if options['printOnly']:
   print(" --> PRINT ONLY (no submission)")
   print("")
-if options['mode'] == "comouteIntf": print(" --> Computing interference between signal and ggF background...")
+if options['mode'] == "computeIntf": print(" --> Computing interference between signal and the gg->gamma gamma box...")
 print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Make directory to store job scripts and output
-if not os.path.isdir("%s/outdir_%s"%(iwd__,options['ext'])): os.system("mkdir %s/outdir_%s"%(iwd__,options['ext']))
+if not os.path.isdir("%s/results/outdir_%s"%(iwd__,options['ext'])): os.system("mkdir -p %s/results/outdir_%s"%(iwd__,options['ext']))
 
 # Write submission files: style depends on batch system
 writeSubFiles(options)

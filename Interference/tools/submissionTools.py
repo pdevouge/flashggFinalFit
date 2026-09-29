@@ -19,7 +19,7 @@ def writePreamble(_file):
   _file.write("export PYTHONPATH=$PYTHONPATH:%s/tools:%s/tools\n\n"%(cwd__,iwd__))
 
 def writeCondorSub(_file,_exec,_queue,_nJobs,_jobOpts,_opts,doHoldOnFailure=True,doPeriodicRetry=True):
-  _jobdir = "%s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])
+  _jobdir = "%s/results/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])
   _file.write("executable = %s.sh\n"%_exec)
   _file.write("initialdir = %s\n"%_jobdir)
   _file.write("arguments  = $(ProcId)\n")
@@ -45,11 +45,11 @@ def writeCondorSub(_file,_exec,_queue,_nJobs,_jobOpts,_opts,doHoldOnFailure=True
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def writeSubFiles(_opts):
   # Make directory to store sub files
-  if not os.path.isdir("%s/outdir_%s"%(iwd__,_opts['ext'])): os.system("mkdir %s/outdir_%s"%(iwd__,_opts['ext']))
-  if not os.path.isdir("%s/outdir_%s/%s"%(iwd__,_opts['ext'],_opts['mode'])): os.system("mkdir %s/outdir_%s/%s"%(iwd__,_opts['ext'],_opts['mode']))
-  if not os.path.isdir("%s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])): os.system("mkdir %s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode']))
+  if not os.path.isdir("%s/results/outdir_%s"%(iwd__,_opts['ext'])): os.system("mkdir -p %s/results/outdir_%s"%(iwd__,_opts['ext']))
+  if not os.path.isdir("%s/results/outdir_%s/%s"%(iwd__,_opts['ext'],_opts['mode'])): os.system("mkdir -p %s/results/outdir_%s/%s"%(iwd__,_opts['ext'],_opts['mode']))
+  if not os.path.isdir("%s/results/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])): os.system("mkdir -p %s/results/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode']))
 
-  _jobdir = "%s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])
+  _jobdir = "%s/results/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])
   # Remove current job files
   if len(glob.glob("%s/*"%_jobdir)): os.system("rm %s/*"%_jobdir)
 
@@ -68,7 +68,7 @@ def writeSubFiles(_opts):
           pcidx = pidx*_opts['nCats']+cidx
           p,c = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx]
           _f.write("if [ $1 -eq %g ]; then\n"%pcidx)
-          _f.write("  python3 %s/scripts/computeInterference.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --width %s --massPoints %s --scales \'%s\' --scalesCorr \'%s\' --scalesGlobal \'%s\' --smears \'%s\' %s\n"%(iwd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['width'],_opts['massPoints'],_opts['scales'],_opts['scalesCorr'],_opts['scalesGlobal'],_opts['smears'],_opts['modeOpts']))
+          _f.write("  python3 %s/scripts/computeInterference.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --width %s --massPoints %s %s\n"%(iwd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['width'],_opts['massPoints'],_opts['modeOpts']))
           _f.write("fi\n")
 
     # Close .sh file
@@ -103,7 +103,7 @@ def writeSubFiles(_opts):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Function for submitting files to batch system
 def submitFiles(_opts):
-  _jobdir = "%s/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])
+  _jobdir = "%s/results/outdir_%s/%s/jobs"%(iwd__,_opts['ext'],_opts['mode'])
   # CONDOR
   if _opts['batch'] == "condor":
     _executable = "condor_%s_%s"%(_opts['mode'],_opts['ext'])
