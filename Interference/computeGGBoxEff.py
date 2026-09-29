@@ -1,10 +1,13 @@
 import glob
+import json
 import sys
 from optparse import OptionParser
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import yaml
+from scipy.interpolate import UnivariateSpline
 
 xsec_bkg = {
   'GGBox_MGG200To500': 7.351e3,
@@ -24,9 +27,8 @@ def get_options():
                        help='YAML config file describing the reco_mass/gen_mass '
                             'file groups (and their per-group mass cuts). Required.')
 
-    parser.add_option('--window', dest='window', default=0.10, type='float',
-                       help='Half-width of the mass window, as a fraction of m '
-                            '(default 0.10 -> [0.90*m, 1.10*m])')
+    parser.add_option('--window', dest='window', default=None, type='float',
+                       help='Half-width of the mass window, as a fraction of m ')
 
     # Scan of mass points: either an explicit list, or min/max/n
     parser.add_option('--logSpace', action='store_true',
@@ -41,16 +43,60 @@ def get_options():
     parser.add_option('--nMassPoints', dest='nMassPoints', default=40, type='int',
                        help='Number of mass points in the scan')
 
+    parser.add_option('--catDict', dest='catDict', default=None,
+                       help='Category JSON (the same catDict the campaign passes to '
+                            'HiggsDNA, e.g. category_spin0_500-1000.json). Required.')
+    parser.add_option('--cat', dest='cat', default=None,
+                       help='Which category in --catDict to compute the efficiency for. '
+                            'Its cat_filter is appended to the RECO cuts. Required.')
+
     parser.add_option('--outCsv', dest='outCsv', default='ggbox_efficiency.csv',
                        help='Output CSV file')
 
     opt, args = parser.parse_args()
 
     if opt.config is None:
-        sys.exit("[ERROR] --config <yaml file> is required (see module docstring "
-                  "for the expected format).")
+        sys.exit("[ERROR] --config <yaml file> is required.")
+    if opt.catDict is None:
+        sys.exit("[ERROR] --catDict <category json> is required: the efficiency is "
+                  "per analysis category, so the category selection has to be applied.")
+    if opt.cat is None:
+        sys.exit("[ERROR] --cat <category name> is required (a key of --catDict).")
 
     return opt, args
+
+
+# ----------------------------------------------------------------------
+# Operators as they appear in the catDict, mapped to what DataFrame.query expects.
+cat_ops = {'=': '==', '==': '==', '!=': '!=', '>': '>', '>=': '>=', '<': '<', '<=': '<='}
+
+
+def build_cat_cut(cat_dict_path, cat):
+    """Turn one category's cat_filter into a DataFrame.query string."""
+    try:
+        with open(cat_dict_path) as f:
+            cat_dict = json.load(f)
+    except Exception as e:
+        sys.exit(f"[ERROR] could not read --catDict '{cat_dict_path}': {e}")
+
+    if cat not in cat_dict:
+        sys.exit(f"[ERROR] category '{cat}' not in {cat_dict_path}. "
+                  f"Available: {sorted(cat_dict)}")
+
+    terms = []
+    for entry in cat_dict[cat].get('cat_filter', []):
+        if len(entry) != 3:
+            sys.exit(f"[ERROR] malformed cat_filter entry in {cat_dict_path}: {entry}")
+        var, op, val = entry
+        if op not in cat_ops:
+            sys.exit(f"[ERROR] unsupported operator '{op}' in {cat_dict_path} for '{var}'.")
+        if isinstance(val, bool):
+            val = 'True' if val else 'False'
+        terms.append(f"{var} {cat_ops[op]} {val}")
+
+    if not terms:
+        sys.exit(f"[ERROR] category '{cat}' in {cat_dict_path} has an empty cat_filter.")
+    return " and ".join(terms)
 
 
 # ----------------------------------------------------------------------
@@ -72,7 +118,7 @@ def get_var_map(section):
 
 # ----------------------------------------------------------------------
 def resolve_file_list(files_entry):
-    """Expand files entry entry with glob.glob and return a flat, 
+    """Expand files entry with glob.glob and return a flat, 
     deduplicated, ordered list of files."""
     if isinstance(files_entry, str):
         files_entry = [files_entry]
@@ -102,7 +148,23 @@ def resolve_xsec_key(paths):
     return xsec, labels
 
 
-def load_group(gtype, group, id1_col, id2_col, weight_col, verbose=False):
+def read_sum_genw(path):
+    """Read one file's sum of gen weights before selection from its metadata."""
+    metadata = pq.ParquetFile(path).schema_arrow.metadata or {}
+    if b'sum_genw_presel' not in metadata:
+        sys.exit(f"[ERROR] no 'sum_genw_presel' in the metadata of\n"
+                 f"        {path}\n"
+                 f"        Run tools/backfill_sum_genw.py on the directory holding it.")
+    return float(metadata[b'sum_genw_presel'])
+
+
+def normalize_weight(df, weight_col, sum_genw):
+    """Divide each sample's weights by its own sum of gen weights before selection."""
+    df[weight_col] = df[weight_col] / df['label'].map(sum_genw)
+    return df
+
+
+def load_group(gtype, group, id1_col, id2_col, weight_col, normalize=False, verbose=False, extra_cut=None):
     """Load one file-group, concatenate its files, apply the ggbox 
     parton-level selection (Generator_id1 == 21 and Generator_id2 == 21),
     then apply the group's own 'cut' if any. """
@@ -115,13 +177,19 @@ def load_group(gtype, group, id1_col, id2_col, weight_col, verbose=False):
 
     xsec, labels = resolve_xsec_key(paths)
 
-    print(f"     found {len(paths)} file(s)"
-          + (f", cut='{group['cut']}'" if group.get('cut') else ""))          
+    # The category selection is ANDed onto whatever the group already asks for.
+    cuts = [c for c in (group.get('cut'), extra_cut) if c]
+    cut = " and ".join(f"({c})" for c in cuts) if cuts else None
+
+    print(f"     found {len(paths)} file(s)" + (f", cut='{cut}'" if cut else ""))
 
     dfs = []
+    sum_genw = {}
     for p, x, label in zip(paths, xsec, labels):
         if verbose: print(f"       - {p}")
         df = pd.read_parquet(p)
+        if normalize:
+            sum_genw[label] = sum_genw.get(label, 0.) + read_sum_genw(p)
         df['label'] = label
         df[weight_col] = df[weight_col] * x
         for col in (id1_col, id2_col):
@@ -131,13 +199,14 @@ def load_group(gtype, group, id1_col, id2_col, weight_col, verbose=False):
         dfs.append(df)
 
     df = pd.concat(dfs, ignore_index=True, sort=False)
+    if normalize:
+        df = normalize_weight(df, weight_col, sum_genw)
     df['first1'] = (df['flags1'] & 2**12 == 0) if gtype == 'gen' else (df['gen_lead_statusFlags'] & 2**12 == 0)
     df['first2'] = (df['flags2'] & 2**12 == 0) if gtype == 'gen' else (df['gen_sublead_statusFlags'] & 2**12 == 0)
 
     sel = (df[id1_col] == 21) & (df[id2_col] == 21)
     df = df.loc[sel].copy()
 
-    cut = group.get('cut')
     if cut:
         try:
             df = df.query(cut)
@@ -147,16 +216,20 @@ def load_group(gtype, group, id1_col, id2_col, weight_col, verbose=False):
     return df
 
 
-def load_ggbox_sample_from_config(gtype, section, id1_col, id2_col, weight_col, verbose=False):
+def load_ggbox_sample_from_config(gtype, section, id1_col, id2_col, weight_col, verbose=False, extra_cut=None):
     """Load and apply cut on each file group, then concatenate them all together."""
     groups = [entry for entry in section if isinstance(entry, dict) and 'files' in entry]
     if not groups:
         sys.exit("[ERROR] expected at least one file group (with a 'files' key) in the config.")
- 
+
+    normalize = next(entry['normalize'] for entry in section if 'normalize' in entry)
+    print(f"   * normalize: {normalize}")
+
     dfs = []
     for i, group in enumerate(groups):
         print(f"   * group {i + 1}/{len(groups)}")
-        dfs.append(load_group(gtype, group, id1_col, id2_col, weight_col, verbose=verbose))
+        dfs.append(load_group(gtype, group, id1_col, id2_col, weight_col, normalize=normalize,
+                              verbose=verbose, extra_cut=extra_cut))
  
     return pd.concat(dfs, ignore_index=True, sort=False)
 
@@ -222,6 +295,27 @@ def compute_efficiency(df_reco, df_gen, reco_var, gen_var, masses, window=None):
 
 
 # ----------------------------------------------------------------------
+def add_spline_fit(eff_df):
+    """
+    Smooth the efficiency: fit a cubic spline through the (mNom, eff) points,
+    weighted by 1/eff_err so noisy points pull the curve less.
+
+    Points outside the fitted mass range are clamped to the boundary value
+    (ext=3) rather than extrapolated, since the spline can swing to negative
+    efficiencies outside the range the data constrained.
+    """
+    mask = eff_df['eff'].notna() & (eff_df['eff_err'] > 0)
+
+    x = eff_df.loc[mask, 'mNom'].to_numpy(dtype=float)
+    y = eff_df.loc[mask, 'eff'].to_numpy(dtype=float)
+    w = 1.0 / eff_df.loc[mask, 'eff_err'].to_numpy(dtype=float)
+
+    spline = UnivariateSpline(x, y, w=w, ext=3)
+    eff_df['eff_fit'] = spline(eff_df['mNom'].to_numpy(dtype=float))
+    return eff_df
+
+
+# ----------------------------------------------------------------------
 def main():
     opt, args = get_options()
 
@@ -234,7 +328,9 @@ def main():
     gen_var = get_var_map(cfg["gen"])
 
     print(f" --> Loading reco sample(s) from config['reco']")
-    df_reco = load_ggbox_sample_from_config("reco", cfg["reco"], "generator_id1", "generator_id2", reco_var['weight'], verbose=opt.verbose)
+    cat_cut = build_cat_cut(opt.catDict, opt.cat)
+    print(f"   * category '{opt.cat}' -> {cat_cut}")
+    df_reco = load_ggbox_sample_from_config("reco", cfg["reco"], "generator_id1", "generator_id2", reco_var['weight'], verbose=opt.verbose, extra_cut=cat_cut)
     print(f"     {len(df_reco)} events pass Generator_id1==21 and Generator_id2==21"
           f" (+ per-group cuts)")
 
@@ -252,10 +348,13 @@ def main():
         masses = np.linspace(opt.minMass, opt.maxMass, opt.nMassPoints)
 
     print(f" --> Scanning {len(masses)} mass points between "
-          f"{masses.min():.1f} and {masses.max():.1f} GeV "
-          f"(window = +/-{opt.window*100:.0f}%)")
+          f"{masses.min():.1f} and {masses.max():.1f} GeV ")
+    if opt.window: print(f"(window = +/-{opt.window*100:.0f}%)")
 
     eff_df = compute_efficiency(df_reco, df_gen, reco_var, gen_var, masses, opt.window)
+
+    print(f" --> Smoothing the efficiency with a spline")
+    eff_df = add_spline_fit(eff_df)
 
     eff_df.to_csv(opt.outCsv, index=False)
     print(f" --> Efficiency table saved to {opt.outCsv}")
