@@ -98,7 +98,7 @@ if opt.inputConfig != '':
   if os.path.exists( opt.inputConfig ):
 
     # Import config options
-    _cfg = import_module(re.sub(".py","",opt.inputConfig)).trees2wsCfg
+    _cfg = import_module(re.sub(".py","",opt.inputConfig).replace("/",".")).trees2wsCfg
 
     #Extract options
     inputTreeDir     = _cfg['inputTreeDir']
