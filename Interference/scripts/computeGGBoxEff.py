@@ -25,10 +25,7 @@ xsec_bkg = {
 def get_options():
     parser = OptionParser()
     parser.add_option('--verbose', dest='verbose', action='store_true')
-    parser.add_option("--ext", dest='ext', default='',
-                       help="Extension of this run. Output goes to "
-                            "results/outdir_<ext>/computeGGBoxEff/, as for computeInterference. Required.")
-    parser.add_option("--ext", dest='ext', default='', help="Extension")
+    parser.add_option("--ext", dest='ext', default='', help="Extension of this run.")
     parser.add_option("--proc", dest='proc', default='', help="Signal process")
     parser.add_option("--cat", dest='cat', default='', help="RECO category")
     parser.add_option("--year", dest='year', default='2016', help="Year")
@@ -86,7 +83,8 @@ def build_cat_cut(cat_dict_path, cat):
 
     if not terms:
         sys.exit(f"[ERROR] category '{cat}' in {cat_dict_path} has an empty cat_filter.")
-    return " and ".join(terms)
+    # The columns the cut needs are the first element of each cat_filter entry
+    return " and ".join(terms), [entry[0] for entry in cat_dict[cat]['cat_filter']]
 
 
 # ----------------------------------------------------------------------
@@ -105,6 +103,15 @@ def get_var_map(section):
             var_map.update(entry['var'] or {})
             break  # only the first 'var' entry is used
     return var_map
+
+
+def get_columns(section):
+    """Columns to read from the parquets, declared in the config beside 'var'.
+    Returns None if the config does not say, meaning read every column."""
+    for entry in section:
+        if isinstance(entry, dict) and 'columns' in entry:
+            return list(entry['columns'] or [])
+    return None
 
 # ----------------------------------------------------------------------
 def resolve_file_list(files_entry):
@@ -154,7 +161,7 @@ def normalize_weight(df, weight_col, sum_genw):
     return df
 
 
-def load_group(gtype, group, id1_col, id2_col, weight_col, normalize=False, verbose=False, extra_cut=None):
+def load_group(gtype, group, id1_col, id2_col, weight_col, normalize=False, verbose=False, extra_cut=None, columns=None):
     """Load one file-group, concatenate its files, apply the ggbox 
     parton-level selection (Generator_id1 == 21 and Generator_id2 == 21),
     then apply the group's own 'cut' if any. """
@@ -177,7 +184,7 @@ def load_group(gtype, group, id1_col, id2_col, weight_col, normalize=False, verb
     sum_genw = {}
     for p, x, label in zip(paths, xsec, labels):
         if verbose: print(f"       - {p}")
-        df = pd.read_parquet(p)
+        df = pd.read_parquet(p, columns=columns)
         if normalize:
             sum_genw[label] = sum_genw.get(label, 0.) + read_sum_genw(p)
         df['label'] = label
@@ -206,7 +213,7 @@ def load_group(gtype, group, id1_col, id2_col, weight_col, normalize=False, verb
     return df
 
 
-def load_ggbox_sample_from_config(gtype, section, id1_col, id2_col, weight_col, verbose=False, extra_cut=None):
+def load_ggbox_sample_from_config(gtype, section, id1_col, id2_col, weight_col, verbose=False, extra_cut=None, columns=None):
     """Load and apply cut on each file group, then concatenate them all together."""
     groups = [entry for entry in section if isinstance(entry, dict) and 'files' in entry]
     if not groups:
@@ -219,7 +226,7 @@ def load_ggbox_sample_from_config(gtype, section, id1_col, id2_col, weight_col, 
     for i, group in enumerate(groups):
         print(f"   * group {i + 1}/{len(groups)}")
         dfs.append(load_group(gtype, group, id1_col, id2_col, weight_col, normalize=normalize,
-                              verbose=verbose, extra_cut=extra_cut))
+                              verbose=verbose, extra_cut=extra_cut, columns=columns))
  
     return pd.concat(dfs, ignore_index=True, sort=False)
 
@@ -301,7 +308,8 @@ def add_spline_fit(eff_df):
     w = 1.0 / eff_df.loc[mask, 'eff_err'].to_numpy(dtype=float)
 
     spline = UnivariateSpline(x, y, w=w, ext=3)
-    eff_df['eff_fit'] = spline(eff_df['mNom'].to_numpy(dtype=float))
+    # An efficiency cannot be negative: the spline can undershoot if eff is close to 0. Clip to avoid issues.
+    eff_df['eff_fit'] = np.clip(spline(eff_df['mNom'].to_numpy(dtype=float)), 0., None)
     return eff_df
 
 
@@ -318,14 +326,16 @@ def main():
     gen_var = get_var_map(cfg["gen"])
 
     print(f" --> Loading reco sample(s) from config['reco']")
-    cat_cut = build_cat_cut(opt.catDict, opt.cat)
+    cat_cut, cat_cols = build_cat_cut(opt.catDict, opt.cat)
     print(f"   * category '{opt.cat}' -> {cat_cut}")
-    df_reco = load_ggbox_sample_from_config("reco", cfg["reco"], "generator_id1", "generator_id2", reco_var['weight'], verbose=opt.verbose, extra_cut=cat_cut)
+    reco_cols = get_columns(cfg["reco"])
+    if reco_cols is not None: reco_cols = sorted(set(reco_cols) | set(cat_cols))
+    df_reco = load_ggbox_sample_from_config("reco", cfg["reco"], "generator_id1", "generator_id2", reco_var['weight'], verbose=opt.verbose, extra_cut=cat_cut, columns=reco_cols)
     print(f"     {len(df_reco)} events pass Generator_id1==21 and Generator_id2==21"
           f" (+ per-group cuts)")
 
     print(f" --> Loading gen sample(s) from config['gen']")
-    df_gen = load_ggbox_sample_from_config("gen", cfg["gen"], "Generator_id1", "Generator_id2", gen_var['weight'], verbose=opt.verbose)
+    df_gen = load_ggbox_sample_from_config("gen", cfg["gen"], "Generator_id1", "Generator_id2", gen_var['weight'], verbose=opt.verbose, columns=get_columns(cfg["gen"]))
     print(f"     {len(df_gen)} events pass Generator_id1==21 and Generator_id2==21"
           f" (+ per-group cuts)")
 

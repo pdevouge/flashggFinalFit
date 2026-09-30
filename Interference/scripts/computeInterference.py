@@ -80,5 +80,9 @@ fout.Close()
 if opt.doPlots:
   plotDir = "%s/results/outdir_%s/computeIntf/plots"%(iwd__,opt.ext)
   if not os.path.isdir(plotDir): os.system("mkdir %s"%plotDir)
-  plotInterferenceModel(intfm, float(MHNominal), float(lumiMap[opt.year])*1000,
-                        plotDir, "%s_%s_%s_%s"%(opt.ext,opt.proc,opt.year,opt.cat))
+  tag = "%s_%s_%s_%s"%(opt.ext,opt.proc,opt.year,opt.cat)
+  lumi = float(lumiMap[opt.year])*1000
+  plotInterferenceTemplates(intfm, float(MHNominal), lumi, plotDir, _extension=tag, _logy=True)
+  plotInterferenceTemplates(intfm, float(MHNominal), lumi, plotDir, _extension=tag, _logy=False)
+  plotInterferenceTerm(intfm, float(MHNominal), lumi, plotDir, _extension=tag)
+  plotInterferencePhase(intfm, float(MHNominal), plotDir, _extension=tag)

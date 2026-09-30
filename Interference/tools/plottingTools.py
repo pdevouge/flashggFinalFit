@@ -97,11 +97,8 @@ def plotGGBoxNumDen(_csv,_outdir='./',_extension=''):
   _save(canv, "ggbox_num_den", _outdir, _extension)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-def plotInterferenceModel(ifm,_mass,_lumi,_outdir='./',_extension='',_delta=0.,_nPoints=1200):
-  """
-  Three panels at one mass: the templates, the interference alone, and I_re/I_im.
-  Each density is what Combine sees for that process: <pdf>_norm * pdf(x) * lumi.
-  """
+def _interferenceDensities(ifm,_mass,_lumi,_delta,_nPoints):
+  """S, B, S+B+I and I = SBI-S-B, each as the density Combine sees: norm*pdf(x)*lumi."""
   ifm.Vars['MH'].setVal(float(_mass))
   ifm.Vars['dPhi'].setVal(float(_delta))
   lo, hi = float(ifm.MHLow), float(ifm.MHHigh)
@@ -117,53 +114,80 @@ def plotInterferenceModel(ifm,_mass,_lumi,_outdir='./',_extension='',_delta=0.,_
   S = dens(ifm.Pdfs['Msig'], ifm.Functions['Msig_norm'])
   B = dens(ifm.Pdfs['Mbkg'], ifm.Functions['Mbkg_norm'])
   SBI = dens(ifm.Pdfs['SBI'], ifm.Functions['SBI_norm'])
-  I = SBI - S - B
+  return lo, hi, xs, S, B, SBI, SBI-S-B
 
-  ire, iim = np.empty(len(xs)), np.empty(len(xs))
-  for i, x in enumerate(xs):
-    ifm.xvar.setVal(float(x))
-    ire[i] = ifm.Functions['I_re'].getVal(); iim[i] = ifm.Functions['I_im'].getVal()
 
-  canv = ROOT.TCanvas("c_model","c_model",900,1000); _keep.append(canv)
-  p1 = ROOT.TPad("p1","",0,0.55,1,1.00); p1.SetBottomMargin(0.02); p1.SetLogy()
-  p2 = ROOT.TPad("p2","",0,0.30,1,0.55); p2.SetTopMargin(0.02); p2.SetBottomMargin(0.02)
-  p3 = ROOT.TPad("p3","",0,0.00,1,0.30); p3.SetTopMargin(0.02); p3.SetBottomMargin(0.28)
-  for p in (p1,p2,p3): p.SetLeftMargin(0.13); p.Draw()
-  _keep.extend([p1,p2,p3])
+def plotInterferenceTemplates(ifm,_mass,_lumi,_outdir='./',_extension='',_delta=0.,_logy=True,_nPoints=1200):
+  """The four datacard-level densities on one axis: S, B, S+B+I and I."""
+  lo, hi, xs, S, B, SBI, I = _interferenceDensities(ifm,_mass,_lumi,_delta,_nPoints)
 
-  p1.cd()
+  canv = ROOT.TCanvas("c_templates","c_templates",900,600); _keep.append(canv)
+  canv.SetLeftMargin(0.13)
+  if _logy: canv.SetLogy()
+
   gS = _graph(xs,S,_color=ROOT.kGreen+2); gB = _graph(xs,B,_color=ROOT.kRed+1)
   gSBI = _graph(xs,SBI,_color=ROOT.kBlue+1,_style=2)
-  pos = np.concatenate([S[S>0],B[B>0],SBI[SBI>0]])
+  gI = _graph(xs,I,_color=ROOT.kMagenta+1,_style=2)
   gS.Draw("AL")
-  gS.SetTitle("M_{X} = %g GeV, #delta = %.3f;;Events / GeV"%(_mass,_delta))
+  gS.SetTitle("M_{X} = %g GeV, #delta = %.3f;m_{#gamma#gamma} [GeV];Events / GeV"%(_mass,_delta))
   gS.GetXaxis().SetLimits(lo,hi)
-  gS.SetMinimum(max(pos.min(), pos.max()*1e-7)); gS.SetMaximum(pos.max()*10)
-  gB.Draw("L SAME"); gSBI.Draw("L SAME")
-  leg = _legend(0.62,0.62,0.89,0.88)
+  if _logy:
+    pos = np.concatenate([S[S>0],B[B>0],SBI[SBI>0]])
+    gS.SetMinimum(max(pos.min(), pos.max()*1e-7)); gS.SetMaximum(pos.max()*10)
+  else:
+    allv = np.concatenate([S,B,SBI,I]); span = np.abs(allv).max()*1.15
+    gS.SetMinimum(-0.25*span); gS.SetMaximum(span)
+  gB.Draw("L SAME"); gSBI.Draw("L SAME"); gI.Draw("L SAME")
+  leg = _legend(0.62,0.58,0.89,0.88)
   leg.AddEntry(gS,"Signal S","l"); leg.AddEntry(gB,"ggbox B","l")
-  leg.AddEntry(gSBI,"S+B+I","l"); leg.Draw()
+  leg.AddEntry(gSBI,"S+B+I","l"); leg.AddEntry(gI,"I","l"); leg.Draw()
 
-  p2.cd()
+  _save(canv, "interference_templates_M%g_delta%.3f_%s"%(_mass,_delta,"log" if _logy else "lin"), _outdir, _extension)
+
+
+def plotInterferenceTerm(ifm,_mass,_lumi,_outdir='./',_extension='',_delta=0.,_nPoints=1200):
+  """The interference on its own."""
+  lo, hi, xs, S, B, SBI, I = _interferenceDensities(ifm,_mass,_lumi,_delta,_nPoints)
+
+  canv = ROOT.TCanvas("c_term","c_term",900,600); _keep.append(canv)
+  canv.SetLeftMargin(0.15)
   gI = _graph(xs,I,_color=ROOT.kMagenta+1)
-  gI.Draw("AL"); gI.SetTitle(";;Interference [Events / GeV]")
+  gI.Draw("AL")
+  gI.SetTitle("Interference   I = (S+B+I) - S - B     M_{X} = %g GeV, #delta = %.3f"
+              ";m_{#gamma#gamma} [GeV];Events / GeV"%(_mass,_delta))
   gI.GetXaxis().SetLimits(lo,hi)
   span = np.abs(I).max()*1.2 or 1.
   gI.SetMinimum(-span); gI.SetMaximum(span)
-  gI.GetYaxis().SetTitleSize(0.09); gI.GetYaxis().SetLabelSize(0.075)
-  gI.GetYaxis().SetTitleOffset(0.6)
   z = ROOT.TLine(lo,0.,hi,0.); z.SetLineStyle(3); z.Draw(); _keep.append(z)
 
-  p3.cd()
-  gRe = _graph(xs,ire,_color=ROOT.kOrange+7); gIm = _graph(xs,iim,_color=ROOT.kAzure+1,_style=2)
-  gRe.Draw("AL"); gRe.SetTitle(";m_{#gamma#gamma} [GeV];I_{re}, I_{im}")
-  gRe.GetXaxis().SetLimits(lo,hi); gRe.SetMinimum(-1.15); gRe.SetMaximum(1.15)
-  gRe.GetXaxis().SetTitleSize(0.10); gRe.GetXaxis().SetLabelSize(0.085)
-  gRe.GetYaxis().SetTitleSize(0.09); gRe.GetYaxis().SetLabelSize(0.075)
-  gRe.GetYaxis().SetTitleOffset(0.6); gRe.GetXaxis().SetTitleOffset(1.1)
-  gIm.Draw("L SAME")
-  z2 = ROOT.TLine(lo,0.,hi,0.); z2.SetLineStyle(3); z2.Draw(); _keep.append(z2)
-  leg2 = _legend(0.72,0.72,0.89,0.95)
-  leg2.AddEntry(gRe,"I_{re}","l"); leg2.AddEntry(gIm,"I_{im}","l"); leg2.Draw()
+  _save(canv, "interference_term_M%g_delta%.3f"%(_mass,_delta), _outdir, _extension)
 
-  _save(canv, "interference_model_M%g_delta%.3f"%(_mass,_delta), _outdir, _extension)
+
+def plotInterferencePhase(ifm,_mass,_outdir='./',_extension='',_delta=0.,_nWidths=30,_nPoints=1200):
+  """I_re and I_im, the real and imaginary parts of the propagator."""
+  ifm.Vars['MH'].setVal(float(_mass))
+  ifm.Vars['dPhi'].setVal(float(_delta))
+  lo, hi = float(ifm.MHLow), float(ifm.MHHigh)
+  w = float(str(ifm.width).strip("()"))
+  gamma = np.sqrt(2)*w*w*_mass if ifm.proc == 'rsg' else w*_mass
+  zlo, zhi = max(lo, _mass - _nWidths*gamma), min(hi, _mass + _nWidths*gamma)
+  xz = np.linspace(zlo, zhi, _nPoints)
+
+  ire, iim = np.empty(len(xz)), np.empty(len(xz))
+  for i, x in enumerate(xz):
+    ifm.xvar.setVal(float(x))
+    ire[i] = ifm.Functions['I_re'].getVal(); iim[i] = ifm.Functions['I_im'].getVal()
+
+  canv = ROOT.TCanvas("c_phase","c_phase",900,600); _keep.append(canv)
+  canv.SetLeftMargin(0.13)
+  gRe = _graph(xz,ire,_color=ROOT.kOrange+7); gIm = _graph(xz,iim,_color=ROOT.kAzure+1,_style=2)
+  gRe.Draw("AL")
+  gRe.SetTitle("M_{X} = %g GeV, #Gamma = %.3g GeV;m_{#gamma#gamma} [GeV]  (M_{X} #pm %g#Gamma);I_{re}, I_{im}"
+               %(_mass,gamma,_nWidths))
+  gRe.GetXaxis().SetLimits(zlo,zhi); gRe.SetMinimum(-1.15); gRe.SetMaximum(1.15)
+  gIm.Draw("L SAME")
+  z = ROOT.TLine(zlo,0.,zhi,0.); z.SetLineStyle(3); z.Draw(); _keep.append(z)
+  leg = _legend(0.72,0.72,0.89,0.92)
+  leg.AddEntry(gRe,"I_{re}","l"); leg.AddEntry(gIm,"I_{im}","l"); leg.Draw()
+
+  _save(canv, "interference_phase_M%g_delta%.3f"%(_mass,_delta), _outdir, _extension)

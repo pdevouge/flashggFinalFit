@@ -3,6 +3,10 @@ reco:
       gen_mass: 'mass_me'
       weight: 'weight'
     normalize: true
+    columns: [generator_id1, generator_id2,
+               gen_lead_statusFlags, gen_sublead_statusFlags,
+               mass, mass_me, weight, genWeight,
+               lead_pt, sublead_pt, lead_eta, sublead_eta]
 
   - files:
       - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/reco_parquets/PostEE_GGBox_MGG80/nominal/*.parquet"
@@ -19,6 +23,10 @@ gen:
       gen_mass: 'massME'
       weight: 'genWeight'
     normalize: true
+    columns: [Generator_id1, Generator_id2,
+               flags1, flags2,
+               massME, genWeight,
+               pt1_st, pt2_st, eta1_st, eta2_st]
 
   - files:
       - "/eos/cms/store/group/phys_higgs/cmshgg/high_mass_run3/paul/HDNA_output/2022/GGBox_FinalFit/gen_parquets/*_GGBox_MGG80/GenPart/*.parquet"
