@@ -79,12 +79,16 @@ class InterferenceModel:
     effCsv = '%s/results/outdir_%s/computeGGBoxEff/output/ggbox_eff_%s_%s_%s_%s.csv'%(iwd__,self.ext,self.ext,self.proc,self.year,self.cat)
     if not os.path.exists(effCsv):
       raise Exception("No ggbox efficiency table at %s -- run computeGGBoxEff.py with first")
-    ggbox_eff = pd.read_csv(effCsv).set_index('mNom')['eff'].dropna().sort_index()
+    _eff = pd.read_csv(effCsv).set_index('mNom')
+    ggbox_eff = _eff.loc[_eff['eff'].notna(), 'eff_fit'].sort_index()
     self.Splines['ggbox_eff'] = ROOT.RooSpline1D("ggbox_eff_%s"%(self.name),"ggbox_eff_%s"%(self.name), self.xvar, len(ggbox_eff), ggbox_eff.index.to_numpy(dtype=float), ggbox_eff.to_numpy(dtype=float))
 
-    self.Pdfs['Mbkg_pdf'] = ROOT.RooGenericPdf("Mbkg_pdf_%s"%self.name,"Mbkg_pdf_%s"%self.name,"@0*@1",ROOT.RooArgList(self.Splines['ggbox_eff'],self.Splines['ggbox_xsec']))
+    # The efficiency knots are non-negative, but the spline interpolates between them and 
+    # can be negative. Use formula: (eff>0)*eff*xs
+    ggboxFormula = "(@0>0)*@0*@1"
+    self.Pdfs['Mbkg_pdf'] = ROOT.RooGenericPdf("Mbkg_pdf_%s"%self.name,"Mbkg_pdf_%s"%self.name,ggboxFormula,ROOT.RooArgList(self.Splines['ggbox_eff'],self.Splines['ggbox_xsec']))
 
-    self.Functions['Mbkg_func'] = ROOT.RooFormulaVar("Mbkg_func_%s"%self.name,"Mbkg_func_%s"%self.name,"@0*@1",ROOT.RooArgList(self.Splines['ggbox_eff'],self.Splines['ggbox_xsec']))
+    self.Functions['Mbkg_func'] = ROOT.RooFormulaVar("Mbkg_func_%s"%self.name,"Mbkg_func_%s"%self.name,ggboxFormula,ROOT.RooArgList(self.Splines['ggbox_eff'],self.Splines['ggbox_xsec']))
 
     self.Pdfs['Mbkg'] = ROOT.RooFFTConvPdf("Mbkg_%s"%self.name, "Mbkg_%s"%self.name, self.xvar, self.Pdfs['Mbkg_pdf'], self.Pdfs['reso_dcb_%s'%self.name])
 

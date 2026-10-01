@@ -227,10 +227,15 @@ if not opt.skipMC:
     f.Close()
   # EffxAcc will be turned to splines.
   # To allow extrapolation to mass points outside of range, repeat values.
+  # Edges are placed 10% of the subrange width beyond [MHLow,MHHigh] so the spline's
+  # domain covers the buffer RooFFTConvPdf's default Extend strategy
   # TODO: Construct Eff*Acc LUT before FinalFit
-  effAcc['3000'] = list(effAcc.values())[-1]
-  effAcc['100'] = list(effAcc.values())[0]
-  effAcc.move_to_end('100', last=False)
+  bufferMargin = 0.1 * (float(MHHigh) - float(MHLow))
+  edgeHi = str(float(MHHigh) + bufferMargin)
+  edgeLo = str(float(MHLow) - bufferMargin)
+  effAcc[edgeHi] = list(effAcc.values())[-1]
+  effAcc[edgeLo] = list(effAcc.values())[0]
+  effAcc.move_to_end(edgeLo, last=False)
 
   # Check if nominal yield > threshold (or if +ve sum of weights). If not then use replacement proc x cat
   if( datasetRVForFit['nom_w'][MHNominal].numEntries() < opt.replacementThreshold  )|( datasetRVForFit['nom_w'][MHNominal].sumEntries() < 0. ):

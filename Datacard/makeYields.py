@@ -179,35 +179,42 @@ if( not opt.skipBkg)&( opt.cat != "NOTAG" ):
       data.loc[len(data)] = ["year",'data',_proc_data,_proc_data,'-',_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_data,-1,'-']
 
 # Interference processes
-if( not opt.skipIntf):
+# NOTAG carries no shape model, so there is nothing to interfere there.
+if( not opt.skipIntf ) & ( opt.cat != "NOTAG" ):
   _proc_intf = 'sbi_mass'
   _proc_ggb = 'ggbox_mass'
+  # One interference model per (proc,cat);
+  if len(procs) > 1:
+    print(" --> [ERROR] Interference is only defined for a single signal process per category, got %s."%procs)
+    print(" --> Re-run with --skipIntf, or split the processes into separate categories.")
+    leave()
   for year in years:
     for proc in procs:
 
       # Identifier
       _id = "%s_%s_%s_%s"%(proc,year,opt.cat,sqrts__)
 
-      # Mapping to STXS definition here
-      _procOriginal = proc
-      _proc = "%s_%s_%s"%(procToDatacardName(proc),year,decayMode)
       _proc_s0 = procToData(proc.split("_")[0])
 
       # Define category: add year tag if not merging
       if opt.mergeYears: _cat = opt.cat
       else: _cat = "%s_%s"%(opt.cat,year)
 
-      # Input model ws
-      if opt.cat == "NOTAG": _modelWSFile, _model = '-', '-'
-      else:
-        _modelWSFile = "%s/CMS-HGG_%s_%s.root"%(opt.intfModelWSDir,opt.intfModelExt,_cat)
-        _model_ggb = "%s:Mbkg_%s"%(intfWSName__,_id)
-        _model_sbi = "%s:sbi_%s"%(intfWSName__,_id)
+      # Input model ws: CMS-HGG_intfm_<ext>_<proc>_<year>_<cat>.root
+      _modelWSFile = "%s/CMS-HGG_%s_%s_%s_%s_%s.root"%(opt.intfModelWSDir,opt.intfModelExt,opt.ext,proc,year,opt.cat)
+      _model_ggb = "%s:Mbkg_%s"%(intfWSName__,_id)
+      _model_sbi = "%s:sbi_%s"%(intfWSName__,_id)
 
-      # Add signal process to dataFrame:
-      print(" --> Adding to dataFrame: (interference proc,cat) = (%s,%s)"%(_proc,_cat))
-      data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb,'-',_cat,'-','-',_modelWSFile,_model_ggb,_rate,'-']
-      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,'%s_sbi'%_proc_s0,_cat,_inputWSFile,_nominalDataName,_modelWSFile,_model_sbi,_rate,'-']
+      # Neither row has an input flashgg dataset: their yields come entirely from the
+      # <pdf>_norm functions in the interference workspace, and the yield loop below
+      # only walks type=='sig'. Spell the placeholders and the rate out rather than
+      # inheriting them -- _rate, _inputWSFile and _nominalDataName used to leak in
+      # from whichever loop above ran last, which broke under --skipBkg.
+      _intfRate = float(lumiMap[year])*1000
+
+      print(" --> Adding to dataFrame: (interference procs,cat) = (%s & %s,%s)"%(_proc_ggb,_proc_intf,_cat))
+      data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb,'-',_cat,'-','-',_modelWSFile,_model_ggb,_intfRate,'-']
+      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,'%s_sbi'%_proc_s0,_cat,'-','-',_modelWSFile,_model_sbi,_intfRate,'-']
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Yields: for each signal row in dataFrame extract the yield
@@ -317,6 +324,6 @@ for ir,r in data[data['type']=='sig'].iterrows():
 # SAVE YIELDS DATAFRAME
 print(" ..........................................................................................")
 extStr = "_%s"%opt.ext if opt.ext != '' else ''
-print(" --> Saving yields dataframe: ./yields%s/%s.pkl"%(extStr,opt.cat))
-if not os.path.isdir("./yields%s"%extStr): os.system("mkdir ./yields%s"%extStr)
-with open("./yields%s/%s.pkl"%(extStr,opt.cat),"wb") as fD: pickle.dump(data,fD)
+print(" --> Saving yields dataframe: ./results/yields%s/%s.pkl"%(extStr,opt.cat))
+if not os.path.isdir("./results/yields%s"%extStr): os.system("mkdir -p ./results/yields%s"%extStr)
+with open("./results/yields%s/%s.pkl"%(extStr,opt.cat),"wb") as fD: pickle.dump(data,fD)
