@@ -35,6 +35,10 @@ def build_inner_command(campaign_yaml, opt, subrange_name):
         cmd += " --skipIntf"
     if opt.limit_jobs != 1:
         cmd += f" --limitJobs {opt.limit_jobs}"
+    if opt.impact_jobs != 1:
+        cmd += f" --impactJobs {opt.impact_jobs}"
+    if opt.lumiscale:
+        cmd += f" --lumiscale {opt.lumiscale}"
     return cmd
 
 
@@ -66,7 +70,9 @@ def build_condor_submit_file(tag, job_dir, flavour, request_cpus=1):
     """
     HTCondor submit description for one subrange's job.
 
-    RequestCpus follows --limitJobs: 1 CPU per mass point running in parallel. 
+    RequestCpus follows max(--limitJobs, --impactJobs): 1 CPU per mass point / per
+    nuisance-parameter fit running in parallel. The limits and impacts stages run
+    one after another within the same job, never at once, so this is a max, not a sum.
     """
     destination = eos_redirector(job_dir)
     return f"""universe                = vanilla
@@ -111,7 +117,7 @@ def submit_campaign(cfg, campaign_yaml, opt, finalfit_dir):
         tag = f"run_campaign_{campaign}_{subrange_name.replace('-', '_')}"
         inner = build_inner_command(campaign_yaml, opt, subrange_name)
         sh = build_wrapper_script(inner, finalfit_dir, cmssw_base)
-        sub = build_condor_submit_file(tag, job_dir, opt.flavour, max(1, opt.limit_jobs))
+        sub = build_condor_submit_file(tag, job_dir, opt.flavour, max(1, opt.limit_jobs, opt.impact_jobs))
 
         if opt.dry_run:
             print(f"[DRY RUN] would write {job_dir}/{tag}.sh and {tag}.sub, then condor_submit it")

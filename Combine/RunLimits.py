@@ -81,5 +81,8 @@ if incomplete:
   print(" --> Retry with a smaller --rRelAcc (currently %s); not plotting a partial scan." % opt.rRelAcc)
   sys.exit(1)
 
-cmd = f"python3 {os.path.dirname(__file__)}/plot_limits.py --input limits_{opt.ext}.json --title='{opt.title}' --lumi='{opt.lumi}' --output limits_{opt.ext}"
+# ROOT files stay in this (Limits) dir; the plot goes into a Plots dir shared with the Impacts step
+plots_dir = os.path.join("..", "Plots")
+if not os.path.isdir(plots_dir): os.makedirs(plots_dir)
+cmd = f"python3 {os.path.dirname(__file__)}/plot_limits.py --input limits_{opt.ext}.json --title='{opt.title}' --lumi='{opt.lumi}' --output {os.path.join(plots_dir, f'limits_{opt.ext}')}"
 subprocess.call(cmd, shell=True)

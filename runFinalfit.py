@@ -11,12 +11,14 @@ print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RUNNING FINALFIT ~~~~~~~~~~~~~~~~~~~~~~~
 
 def get_options():
   parser = OptionParser()
-  parser.add_option('--runOnly', dest='run_only', default='', help="Run only given steps (trees, signal, background, datacard, combine, text2ws, limits, collect)")
+  parser.add_option('--runOnly', dest='run_only', default='', help="Run only given steps (trees, signal, background, datacard, combine, text2ws, limits, impacts, collect)")
   parser.add_option('--doSystematics', dest='do_syst', action='store_true', help="Run with systematics")
   parser.add_option('--skipIntf', dest='skip_intf', action='store_true', help="Skip interference making")
   parser.add_option('--limitJobs', dest='limit_jobs', default=None, type='int', help="Number of mass points to run at the same time in the limits stage (overrides limits.jobs in the config)")
+  parser.add_option('--impactJobs', dest='impact_jobs', default=None, type='int', help="Number of nuisance-parameter fits to run at the same time in the impacts stage (overrides impacts.jobs in the config)")
   parser.add_option('--onlyYear', dest='only_year', default='', help="Run just this one era out of a multi-era config, without merging. The era must be listed in common.years. Requires --backgroundFile, since a multi-era campaign stages the MERGED background.")
   parser.add_option('--backgroundFile', dest='background_file', default='', help="Override background.file from the config (name of the file under <tree_input_dir>/data/). Needed with --onlyYear to point at that era's own data instead of the merged all-era file.")
+  parser.add_option('--lumiscale', dest='lumiscale', default=None, type='float', help="Also produce a lumi-projected limit scaled by this factor, as a frozen 'rateParam * * <factor>' on top of the nominal datacard.")
   parser.add_option('--dry-run', dest='dry_run', action='store_true', help="Print every command instead of running it")
   return parser.parse_args()
 (opt,args) = get_options()
@@ -54,6 +56,17 @@ def copy_file(src, dst):
     print(f"[DRY RUN] Would copy {src} -> {dst}")
     return
   shutil.copy(src, dst)
+
+# Appends a frozen lumi-projection rateParam to a copy of the datacard.
+def write_lumiscale_datacard(src_txt, dst_txt, factor):
+  if opt.dry_run:
+    print(f"[DRY RUN] Would write {dst_txt} (= {src_txt} + lumiscale rateParam * * {factor})")
+    return
+  with open(src_txt) as f:
+    text = f.read()
+  text += f"\nlumiscale rateParam * * {factor}\nnuisance edit freeze lumiscale\n"
+  with open(dst_txt, "w") as f:
+    f.write(text)
 
 def ensure_dir(path):
   if opt.dry_run:
@@ -295,13 +308,31 @@ if (len(opt.run_only) == 0 or "interference" in opt.run_only) and not (opt.skip_
     ])
     mPoints = ','.join([str(element) for element in bins])
 
-    cmd = f"""python3 computeGGBoxEff.py --config tools/{years[0]}_cfg.yaml \
-        --massList {mPoints} --outCsv tools/csv/ggbox_eff_{years[0]}_{cat}_09_09.csv"""
+    catdict_rel = cfg.get("interference", {}).get("catDict")
+    if not catdict_rel:
+        fail("interference.catDict is not set in the config (required to run computeGGBoxEff.py with the per-category cuts)")
+    catdict_path = os.path.join(base_dir, catdict_rel)
+    if not os.path.exists(catdict_path):
+        fail(f"interference.catDict '{catdict_rel}' not found in {catdict_path}.")
+
+    for c in cat.split(","):
+        cmd = f"""python3 computeGGBoxEff.py --config tools/{years[0]}_cfg.yaml \
+            --massList {mPoints} --ext {ext} --proc {cfg["signal"]["procs"]} --year {years[0]} \
+            --cat {c} --catDict {catdict_path}"""
+        run(cmd)
+
+    intf_plot_opt = "--doPlots" if not opt.dry_run else ""
+    cmd = f"""python3 RunInterferenceScripts.py --inputConfig {config_rel} --mode computeIntf \
+        --modeOpts \" --minMass {MLow} --maxMass {MHigh} {intf_plot_opt} {cfg.get("interference", {}).get("options", "")} \""""
     run(cmd)
 
-    # cmd = f"""python3 RunInterferenceScripts.py --inputConfig {config_rel} --mode computeIntf \
-    #     --modeOpts \"  --minMass {MLow} --maxMass {MHigh} \""""
-    # run(cmd)
+    # Make sure that interference workspace was produced
+    for c in cat.split(","):
+        produced = os.path.join(base_dir, "Interference", f"results/outdir_{ext}", "computeIntf",
+                                "output", f"CMS-HGG_intfm_{ext}_{cfg['signal']['procs']}_{years[0]}_{c}.root")
+        if not opt.dry_run and not os.path.exists(produced):
+            fail(f"Interference step produced no workspace at {produced}. "
+                 f"Check Interference/results/outdir_{ext}/computeIntf/jobs/*.err")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Background step
@@ -357,24 +388,33 @@ if len(opt.run_only) == 0 or "combine" in opt.run_only:
         ensure_dir(models_intf)
     chdir(combine_dir)
 
-    cat_list = cat.split(",")
-
     # Copy everything into Combine dir.
-    for c in cat_list:
+    for c in cat.split(","):
         src = os.path.join(base_dir, "Background", f"results/outdir_{ext}",
                            f"CMS-HGG_multipdf_{c}_{bkg_year}.root")
         if not os.path.exists(src):
             fail(f"No background model at {src}. Did the background step run for '{bkg_year}'?")
         run(f"cp {src} {models_bkg}/")
     if not opt.skip_intf:
-        for c in cat_list:
-            intf_glob = os.path.join(base_dir, "Interference", f"results/outdir_{ext}", "computeIntf",
-                                     "output", f"CMS-HGG_intfm_{c}_{years[0]}*.root")
-            run(f"cp {intf_glob} {models_intf}/")
-    run(f"cp {os.path.join(base_dir, 'Datacard', 'results', f'Datacard_{ext}.txt')} {combine_dir}/")
+        for c in cat.split(","):
+            intf_src = os.path.join(base_dir, "Interference", f"results/outdir_{ext}", "computeIntf",
+                                    "output", f"CMS-HGG_intfm_{ext}_{cfg['signal']['procs']}_{years[0]}_{c}.root")
+            if not os.path.exists(intf_src) and not opt.dry_run:
+                fail(f"No interference model at {intf_src}. Did the interference step run for '{years[0]}'?")
+            copy_file(intf_src, os.path.join(models_intf, os.path.basename(intf_src)))
+    src = os.path.join(base_dir, 'Datacard', 'results', f'Datacard_{ext}.txt')
+    if not os.path.exists(src):
+        fail(f"No datacard at {src}. Did the datacard step run?")
+    run(f"cp {src} {combine_dir}/")
+    if opt.lumiscale:
+        write_lumiscale_datacard(
+            os.path.join(base_dir, 'Datacard', 'results', f'Datacard_{ext}.txt'),
+            os.path.join(combine_dir, f'Datacard_{ext}_lumiscale.txt'),
+            opt.lumiscale,
+        )
 
     packaged_files = []
-    for c in cat_list:
+    for c in cat.split(","):
         name = f"CMS-HGG_sigfit_{ext}_{c}.root" if merge_years else f"CMS-HGG_sigfit_{ext}_{c}_{years[0]}*.root"
         packaged_files += glob.glob(os.path.join(base_dir, "Signal", f"results/outdir_{ext}", name))
     if not packaged_files:
@@ -389,7 +429,12 @@ if len(opt.run_only) == 0 or "text2ws" in opt.run_only:
     # Build the physics-model workspace (mu_inclusive by default) from the datacard
     chdir(os.path.join(base_dir, "Combine", "results", ext))
 
-    combine_mode = cfg.get("combine", {}).get("mode", "mu_inclusive")
+    # Pick the correct physics model: with interference on, only the highMass physics model works
+    combine_mode = cfg.get("combine", {}).get("mode", "highMass" if not opt.skip_intf else "mu_inclusive")
+    if not opt.skip_intf and combine_mode != "highMass":
+        fail(f"combine.mode is '{combine_mode}' but the datacard was built with interference. "
+             f"Only 'highMass' scales sbi_mass/ggbox_mass correctly -- set combine.mode: highMass "
+             f"in the config, or run with --skipIntf.")
     common_opts = cfg.get("combine", {}).get(
         "common_opts", f"-m {MNom} higgsMassRange={MLow},{MHigh}"
     )
@@ -398,20 +443,77 @@ if len(opt.run_only) == 0 or "text2ws" in opt.run_only:
         --ext _{ext} --common_opts \"{common_opts}\""""
     run(cmd)
 
+    if opt.lumiscale:
+        cmd = f"""python3 ../../RunText2Workspace.py --mode {combine_mode} --batch local \
+            --ext _{ext}_lumiscale --common_opts \"{common_opts}\""""
+        run(cmd)
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Limits step
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if len(opt.run_only) == 0 or "limits" in opt.run_only:
     chdir(os.path.join(base_dir, "Combine", "results", ext))
 
-    combine_mode = cfg.get("combine", {}).get("mode", "mu_inclusive")
+    combine_mode = cfg.get("combine", {}).get("mode", "highMass" if not opt.skip_intf else "mu_inclusive")
     workspace = f"Datacard_{ext}_{combine_mode}.root"
     title = cfg.get("limits", {}).get("title", f"{cfg['signal']['procs']}, {bkg_year}")
     mass_points = cfg.get("limits", {}).get("mass_points", cfg["signal"]["mass_points"])
     limit_jobs = opt.limit_jobs if opt.limit_jobs else cfg.get("limits", {}).get("jobs", 1)
 
+    # 'delta' (the signal/ggbox relative phase) to be pinned at 0 unless config says otherwise
+    combine_opts = cfg.get("limits", {}).get("combine_opts", "")
+    if not opt.skip_intf and "delta" not in combine_opts:
+        phase = cfg.get("interference", {}).get("phase", 0)
+        combine_opts = f"{combine_opts} --freezeParameters delta --setParameters delta={phase}".strip()
+
     cmd = f"""python3 ../../RunLimits.py {workspace} --outdir Limits --extension {ext} \
-        --mass_points {mass_points} --parallel {limit_jobs} --title \"{title}\" --lumi \"{lumi_label}\""""
+        --mass_points {mass_points} --parallel {limit_jobs} --title \"{title}\" --lumi \"{lumi_label}\" \
+        --combine_opts \"{combine_opts}\""""
+    run(cmd)
+
+    if opt.lumiscale:
+        lumiscale_workspace = f"Datacard_{ext}_lumiscale_{combine_mode}.root"
+        try:
+            lumiscale_lumi_label = "%.2f" % (float(lumi_label) * opt.lumiscale)
+        except ValueError:
+            lumiscale_lumi_label = f"{lumi_label} x{opt.lumiscale:g}"
+        lumiscale_title = f"{title} (Lumi x{opt.lumiscale:g})"
+
+        cmd = f"""python3 ../../RunLimits.py {lumiscale_workspace} --outdir Limits_lumiscale --extension {ext}_lumiscale \
+            --mass_points {mass_points} --parallel {limit_jobs} --title \"{lumiscale_title}\" --lumi \"{lumiscale_lumi_label}\" \
+            --combine_opts \"{combine_opts}\""""
+        run(cmd)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Impacts step
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+if len(opt.run_only) == 0 or "impacts" in opt.run_only:
+    chdir(os.path.join(base_dir, "Combine", "results", ext))
+
+    combine_mode = cfg.get("combine", {}).get("mode", "highMass" if not opt.skip_intf else "mu_inclusive")
+    workspace = f"Datacard_{ext}_{combine_mode}.root"
+    impact_jobs = opt.impact_jobs if opt.impact_jobs else cfg.get("impacts", {}).get("jobs", 1)
+
+    minimizer_opts = ("--cminDefaultMinimizerStrategy 0 --X-rtd MINIMIZER_freezeDisassociatedParams "
+                       "--X-rtd MINIMIZER_multiMin_hideConstants --X-rtd MINIMIZER_multiMin_maskConstraints "
+                       "--X-rtd MINIMIZER_multiMin_maskChannels=2")
+
+    # Run blind at MNom = the subrange's center mass point
+    set_params = ["r=1"]
+    freeze_params = []
+    if not opt.skip_intf:
+        phase = cfg.get("interference", {}).get("phase", 0)
+        set_params.append(f"delta={phase}")
+        freeze_params.append("delta")
+    impacts_opts = f"{minimizer_opts} -t -1 --setParameters {','.join(set_params)}"
+    if freeze_params:
+        impacts_opts += f" --freezeParameters {','.join(freeze_params)}"
+    extra_opts = cfg.get("impacts", {}).get("combine_opts", "")
+    if extra_opts:
+        impacts_opts = f"{impacts_opts} {extra_opts}"
+
+    cmd = f"""python3 ../../RunImpacts.py {workspace} --outdir Impacts --extension {ext} \
+        --mass {MNom} --parallel {impact_jobs} --combine_opts \"{impacts_opts}\""""
     run(cmd)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -71,6 +71,14 @@ limits:
 {limits_lines}
 """
 
+FINALFIT_YAML_INTERFERENCE_BLOCK = """
+############################
+##      Interference      ##
+############################
+interference:
+  catDict: "{catdict}"
+"""
+
 
 def get_options():
     parser = OptionParser(usage="usage: %prog campaign.yaml [options]")
@@ -87,6 +95,13 @@ def get_options():
                        help="Skip interference modelling, passed through to runFinalfit.py")
     parser.add_option("--limitJobs", dest="limit_jobs", default=1, type="int",
                        help="Number of mass points to run at the same time inside each subrange's")
+    parser.add_option("--impactJobs", dest="impact_jobs", default=1, type="int",
+                       help="Number of nuisance-parameter fits to run at the same time inside each "
+                       "subrange's impacts stage")
+    parser.add_option("--lumiscale", dest="lumiscale", default=None, type="float",
+                       help="Passed through to runFinalfit.py: also produce a lumi-projected limit "
+                       "(frozen rateParam * * <factor> on top of the nominal datacard) into Limits_lumiscale/, "
+                       "alongside the nominal Limits/.")
     parser.add_option("--batch", dest="batch", default="local",
                        choices=["local", "condor"],
                        help="local (default) runs the campaign here; condor submits the WHOLE campaign.")
@@ -129,6 +144,11 @@ def write_finalfit_config(cfg, subrange, extension):
         background_file=subrange.get("background_file", common["background_file"]),
     )
 
+    # interference step has to categorize the GGBox background so it needs this subrange's catDict too
+    cat_dict = subrange.get("catDict", cfg.get("signal_postprocessing", {}).get("catDict"))
+    if cat_dict:
+        yaml_text += FINALFIT_YAML_INTERFERENCE_BLOCK.format(catdict=cat_dict)
+
     # Optional: run limits on a different mass-point list than the one the
     # signal model was fit on (e.g. a finer scan for the limit plot). Falls
     # back to signal.mass_points in runFinalfit.py if omitted here.
@@ -170,6 +190,10 @@ def run_subrange(cfg, subrange, opt, capture):
         ff_cmd += f" --runOnly {opt.stages}"
     if opt.limit_jobs != 1:
         ff_cmd += f" --limitJobs {opt.limit_jobs}"
+    if opt.impact_jobs != 1:
+        ff_cmd += f" --impactJobs {opt.impact_jobs}"
+    if opt.lumiscale:
+        ff_cmd += f" --lumiscale {opt.lumiscale}"
 
     if not capture:
         return extension, run(ff_cmd, opt.dry_run, cwd=FINALFIT_DIR), None
@@ -207,6 +231,9 @@ def main():
     if opt.limit_jobs < 1:
         print(f"[ERROR] --limitJobs must be >= 1 (got {opt.limit_jobs}).")
         sys.exit(1)
+    if opt.impact_jobs < 1:
+        print(f"[ERROR] --impactJobs must be >= 1 (got {opt.impact_jobs}).")
+        sys.exit(1)
     # TODO remove when interference supports merge years
     if len(years) > 1 and not opt.skip_intf:
         print("[ERROR] Multi-year (mergeYears) campaigns don't support interference modelling yet "
@@ -222,6 +249,9 @@ def main():
         if opt.limit_jobs != 1:
             print(f" --> Each subrange job will request {opt.limit_jobs} CPUs and run its limits "
                   f"stage {opt.limit_jobs} mass points at a time.")
+        if opt.impact_jobs != 1:
+            print(f" --> Each subrange job will request {opt.impact_jobs} CPUs and run its impacts "
+                  f"stage {opt.impact_jobs} nuisance-parameter fits at a time.")
         sys.exit(submit_campaign(cfg, os.path.abspath(args[0]), opt, FINALFIT_DIR))
     print(f" --> Subranges to run: {[s['name'] for s in subranges]}")
     print(" --> Assuming signal_X-Y/ and data/ are already populated "
