@@ -32,10 +32,7 @@ options = od()
 if opt.inputConfig != '':
   if os.path.exists( opt.inputConfig ):
 
-    #copy file to have common name and then import cfg options (dict)
-    os.system("cp %s config.py"%opt.inputConfig)
-    from config import backgroundScriptCfg
-    _cfg = backgroundScriptCfg
+    _cfg = extractConfig( opt.inputConfig, "backgroundScriptCfg" )
 
     #Extract options
     options['dataFile']     = _cfg['inputWS']
@@ -53,9 +50,6 @@ if opt.inputConfig != '':
     options['plotRatio']               = opt.plotRatio
     options['jobOpts']                 = opt.jobOpts
     options['printOnly']               = opt.printOnly
-
-    # Delete copy of file
-    os.system("rm config.py")
 
   else:
     print("[ERROR] %s config file does not exist. Leaving..."%opt.inputConfig)

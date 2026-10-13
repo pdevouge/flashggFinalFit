@@ -1,10 +1,18 @@
 import os, sys
 import glob
 import re
+import importlib.util
 import ROOT
 import math
 from collections import OrderedDict as od
 from commonObjects import *
+
+# Load a config file directly by path (no shared 'config.py' copy)
+def extractConfig( _inputConfig, _cfgVarName ):
+  spec = importlib.util.spec_from_file_location("scriptCfgModule_%d"%os.getpid(), _inputConfig)
+  cfgmod = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(cfgmod)
+  return getattr(cfgmod, _cfgVarName)
 
 # Function for iterating over ROOT argsets in workspace
 def rooiter(x):

@@ -90,14 +90,14 @@ shift
 done
 
 
-OUTDIR="outdir_${EXT}"
+OUTDIR="results/outdir_${EXT}"
 echo "[INFO] outdir is $OUTDIR, INTLUMI $INTLUMI"
 
 if [ $ISDATA == 1 ]; then
 DATAEXT="-Data"
 fi
 echo "INTLUMI is $INTLUMI, YEAR is $YEAR"
-OUTDIR="outdir_${EXT}"
+OUTDIR="results/outdir_${EXT}"
 
 mkdir -p $OUTDIR
 

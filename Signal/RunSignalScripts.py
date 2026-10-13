@@ -33,10 +33,7 @@ options = od()
 if opt.inputConfig != '':
   if os.path.exists( opt.inputConfig ):
 
-    #copy file to have common name and then import cfg options (dict)
-    os.system("cp %s config.py"%opt.inputConfig)
-    from config import signalScriptCfg
-    _cfg = signalScriptCfg
+    _cfg = extractConfig( opt.inputConfig, "signalScriptCfg" )
 
     #Extract options
     options['inputWSDir']   = _cfg['inputWSDir']
@@ -59,9 +56,6 @@ if opt.inputConfig != '':
     options['jobOpts']                 = opt.jobOpts
     options['groupSignalFitJobsByCat'] = opt.groupSignalFitJobsByCat
     options['printOnly']               = opt.printOnly
-
-    #Delete copy of file
-    os.system("rm config.py")
 
   else:
     print("[ERROR] %s config file does not exist. Leaving..."%opt.inputConfig)
