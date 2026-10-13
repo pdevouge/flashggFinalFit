@@ -142,10 +142,6 @@ if opt.only_year and era_qualified and not opt.background_file:
 if opt.background_file:
     print(f" --> Background file overridden: {cfg.get('background', {}).get('file')} -> {bkg_file}")
 
-# TODO: interference merge years
-if merge_years and not opt.skip_intf:
-    fail("Multi-year (mergeYears) campaigns don't support interference modelling yet. Pass --skipIntf.")
-
 # Single label used for the one combined background fit and for Combine/limits naming. 
 bkg_year = merged_label if merge_years else years[0]
 
@@ -203,7 +199,12 @@ signalScriptCfg = {{
 """
     write_file(os.path.join(base_dir, "Signal", "config", config_name), py_config)
 
-# TODO: Interference logic related
+def write_interference_config(year, ext_tag, ws_dir):
+    # Uses same config, signal config is simply copied into intf section.
+    write_signal_config(year, ext_tag, ws_dir)
+    copy_file(os.path.join(base_dir, "Signal", "config", config_name),
+              os.path.join(base_dir, "Interference", "config", config_name))
+
 if not merge_years:
     write_signal_config(years[0], ext, f'{input_dir}/{cfg["signal"]["dir"]}/ws_{cfg["signal"]["procs"]}/')
     copy_file(os.path.join(base_dir, "Signal", "config", config_name),
@@ -295,8 +296,6 @@ if len(opt.run_only) == 0 or "signal" in opt.run_only:
 # Interference step
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if (len(opt.run_only) == 0 or "interference" in opt.run_only) and not (opt.skip_intf):
-    # Run Background fit
-    # TODO: no mergeYears support here yet 
     chdir("../Interference")
 
     bins = np.concatenate([
@@ -315,24 +314,44 @@ if (len(opt.run_only) == 0 or "interference" in opt.run_only) and not (opt.skip_
     if not os.path.exists(catdict_path):
         fail(f"interference.catDict '{catdict_rel}' not found in {catdict_path}.")
 
-    for c in cat.split(","):
-        cmd = f"""python3 computeGGBoxEff.py --config tools/{years[0]}_cfg.yaml \
-            --massList {mPoints} --ext {ext} --proc {cfg["signal"]["procs"]} --year {years[0]} \
-            --cat {c} --catDict {catdict_path}"""
+    intf_plot_opt = "--doPlots" if not opt.dry_run else ""
+    # One pass per era, raw output kept per-era just like Signal: computeInterference.py runs with --ext <ext>_<year> 
+    # RunInterferencePackager.py then merges all eras' raw output into ONE file under the shared outdir_<ext>
+    ext_years = []
+    for year in years:
+        ext_year = f"{ext}_{year}" if era_qualified else ext
+        ext_years.append(ext_year)
+        if era_qualified:
+            print(f"\n---- Interference computation for era '{year}' ----")
+            ws_dir = f'{input_dir}/{cfg["signal"]["dir"]}_{year}/ws_{cfg["signal"]["procs"]}/'
+        else:
+            ws_dir = f'{input_dir}/{cfg["signal"]["dir"]}/ws_{cfg["signal"]["procs"]}/'
+        write_interference_config(year, ext_year, ws_dir)
+
+        cmd = f"""python3 RunInterferenceScripts.py --inputConfig {config_rel} --mode computeGGBoxEff \
+            --modeOpts \" --config tools/ggbox_ea_config/{year}_cfg.yaml --massList {mPoints} --catDict {catdict_path} \""""
         run(cmd)
 
-    intf_plot_opt = "--doPlots" if not opt.dry_run else ""
-    cmd = f"""python3 RunInterferenceScripts.py --inputConfig {config_rel} --mode computeIntf \
-        --modeOpts \" --minMass {MLow} --maxMass {MHigh} {intf_plot_opt} {cfg.get("interference", {}).get("options", "")} \""""
-    run(cmd)
+        cmd = f"""python3 RunInterferenceScripts.py --inputConfig {config_rel} --mode computeIntf \
+            --modeOpts \" --minMass {MLow} --maxMass {MHigh} {intf_plot_opt} {cfg.get("interference", {}).get("options", "")} \""""
+        run(cmd)
 
-    # Make sure that interference workspace was produced
-    for c in cat.split(","):
-        produced = os.path.join(base_dir, "Interference", f"results/outdir_{ext}", "computeIntf",
-                                "output", f"CMS-HGG_intfm_{ext}_{cfg['signal']['procs']}_{years[0]}_{c}.root")
-        if not opt.dry_run and not os.path.exists(produced):
-            fail(f"Interference step produced no workspace at {produced}. "
-                 f"Check Interference/results/outdir_{ext}/computeIntf/jobs/*.err")
+        # Make sure that interference workspace was produced
+        for c in cat.split(","):
+            produced = os.path.join(base_dir, "Interference", f"results/outdir_{ext_year}", "computeIntf",
+                                    "output", f"CMS-HGG_intfm_{ext_year}_{cfg['signal']['procs']}_{year}_{c}.root")
+            if not opt.dry_run and not os.path.exists(produced):
+                fail(f"Interference step produced no workspace at {produced} (era '{year}'). "
+                     f"Check Interference/results/outdir_{ext_year}/computeIntf/jobs/*.err")
+
+    # Merge all eras' raw interference output into one packaged file per category.
+    if merge_years:
+        cmd = f"""python3 RunInterferencePackager.py --cats {cat} --proc {cfg["signal"]["procs"]} \
+            --exts {','.join(ext_years)} --outputExt {ext} --mergeYears --batch local"""
+    else:
+        cmd = f"""python3 RunInterferencePackager.py --cats {cat} --proc {cfg["signal"]["procs"]} \
+            --exts {ext_years[0]} --outputExt {ext} --year {years[0]} --batch local"""
+    run(cmd)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Background step
@@ -397,10 +416,10 @@ if len(opt.run_only) == 0 or "combine" in opt.run_only:
         run(f"cp {src} {models_bkg}/")
     if not opt.skip_intf:
         for c in cat.split(","):
-            intf_src = os.path.join(base_dir, "Interference", f"results/outdir_{ext}", "computeIntf",
-                                    "output", f"CMS-HGG_intfm_{ext}_{cfg['signal']['procs']}_{years[0]}_{c}.root")
+            intf_name = f"CMS-HGG_intfm_{ext}_{cfg['signal']['procs']}_{c}.root" if merge_years else f"CMS-HGG_intfm_{ext}_{cfg['signal']['procs']}_{c}_{years[0]}.root"
+            intf_src = os.path.join(base_dir, "Interference", f"results/outdir_{ext}", "computeIntf", "output", intf_name)
             if not os.path.exists(intf_src) and not opt.dry_run:
-                fail(f"No interference model at {intf_src}. Did the interference step run for '{years[0]}'?")
+                fail(f"No interference model at {intf_src}. Did the interference packaging step run?")
             copy_file(intf_src, os.path.join(models_intf, os.path.basename(intf_src)))
     src = os.path.join(base_dir, 'Datacard', 'results', f'Datacard_{ext}.txt')
     if not os.path.exists(src):
@@ -460,11 +479,19 @@ if len(opt.run_only) == 0 or "limits" in opt.run_only:
     mass_points = cfg.get("limits", {}).get("mass_points", cfg["signal"]["mass_points"])
     limit_jobs = opt.limit_jobs if opt.limit_jobs else cfg.get("limits", {}).get("jobs", 1)
 
-    # 'delta' (the signal/ggbox relative phase) to be pinned at 0 unless config says otherwise
+    # 'delta' (the signal/ggbox relative phase) to be pinned at 0 unless config says otherwise. 
+    # 'width' (the resonance's relative width) is constant at its nominal value by construction; frozen explicitly here.
+    # A --combine_opts override (eg. a width scan) is the only thing that can move it. 
     combine_opts = cfg.get("limits", {}).get("combine_opts", "")
+    freeze_params = []
+    if "width" not in combine_opts:
+        freeze_params.append("width")
     if not opt.skip_intf and "delta" not in combine_opts:
         phase = cfg.get("interference", {}).get("phase", 0)
-        combine_opts = f"{combine_opts} --freezeParameters delta --setParameters delta={phase}".strip()
+        combine_opts = f"{combine_opts} --setParameters delta={phase}".strip()
+        freeze_params.append("delta")
+    if freeze_params:
+        combine_opts = f"{combine_opts} --freezeParameters {','.join(freeze_params)}".strip()
 
     cmd = f"""python3 ../../RunLimits.py {workspace} --outdir Limits --extension {ext} \
         --mass_points {mass_points} --parallel {limit_jobs} --title \"{title}\" --lumi \"{lumi_label}\" \

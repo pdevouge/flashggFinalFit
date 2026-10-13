@@ -71,14 +71,34 @@ def writeSubFiles(_opts):
           _f.write("  python3 %s/scripts/computeInterference.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --width %s --massPoints %s %s\n"%(iwd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['width'],_opts['massPoints'],_opts['modeOpts']))
           _f.write("fi\n")
 
+    # For looping over proc x cat
+    elif( _opts['mode'] == "computeGGBoxEff" ):
+      for pidx in range(_opts['nProcs']):
+        for cidx in range(_opts['nCats']):
+          pcidx = pidx*_opts['nCats']+cidx
+          p,c = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx]
+          _f.write("if [ $1 -eq %g ]; then\n"%pcidx)
+          _f.write("  python3 %s/scripts/computeGGBoxEff.py --ext %s --proc %s --cat %s --year %s %s\n"%(iwd__,_opts['ext'],p,c,_opts['year'],_opts['modeOpts']))
+          _f.write("fi\n")
+
+    # For looping over cat only -- one packaged file per category, merging per-era extensions
+    elif( _opts['mode'] == "packageInterference" ):
+      for cidx in range(_opts['nCats']):
+        c = _opts['cats'].split(",")[cidx]
+        _f.write("if [ $1 -eq %g ]; then\n"%cidx)
+        _f.write("  python3 %s/scripts/packageInterference.py --cat %s --proc %s --outputExt %s %s\n"%(iwd__,c,_opts['proc'],_opts['ext'],_opts['modeOpts']))
+        _f.write("fi\n")
+
     # Close .sh file
     _f.close()
     os.system("chmod 775 %s/%s.sh"%(_jobdir,_executable))
 
     # Condor submission file
     _fsub = open("%s/%s.sub"%(_jobdir,_executable),"w")
-    if _opts['mode'] == "computeIntf":
+    if _opts['mode'] in ("computeIntf","computeGGBoxEff"):
       writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats']*_opts['nProcs'],_opts['jobOpts'],_opts)
+    elif _opts['mode'] == "packageInterference":
+      writeCondorSub(_fsub,_executable,_opts['queue'],_opts['nCats'],_opts['jobOpts'])
     _fsub.close()
 
   # SGE...
@@ -98,6 +118,28 @@ def writeSubFiles(_opts):
           _f.write("python3 %s/scripts/computeInterference.py --inputWSDir %s --ext %s --proc %s --cat %s --year %s --width %s --massPoints %s %s\n"%(iwd__,_opts['inputWSDir'],_opts['ext'],p,c,_opts['year'],_opts['width'],_opts['massPoints'],_opts['modeOpts']))
           _f.close()
           os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,pcidx))
+
+    # For separate submission file per process x category
+    elif( _opts['mode'] == "computeGGBoxEff" ):
+      for pidx in range(_opts['nProcs']):
+        for cidx in range(_opts['nCats']):
+          pcidx = pidx*_opts['nCats']+cidx
+          p,c = _opts['procs'].split(",")[pidx], _opts['cats'].split(",")[cidx]
+          _f = open("%s/%s_%g.sh"%(_jobdir,_executable,pcidx),"w")
+          writePreamble(_f)
+          _f.write("python3 %s/scripts/computeGGBoxEff.py --ext %s --proc %s --cat %s --year %s %s\n"%(iwd__,_opts['ext'],p,c,_opts['year'],_opts['modeOpts']))
+          _f.close()
+          os.system("chmod 775 %s/%s_%g.sh"%(_jobdir,_executable,pcidx))
+
+    # For separate submission file per category -- packaging merges per-era extensions
+    elif( _opts['mode'] == "packageInterference" ):
+      for cidx in range(_opts['nCats']):
+        c = _opts['cats'].split(",")[cidx]
+        _f = open("%s/%s_%s.sh"%(_jobdir,_executable,c),"w")
+        writePreamble(_f)
+        _f.write("python3 %s/scripts/packageInterference.py --cat %s --proc %s --outputExt %s %s\n"%(iwd__,c,_opts['proc'],_opts['ext'],_opts['modeOpts']))
+        _f.close()
+        os.system("chmod 775 %s/%s_%s.sh"%(_jobdir,_executable,c))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -122,26 +164,40 @@ def submitFiles(_opts):
     jobOptsStr = _opts['jobOpts']
 
     # For separate submission file per process x category
-    if( _opts['mode'] == "computeIntf" ):
+    if( _opts['mode'] in ("computeIntf","computeGGBoxEff") ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
           pcidx = pidx*_opts['nCats']+cidx
           _subfile = "%s/%s_%g"%(_jobdir,_executable,pcidx)
           cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
           run(cmdLine)
+    # Separate submission per category
+    elif( _opts['mode'] == "packageInterference" ):
+      for cidx in range(_opts['nCats']):
+        c = _opts['cats'].split(",")[cidx]
+        _subfile = "%s/%s_%s"%(_jobdir,_executable,c)
+        cmdLine = "qsub -q hep.q %s -o %s.log -e %s.err %s.sh"%(jobOptsStr,_subfile,_subfile,_subfile)
+        run(cmdLine)
     print("  --> Finished submitting files")
 
   # Running locally
   elif _opts['batch'] == 'local':
     _executable = "sub_%s_%s"%(_opts['mode'],_opts['ext'])
     # For separate submission file per process x category
-    if( _opts['mode'] == "computeIntf" ):
+    if( _opts['mode'] in ("computeIntf","computeGGBoxEff") ):
       for pidx in range(_opts['nProcs']):
         for cidx in range(_opts['nCats']):
           pcidx = pidx*_opts['nCats']+cidx
           _subfile = "%s/%s_%g"%(_jobdir,_executable,pcidx)
           cmdLine = "bash %s.sh"%(_subfile)
           run(cmdLine)
+    # Separate submission per category
+    elif( _opts['mode'] == "packageInterference" ):
+      for cidx in range(_opts['nCats']):
+        c = _opts['cats'].split(",")[cidx]
+        _subfile = "%s/%s_%s"%(_jobdir,_executable,c)
+        cmdLine = "bash %s.sh"%_subfile
+        run(cmdLine)
     print("  --> Finished running files")
 
 

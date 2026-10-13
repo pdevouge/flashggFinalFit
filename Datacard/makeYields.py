@@ -196,25 +196,25 @@ if( not opt.skipIntf ) & ( opt.cat != "NOTAG" ):
 
       _proc_s0 = procToData(proc.split("_")[0])
 
+      # Tag the interference process names with year the same way _proc itself is tagged for the signal, regardless of mergeYears.
+      _proc_intf_tag = "%s_%s"%(_proc_intf,year)
+      _proc_ggb_tag = "%s_%s"%(_proc_ggb,year)
+
       # Define category: add year tag if not merging
       if opt.mergeYears: _cat = opt.cat
       else: _cat = "%s_%s"%(opt.cat,year)
 
-      # Input model ws: CMS-HGG_intfm_<ext>_<proc>_<year>_<cat>.root
-      _modelWSFile = "%s/CMS-HGG_%s_%s_%s_%s_%s.root"%(opt.intfModelWSDir,opt.intfModelExt,opt.ext,proc,year,opt.cat)
+      # Input model ws
+      _modelWSFile = "%s/CMS-HGG_%s_%s_%s_%s.root"%(opt.intfModelWSDir,opt.intfModelExt,opt.ext,proc,_cat)
       _model_ggb = "%s:Mbkg_%s"%(intfWSName__,_id)
       _model_sbi = "%s:sbi_%s"%(intfWSName__,_id)
 
-      # Neither row has an input flashgg dataset: their yields come entirely from the
-      # <pdf>_norm functions in the interference workspace, and the yield loop below
-      # only walks type=='sig'. Spell the placeholders and the rate out rather than
-      # inheriting them -- _rate, _inputWSFile and _nominalDataName used to leak in
-      # from whichever loop above ran last, which broke under --skipBkg.
+      # Extract rate from lumi
       _intfRate = float(lumiMap[year])*1000
 
-      print(" --> Adding to dataFrame: (interference procs,cat) = (%s & %s,%s)"%(_proc_ggb,_proc_intf,_cat))
-      data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb,'-',_cat,'-','-',_modelWSFile,_model_ggb,_intfRate,'-']
-      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf,'%s_sbi'%_proc_s0,_cat,'-','-',_modelWSFile,_model_sbi,_intfRate,'-']
+      print(" --> Adding to dataFrame: (interference procs,cat) = (%s & %s,%s)"%(_proc_ggb_tag,_proc_intf_tag,_cat))
+      data.loc[len(data)] = [year,'ggbox_bkg',_proc_ggb,_proc_ggb_tag,'-',_cat,'-','-',_modelWSFile,_model_ggb,_intfRate,'-']
+      data.loc[len(data)] = [year,'intf',_proc_intf,_proc_intf_tag,'%s_sbi'%_proc_s0,_cat,'-','-',_modelWSFile,_model_sbi,_intfRate,'-']
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Yields: for each signal row in dataFrame extract the yield

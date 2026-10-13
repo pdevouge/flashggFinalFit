@@ -234,11 +234,6 @@ def main():
     if opt.impact_jobs < 1:
         print(f"[ERROR] --impactJobs must be >= 1 (got {opt.impact_jobs}).")
         sys.exit(1)
-    # TODO remove when interference supports merge years
-    if len(years) > 1 and not opt.skip_intf:
-        print("[ERROR] Multi-year (mergeYears) campaigns don't support interference modelling yet "
-              "-- pass --skipIntf.")
-        sys.exit(1)
 
     print(f"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ CAMPAIGN: {cfg['campaign']} ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     if opt.batch == "condor":

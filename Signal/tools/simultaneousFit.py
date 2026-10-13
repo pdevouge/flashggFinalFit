@@ -184,7 +184,6 @@ class SimultaneousFit:
     self.MH = _MH
     self.MHLow = _MHLow
     self.MHHigh = _MHHigh
-    self.width = _width
     self.massPoints = _massPoints
     self.nBins = _nBins
     self.MHPolyOrder = _MHPolyOrder
@@ -201,6 +200,8 @@ class SimultaneousFit:
     # Dicts to store all fit vars, polynomials, pdfs and splines
     self.nGaussians = 1
     self.Vars = od()
+    self.Vars['width'] = ROOT.RooRealVar("width","width",_width,0.,1.)
+    self.Vars['width'].setConstant(True)
     self.Varlists = od()
     self.Polynomials = od()
     self.Pdfs = od()
@@ -451,7 +452,11 @@ class SimultaneousFit:
     ea = "@%g"%dependents.getSize()
     dependents.add(self.Splines['effs'])
 
-    formula = f"2/pi * 1/{mx} * ({m_o_mx})^5 * {self.width} * {kappa_f} / ((({m_o_mx})^2 - 1)^2 + {self.width}^2) * {xsec_ratio} * {ea}"
+    # -- width (relative width Gamma/M), a genuine RooRealVar -- #
+    width = "@%g"%dependents.getSize()
+    dependents.add(self.Vars['width'])
+
+    formula = f"2/pi * 1/{mx} * ({m_o_mx})^5 * {width} * {kappa_f} / ((({m_o_mx})^2 - 1)^2 + {width}^2) * {xsec_ratio} * {ea}"
 
     self.Pdfs['rel_bw'] = ROOT.RooGenericPdf("rel_bw","",formula, dependents)
     self.Functions['rel_bw'] = ROOT.RooFormulaVar("rel_bw_func","",formula, dependents)

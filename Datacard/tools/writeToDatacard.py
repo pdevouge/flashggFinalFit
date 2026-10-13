@@ -46,8 +46,8 @@ def writeProcesses(f,d,options):
       lbin_procXcat += "%-55s "%cat
       lproc += "%-55s "%r['proc']
       if r['proc'] == "bkg_mass": lprocid += "%-55s "%"1"
-      elif r['proc'] == "ggbox_mass": lprocid += "%-55s "%"2"
-      elif r['proc'] == "sbi_mass": lprocid += "%-55s "%"3"
+      elif r['proc'].startswith("ggbox_mass"): lprocid += "%-55s "%"2" # not ==: mergeYears tags these per era 
+      elif r['proc'].startswith("sbi_mass"): lprocid += "%-55s "%"3"
       else:
         lprocid += "%-55s "%sigID
         sigID -= 1

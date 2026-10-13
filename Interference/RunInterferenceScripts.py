@@ -14,7 +14,7 @@ def get_options():
   parser = OptionParser()
   # Take inputs from config file
   parser.add_option('--inputConfig', dest='inputConfig', default='', help="Name of input config file (if specified will ignore other options)")
-  parser.add_option('--mode', dest='mode', default='', help="Which script to run. Options: ['computeIntf']")
+  parser.add_option('--mode', dest='mode', default='', help="Which script to run. Options: ['computeIntf', 'computeGGBoxEff']")
   parser.add_option('--modeOpts', dest='modeOpts', default='', help="Additional options to add to command line when running scripts (specify all within quotes e.g. \"--XYZ ABC\")")
   parser.add_option('--jobOpts', dest='jobOpts', default='', help="Additional options to add to job submission. For Condor separate individual options with a colon (specify all within quotes e.g. \"option_xyz = abc+option_123 = 456\")")
   parser.add_option('--printOnly', dest='printOnly', default=False, action="store_true", help="Dry run: print submission files only")
@@ -64,8 +64,8 @@ else:
   leave()
 
 # Check if mode in allowed options
-if options['mode'] not in ['computeIntf']:
-  print(" --> [ERROR] mode %s not allowed. Please use one of the following: ['computeIntf']. Leaving..."%options['mode'])
+if options['mode'] not in ['computeIntf', 'computeGGBoxEff']:
+  print(" --> [ERROR] mode %s not allowed. Please use one of the following: ['computeIntf', 'computeGGBoxEff']. Leaving..."%options['mode'])
   leave()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -109,6 +109,7 @@ if options['printOnly']:
   print(" --> PRINT ONLY (no submission)")
   print("")
 if options['mode'] == "computeIntf": print(" --> Computing interference between signal and the gg->gamma gamma box...")
+elif options['mode'] == "computeGGBoxEff": print(" --> Computing gg->gamma gamma box efficiency...")
 print(" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

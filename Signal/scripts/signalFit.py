@@ -366,12 +366,12 @@ else:
 # FIT: simultaneous signal fit (ssf)
 ssfMap = od()
 name = "Total" if opt.skipVertexScenarioSplit else "RV"
+# Relative width (Gamma/M), as a plain float, fed into SimultaneousFit as the nominal value
 if 'p' in opt.width:
-  width = opt.width.replace('p','.')
-  width = f"({float(width)/100})"
+  width = float(opt.width.replace('p','.')) / 100
 else:
-  width = "%s.%s"%(opt.width[0],opt.width[1:])
-  width = f"(sqrt(2)*{width}^2)"
+  kmpl = float("%s.%s"%(opt.width[0],opt.width[1:]))
+  width = math.sqrt(2) * kmpl**2
 ssfRV = SimultaneousFit(name,opt.proc,opt.cat,effAcc,datasetRVForFit,xvar.Clone(),true_mass.Clone(),reduced_mass.Clone(),MH,MHLow,MHHigh,
                         width,
                         opt.massPoints,opt.nBins,opt.MHPolyOrder,opt.minimizerMethod,opt.minimizerTolerance)

@@ -168,8 +168,8 @@ def plotInterferencePhase(ifm,_mass,_outdir='./',_extension='',_delta=0.,_nWidth
   ifm.Vars['MH'].setVal(float(_mass))
   ifm.Vars['dPhi'].setVal(float(_delta))
   lo, hi = float(ifm.MHLow), float(ifm.MHHigh)
-  w = float(str(ifm.width).strip("()"))
-  gamma = np.sqrt(2)*w*w*_mass if ifm.proc == 'rsg' else w*_mass
+  w = ifm.Vars['width'].getVal()
+  gamma = w*_mass
   zlo, zhi = max(lo, _mass - _nWidths*gamma), min(hi, _mass + _nWidths*gamma)
   xz = np.linspace(zlo, zhi, _nPoints)
 

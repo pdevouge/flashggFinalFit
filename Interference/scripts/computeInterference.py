@@ -22,7 +22,7 @@ def get_options():
   parser = OptionParser()
   parser.add_option("--xvar", dest='xvar', default='CMS_hgg_mass', help="Observable to fit")
   parser.add_option("--inputWSDir", dest='inputWSDir', default='', help="Input flashgg WS directory")
-  parser.add_option("--ext", dest='ext', default='', help="Extension")
+  parser.add_option("--ext", dest='ext', default='', help="Extension. Names both this script's own output dir and where it reads the signal fit from)")
   parser.add_option("--proc", dest='proc', default='', help="Signal process")
   parser.add_option("--cat", dest='cat', default='', help="RECO category")
   parser.add_option("--year", dest='year', default='2016', help="Year")
@@ -53,16 +53,10 @@ xvar = inputWS0.var(opt.xvar)
 xvar.setRange(int(MHLow), int(MHHigh))
 xvarFit = xvar.Clone()
 
-if 'p' in opt.width:
-  width = opt.width.replace('p','.')
-  width = f"({float(width)/100})"
-else:
-  width = "%s.%s"%(opt.width[0],opt.width[1:])
+print(" --> Building interference model for (proc,cat,year) = (%s,%s,%s), range [%s, %s]"
+      %(opt.proc,opt.cat,opt.year,MHLow,MHHigh))
 
-print(" --> Building interference model for (proc,cat,year) = (%s,%s,%s), width %s, range [%s, %s]"
-      %(opt.proc,opt.cat,opt.year,width,MHLow,MHHigh))
-
-intfm = InterferenceModel(opt.proc,opt.cat,opt.ext,opt.year,sqrts__,xvar,MHLow,MHHigh,opt.massPoints,width)
+intfm = InterferenceModel(opt.proc,opt.cat,opt.ext,opt.year,sqrts__,xvar,MHLow,MHHigh,opt.massPoints)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SAVE: to output workspace

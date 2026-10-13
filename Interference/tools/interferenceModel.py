@@ -12,7 +12,7 @@ from commonTools import *
 
 class InterferenceModel:
   # Constructor
-  def __init__(self,_proc,_cat,_ext,_year,_sqrts,_xvar,_MHLow,_MHHigh,_massPoints,_width):
+  def __init__(self,_proc,_cat,_ext,_year,_sqrts,_xvar,_MHLow,_MHHigh,_massPoints):
     self.proc = _proc
     self.cat = _cat
     self.ext = _ext
@@ -23,7 +23,6 @@ class InterferenceModel:
     self.MHLow = _MHLow
     self.MHHigh = _MHHigh
     self.massPoints = _massPoints
-    self.width = _width
     self.Vars = od()
     self.Vars['dPhi'] = ROOT.RooRealVar("delta","delta",0.,0.,2*np.pi)
     self.Pdfs = od()
@@ -41,6 +40,7 @@ class InterferenceModel:
   def retrieveSigInfos(self, wsin):
 
     self.Vars['MH'] = wsin.var('MH')
+    self.Vars['width'] = wsin.var('width')
     self.Vars['truem'] = wsin.var('true_mass')
     # self.Splines['ea'] = wsin.function("effs_Total")
     # self.Splines['ea'].recursiveRedirectServers(ROOT.RooArgSet(self.xvar))
@@ -50,11 +50,12 @@ class InterferenceModel:
   def make_interference_real(self):
     # (mgg**2-Mx**2)/sqrt((mgg**2-Mx**2)**2 + Mx**2*Gx**2)
     dependents = ROOT.RooArgList()
-    Gx = f"sqrt(2) * {self.width}^2 * MH " if self.proc=='rsg' else f"{self.width}*MH"
-    formula = f"(CMS_hgg_mass^2-MH^2) / sqrt((CMS_hgg_mass^2-MH^2)^2 + MH^2*({Gx})^2)"
-
     dependents.add(self.xvar)
     dependents.add(self.Vars['MH'])
+    dependents.add(self.Vars['width'])
+
+    Gx = "width*MH"
+    formula = f"(CMS_hgg_mass^2-MH^2) / sqrt((CMS_hgg_mass^2-MH^2)^2 + MH^2*({Gx})^2)"
 
     self.Functions['I_re'] = ROOT.RooFormulaVar("interference_re_%s"%self.name,"",formula, dependents)
 
@@ -62,11 +63,12 @@ class InterferenceModel:
   def make_interference_imaginary(self):
     # Mx*Gx/sqrt((mgg**2-Mx**2)**2 + Mx**2*Gx**2)
     dependents = ROOT.RooArgList()
-    Gx = f"sqrt(2) * {self.width}^2 * MH " if self.proc=='rsg' else f"{self.width}*MH"
-    formula = f"MH*{Gx} / sqrt((CMS_hgg_mass^2-MH^2)^2 + MH^2*({Gx})^2)"
-
     dependents.add(self.xvar)
     dependents.add(self.Vars['MH'])
+    dependents.add(self.Vars['width'])
+
+    Gx = "width*MH"
+    formula = f"MH*{Gx} / sqrt((CMS_hgg_mass^2-MH^2)^2 + MH^2*({Gx})^2)"
 
     self.Functions['I_im'] = ROOT.RooFormulaVar("interference_im_%s"%self.name,"",formula, dependents)
 
