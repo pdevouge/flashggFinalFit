@@ -421,7 +421,7 @@ class SimultaneousFit:
       'truem': self.true_mass
     }
     for vname, var in var_map.items():
-      self.Splines[f'xsec_mcfm_{vname}'] = ROOT.RooSpline1D("xsec_mcfm_%s_%s"%(vname,self.name),"xsec_mcfm_%s_%s"%(vname,self.name), var, len(xsec_mcfm), xsec_mcfm.index.to_numpy(), xsec_mcfm['xsec_lo'].to_numpy())
+      self.Splines[f'xsec_mcfm_{vname}'] = ROOT.RooSpline1D("xsec_mcfm_%s_%s"%(vname,self.name),"xsec_mcfm_%s_%s"%(vname,self.name), var, len(xsec_mcfm), xsec_mcfm.index.to_numpy(), xsec_mcfm['xsec_nlo'].to_numpy())
       self.Splines[f'ghgg_sm_{vname}'] = ROOT.RooSpline1D("ghgg_sm_%s_%s"%(vname,self.name),"ghgg_sm_%s_%s"%(vname,self.name), var, len(gx_lhc_gev), gx_lhc_gev.index.to_numpy(), gx_lhc_gev[decay].to_numpy())
 
   def buildTrueLineshape(self, decay='hgg', xsec='sm'):
@@ -466,6 +466,10 @@ class SimultaneousFit:
 
     self.xvar.setBins(10000, "cache")
     self.Pdfs['final'] = ROOT.RooFFTConvPdf("final_model", "rel_bw * dcb", self.xvar, self.Pdfs['rel_bw'], self.Pdfs['final_reso_model'])
+    # rel_bw depends on the xsec_mcfm spline, only tabulated within its own mass range. Default buffer
+    # strategy (Extend) evaluates rel_bw beyond [xvar.min,xvar.max] to pad the FFT, which can land outside
+    # that tabulated range and return NaN. Flat avoids evaluating the pdf there at all.
+    self.Pdfs['final'].setBufferStrategy(ROOT.RooFFTConvPdf.Flat)
 
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   def buildDCBplusGaussian(self,_recursive=True):

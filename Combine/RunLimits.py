@@ -50,7 +50,7 @@ if opt.outdir:
 tag = "limit_%s" % opt.ext
 grid = ",".join("%g" % m for m in mass_points)
 
-cmd = f"""combineTool.py -M AsymptoticLimits -d {datacard} \
+cmd = f"""combineTool.py -M AsymptoticLimits -d {datacard} --cminDefaultMinimizerStrategy 0 \
   -n .{tag} --parallel {opt.parallel} -m {grid} --run blind --rAbsAcc {opt.rAbsAcc} --rRelAcc {opt.rRelAcc} {opt.combine_opts}"""
 
 subprocess.call(cmd, shell=True)
